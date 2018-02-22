@@ -340,7 +340,7 @@ class BlendFileBlock:
             path: dna.FieldPath,
             default=...,
             sdna_index_refine=None,
-            null_terminated: typing.Optional[bool] = None,
+            null_terminated=True,
             as_str=True,
             base_index=0,
             ) -> typing.Any:
@@ -353,8 +353,8 @@ class BlendFileBlock:
         :param default: The value to return when the field does not exist.
             Use Ellipsis (the default value) to raise a KeyError instead.
         :param null_terminated: Only used when reading bytes or strings. When
-            True, stops reading at the first zero byte. Defaults to the same
-            value as `as_str`, as this is mostly used for string data.
+            True, stops reading at the first zero byte; be careful with this
+            when reading binary data.
         :param as_str: When True, automatically decode bytes to string
             (assumes UTF-8 encoding).
         """
@@ -383,7 +383,7 @@ class BlendFileBlock:
                            path_root: dna.FieldPath = b'',
                            default=...,
                            sdna_index_refine=None,
-                           null_terminated: typing.Optional[bool] = None,
+                           null_terminated=True,
                            as_str=True,
                            base_index=0,
                            ) -> typing.Iterator[typing.Tuple[bytes, typing.Any]]:
@@ -417,10 +417,6 @@ class BlendFileBlock:
                 yield from self.get_recursive_iter(f.name.name_only, path_full, default=default,
                                                    null_terminated=null_terminated, as_str=as_str)
 
-    def items_recursive_iter(self):
-        for k in self.keys():
-            yield from self.get_recursive_iter(k, as_str=False)
-
     def get_data_hash(self):
         """
         Generates a 'hash' that can be used instead of addr_old as block id, and that should be 'stable' across .blend
@@ -434,7 +430,7 @@ class BlendFileBlock:
                 self.file.header, self.file.handle, k).dna_name.is_pointer
 
         hsh = 1
-        for k, v in self.items_recursive_iter():
+        for k, v in self.items_recursive():
             if not _is_pointer(self, k):
                 hsh = zlib.adler32(str(v).encode(), hsh)
         return hsh
@@ -486,27 +482,31 @@ class BlendFileBlock:
     # Python convenience API
 
     # dict like access
-    def __getitem__(self, item):
-        return self.get(item, as_str=False)
+    def __getitem__(self, path: dna.FieldPath):
+        return self.get(path, as_str=False)
 
     def __setitem__(self, item, value):
         self.set(item, value)
 
-    def keys(self):
-        return (f.dna_name.name_only for f in self.dna_type.fields)
+    def keys(self) -> typing.Iterator[bytes]:
+        """Generator, yields all field names of this block."""
+        return (f.name.name_only for f in self.dna_type.fields)
 
     def values(self):
         for k in self.keys():
             try:
                 yield self[k]
-            except NotImplementedError as ex:
-                msg, dna_name, dna_type = ex.args
-                yield "<%s>" % dna_type.dna_type_id.decode('ascii')
+            except exceptions.NoReaderImplemented as ex:
+                yield '<%s>' % ex.dna_type.dna_type_id.decode('ascii')
 
     def items(self):
         for k in self.keys():
             try:
                 yield (k, self[k])
-            except NotImplementedError as ex:
-                msg, dna_name, dna_type = ex.args
-                yield (k, "<%s>" % dna_type.dna_type_id.decode('ascii'))
+            except exceptions.NoReaderImplemented as ex:
+                yield (k, '<%s>' % ex.dna_type.dna_type_id.decode('ascii'))
+
+    def items_recursive(self):
+        """Generator, yields (property path, property value) recursively for all properties."""
+        for k in self.keys():
+            yield from self.get_recursive_iter(k, as_str=False)

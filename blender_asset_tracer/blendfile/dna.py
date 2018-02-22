@@ -181,7 +181,7 @@ class Struct:
                   fileobj: typing.BinaryIO,
                   path: FieldPath,
                   default=...,
-                  null_terminated: typing.Optional[bool]=None,
+                  null_terminated=True,
                   as_str=True,
                   ):
         """Read the value of the field from the blend file.
@@ -196,8 +196,8 @@ class Struct:
         :param default: The value to return when the field does not exist.
             Use Ellipsis (the default value) to raise a KeyError instead.
         :param null_terminated: Only used when reading bytes or strings. When
-            True, stops reading at the first zero byte. Defaults to the same
-            value as `as_str`, as this is mostly used for string data.
+            True, stops reading at the first zero byte. Be careful with this
+            default when reading binary data.
         :param as_str: When True, automatically decode bytes to string
             (assumes UTF-8 encoding).
         """
