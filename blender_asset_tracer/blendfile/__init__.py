@@ -100,7 +100,7 @@ class BlendFile:
         self.code_index = collections.defaultdict(list)
         self.structs = []
         self.sdna_index_from_id = {}
-        self.block_from_offset = {}
+        self.block_from_addr = {}
 
         self.load_dna1_block()
 
@@ -123,9 +123,8 @@ class BlendFile:
             raise exceptions.NoDNA1Block("No DNA1 block in file, not a valid .blend file",
                                          self.filepath)
 
-        # cache (could lazy init, incase we never use?)
-        self.block_from_offset = {block.addr_old: block for block in self.blocks
-                                  if block.code != b'ENDB'}
+        self.block_from_addr = {block.addr_old: block for block in self.blocks
+                                if block.code != b'ENDB'}
 
     def __repr__(self):
         clsname = self.__class__.__qualname__
@@ -149,7 +148,7 @@ class BlendFile:
         # same as looking looping over all blocks,
         # then checking ``block.addr_old == offset``
         assert (type(offset) is int)
-        return self.block_from_offset.get(offset)
+        return self.block_from_addr.get(offset)
 
     def close(self):
         """Close the blend file.
@@ -354,16 +353,33 @@ class BlendFileBlock:
 
         return self.bfile.fileobj.tell(), field.dna_name.array_size
 
-    def get(self, path,
+    def get(self,
+            path: dna.FieldPath,
             default=...,
             sdna_index_refine=None,
-            use_nil=True, use_str=True,
+            null_terminated: typing.Optional[bool]=None,
+            as_str=True,
             base_index=0,
             ):
+        """Read a property and return the value.
 
+        :param path: name of the property (like `b'loc'`), tuple of names
+            to read a sub-property (like `(b'id', b'name')`), or tuple of
+            name and index to read one item from an array (like
+            `(b'loc', 2)`)
+        :param default: The value to return when the field does not exist.
+            Use Ellipsis (the default value) to raise a KeyError instead.
+        :param null_terminated: Only used when reading bytes or strings. When
+            True, stops reading at the first zero byte. Defaults to the same
+            value as `as_str`, as this is mostly used for string data.
+        :param as_str: When True, automatically decode bytes to string
+            (assumes UTF-8 encoding).
+        """
         ofs = self.file_offset
         if base_index != 0:
-            assert (base_index < self.count)
+            if base_index >= self.count:
+                raise OverflowError('%r: index %d overflows size %d' %
+                                    (self, base_index, self.count))
             ofs += (self.size // self.count) * base_index
         self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
@@ -376,7 +392,7 @@ class BlendFileBlock:
         return dna_struct.field_get(
             self.bfile.header, self.bfile.fileobj, path,
             default=default,
-            nil_terminated=use_nil, as_str=use_str,
+            null_terminated=null_terminated, as_str=as_str,
         )
 
     def get_recursive_iter(self, path, path_root=b"",
@@ -476,7 +492,7 @@ class BlendFileBlock:
 
     # dict like access
     def __getitem__(self, item):
-        return self.get(item, use_str=False)
+        return self.get(item, as_str=False)
 
     def __setitem__(self, item, value):
         self.set(item, value)

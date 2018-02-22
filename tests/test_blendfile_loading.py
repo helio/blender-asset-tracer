@@ -28,18 +28,26 @@ class BlendLoadingTest(unittest.TestCase):
         # Try low level operation to read a property.
         self.bf.fileobj.seek(ob.file_offset, os.SEEK_SET)
         loc = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, b'loc')
-        self.assertEqual(loc, [2.0, 3.0, 5.0])
+        self.assertEqual([2.0, 3.0, 5.0], loc)
+
+        # Try low level operation to read an array element.
+        self.bf.fileobj.seek(ob.file_offset, os.SEEK_SET)
+        loc_z = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, (b'loc', 2))
+        self.assertEqual(5.0, loc_z)
 
         # Try high level operation to read the same property.
         loc = ob.get(b'loc')
-        self.assertEqual(loc, [2.0, 3.0, 5.0])
+        self.assertEqual([2.0, 3.0, 5.0], loc)
 
         # Try getting a subproperty.
         name = ob.get((b'id', b'name'))
         self.assertEqual('OBümlaut', name)
 
+        loc_z = ob.get((b'loc', 2))
+        self.assertEqual(5.0, loc_z)
+
         # Try following a pointer.
         mesh_ptr = ob.get(b'data')
-        mesh = self.bf.block_from_offset[mesh_ptr]
+        mesh = self.bf.block_from_addr[mesh_ptr]
         mname = mesh.get((b'id', b'name'))
         self.assertEqual('MECube³', mname)

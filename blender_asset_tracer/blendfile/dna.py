@@ -130,7 +130,7 @@ class Struct:
             i.e. relative to the BlendFileBlock containing the data.
         :raises KeyError: if the field does not exist.
         """
-        if isinstance(path, (tuple, list)):
+        if isinstance(path, tuple):
             name = path[0]
             if len(path) >= 2 and not isinstance(path[1], bytes):
                 name_tail = path[2:]
@@ -173,7 +173,7 @@ class Struct:
                   fileobj: typing.BinaryIO,
                   path: FieldPath,
                   default=...,
-                  nil_terminated=True,
+                  null_terminated: typing.Optional[bool]=None,
                   as_str=True,
                   ):
         """Read the value of the field from the blend file.
@@ -181,6 +181,17 @@ class Struct:
         Assumes the file pointer of `fileobj` is seek()ed to the start of the
         struct on disk (e.g. the start of the BlendFileBlock containing the
         data).
+
+        :param file_header:
+        :param fileobj:
+        :param path:
+        :param default: The value to return when the field does not exist.
+            Use Ellipsis (the default value) to raise a KeyError instead.
+        :param null_terminated: Only used when reading bytes or strings. When
+            True, stops reading at the first zero byte. Defaults to the same
+            value as `as_str`, as this is mostly used for string data.
+        :param as_str: When True, automatically decode bytes to string
+            (assumes UTF-8 encoding).
         """
         try:
             field, offset = self.field_from_path(file_header.pointer_size, path)
@@ -202,7 +213,7 @@ class Struct:
             if field.size == 1:
                 # Single char, assume it's bitflag or int value, and not a string/bytes data...
                 return types.read_char(fileobj)
-            if nil_terminated:
+            if null_terminated or (null_terminated is None and as_str):
                 data = types.read_bytes0(fileobj, dna_name.array_size)
             else:
                 data = fileobj.read(dna_name.array_size)
@@ -222,6 +233,12 @@ class Struct:
         except KeyError:
             raise NotImplementedError("%r exists but isn't pointer, can't resolve field %r" %
                                       (path, dna_name.name_only), dna_name, dna_type)
+
+        if isinstance(path, tuple) and len(path) > 1 and isinstance(path[-1], int):
+            # The caller wants to get a single item from an array. The offset we seeked to already
+            # points to this item. In this case we do not want to look at dna_name.array_size,
+            # because we want a single item from that array.
+            return simple_reader(fileobj)
 
         if dna_name.array_size > 1:
             return [simple_reader(fileobj) for _ in range(dna_name.array_size)]
