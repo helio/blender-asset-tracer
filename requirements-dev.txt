@@ -1,0 +1,12 @@
+# Primary requirements
+-e .
+pytest==3.4.1
+pytest-cov==2.5.1
+
+
+# Secondary requirements
+attrs==17.4.0
+coverage==4.5.1
+pluggy==0.6.0
+py==1.5.2
+six==1.11.0
