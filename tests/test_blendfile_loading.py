@@ -6,7 +6,7 @@ import os
 from blender_asset_tracer import blendfile
 
 
-class BlendLoadingTest(unittest.TestCase):
+class BlendFileBlockTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.blendfiles = pathlib.Path(__file__).with_name('blendfiles')
@@ -18,10 +18,12 @@ class BlendLoadingTest(unittest.TestCase):
         if self.bf:
             self.bf.close()
 
-    def test_some_properties(self):
+    def test_loading(self):
         self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file.blend')
         self.assertFalse(self.bf.is_compressed)
-        self.assertEqual(1, len(self.bf.code_index[b'OB']))
+
+    def test_some_properties(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file.blend')
         ob = self.bf.code_index[b'OB'][0]
         self.assertEqual('Object', ob.dna_type_name)
 
@@ -51,3 +53,29 @@ class BlendLoadingTest(unittest.TestCase):
         mesh = self.bf.block_from_addr[mesh_ptr]
         mname = mesh.get((b'id', b'name'))
         self.assertEqual('MECube³', mname)
+
+    def test_get_recursive_iter(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file.blend')
+        ob = self.bf.code_index[b'OB'][0]
+        assert isinstance(ob, blendfile.BlendFileBlock)
+
+        # No recursing, just an array property.
+        gen = ob.get_recursive_iter(b'loc')
+        self.assertEqual([(b'loc', [2.0, 3.0, 5.0])], list(gen))
+
+        # Recurse into an object
+        gen = ob.get_recursive_iter(b'id')
+        self.assertEqual(
+            [((b'id', b'next'), 0),
+             ((b'id', b'prev'), 0),
+             ((b'id', b'newid'), 0),
+             ((b'id', b'lib'), 0),
+             ((b'id', b'name'), 'OBümlaut'),
+             ((b'id', b'flag'), 0),
+             ((b'id', b'tag'), 1024),
+             ((b'id', b'us'), 1),
+             ((b'id', b'icon_id'), 0),
+             ((b'id', b'recalc'), 0),
+             ((b'id', b'pad'), 0),
+             ],
+            list(gen)[:-2])  # the last 2 properties are pointers and change when saving.

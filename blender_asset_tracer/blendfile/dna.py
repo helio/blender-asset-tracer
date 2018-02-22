@@ -2,7 +2,7 @@ import typing
 
 import os
 
-from . import dna_io, header
+from . import dna_io, header, exceptions
 
 # Either a simple path b'propname', or a tuple (b'parentprop', b'actualprop', arrayindex)
 FieldPath = typing.Union[bytes, typing.Iterable[typing.Union[bytes, int]]]
@@ -114,6 +114,14 @@ class Struct:
     def append_field(self, field: Field):
         self._fields.append(field)
         self._fields_by_name[field.name.name_only] = field
+
+    @property
+    def fields(self) -> typing.List[Field]:
+        """Return the fields of this Struct.
+
+        Do not modify the returned list; use append_field() instead.
+        """
+        return self._fields
 
     def field_from_path(self,
                         pointer_size: int,
@@ -231,8 +239,9 @@ class Struct:
         try:
             simple_reader = simple_readers[dna_type.dna_type_id]
         except KeyError:
-            raise NotImplementedError("%r exists but isn't pointer, can't resolve field %r" %
-                                      (path, dna_name.name_only), dna_name, dna_type)
+            raise exceptions.NoReaderImplemented(
+                "%r exists but isn't pointer, can't resolve field %r" % (path, dna_name.name_only),
+                dna_name, dna_type) from None
 
         if isinstance(path, tuple) and len(path) > 1 and isinstance(path[-1], int):
             # The caller wants to get a single item from an array. The offset we seeked to already

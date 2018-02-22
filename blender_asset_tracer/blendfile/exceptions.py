@@ -37,3 +37,18 @@ class BlendFileError(Exception):
 
 class NoDNA1Block(BlendFileError):
     """Raised when the blend file contains no DNA1 block."""
+
+
+class NoReaderImplemented(NotImplementedError):
+    """Raised when reading a property of a non-implemented type.
+
+    This indicates that the property should be read using some dna.Struct.
+
+    :type dna_name: blender_asset_tracer.blendfile.dna.Name
+    :type dna_type: blender_asset_tracer.blendfile.dna.Struct
+    """
+
+    def __init__(self, message: str, dna_name, dna_type):
+        super().__init__(message)
+        self.dna_name = dna_name
+        self.dna_type = dna_type

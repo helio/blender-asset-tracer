@@ -326,41 +326,24 @@ class BlendFileBlock:
         assert (type(dna_type_id) is bytes)
         self.refine_type_from_index(self.bfile.sdna_index_from_id[dna_type_id])
 
-    def get_file_offset(self, path,
-                        default=...,
-                        sdna_index_refine=None,
-                        base_index=0,
-                        ):
-        """
-        Return (offset, length)
-        """
+    def get_file_offset(self, path: bytes) -> (int, int):
+        """Return (offset, length)"""
         assert isinstance(path, bytes)
 
+        # TODO: refactor to just return the length, and check whether this isn't actually
+        # simply the same as self.size.
         ofs = self.file_offset
-        if base_index != 0:
-            assert (base_index < self.count)
-            ofs += (self.size // self.count) * base_index
-        self.bfile.fileobj.seek(ofs, os.SEEK_SET)
-
-        if sdna_index_refine is None:
-            sdna_index_refine = self.sdna_index
-        else:
-            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
-
-        dna_struct = self.bfile.structs[sdna_index_refine]
-        field = dna_struct.field_from_path(
-            self.bfile.header, self.bfile.fileobj, path)
-
-        return self.bfile.fileobj.tell(), field.dna_name.array_size
+        field, _ = self.dna_type.field_from_path(self.bfile.header.pointer_size, path)
+        return ofs, field.name.array_size
 
     def get(self,
             path: dna.FieldPath,
             default=...,
             sdna_index_refine=None,
-            null_terminated: typing.Optional[bool]=None,
+            null_terminated: typing.Optional[bool] = None,
             as_str=True,
             base_index=0,
-            ):
+            ) -> typing.Any:
         """Read a property and return the value.
 
         :param path: name of the property (like `b'loc'`), tuple of names
@@ -395,12 +378,20 @@ class BlendFileBlock:
             null_terminated=null_terminated, as_str=as_str,
         )
 
-    def get_recursive_iter(self, path, path_root=b"",
+    def get_recursive_iter(self,
+                           path: dna.FieldPath,
+                           path_root: dna.FieldPath = b'',
                            default=...,
                            sdna_index_refine=None,
-                           use_nil=True, use_str=True,
+                           null_terminated: typing.Optional[bool] = None,
+                           as_str=True,
                            base_index=0,
-                           ):
+                           ) -> typing.Iterator[typing.Tuple[bytes, typing.Any]]:
+        """Generator, yields (path, property value) tuples.
+
+        If a property cannot be decoded, a string representing its DNA type
+        name is used as its value instead, between pointy brackets.
+        """
         if path_root:
             path_full = (
                     (path_root if type(path_root) is tuple else (path_root,)) +
@@ -409,22 +400,26 @@ class BlendFileBlock:
             path_full = path
 
         try:
+            # Try accessing as simple property
             yield (path_full,
-                   self.get(path_full, default, sdna_index_refine, use_nil, use_str, base_index))
-        except NotImplementedError as ex:
-            msg, dna_name, dna_type = ex.args
-            struct_index = self.bfile.sdna_index_from_id.get(dna_type.dna_type_id, None)
+                   self.get(path_full, default, sdna_index_refine, null_terminated, as_str,
+                            base_index))
+        except exceptions.NoReaderImplemented as ex:
+            # This was not a simple property, so recurse into its DNA Struct.
+            dna_type = ex.dna_type
+            struct_index = self.bfile.sdna_index_from_id.get(dna_type.dna_type_id)
             if struct_index is None:
                 yield (path_full, "<%s>" % dna_type.dna_type_id.decode('ascii'))
-            else:
-                struct = self.bfile.structs[struct_index]
-                for f in struct.fields:
-                    yield from self.get_recursive_iter(
-                        f.dna_name.name_only, path_full, default, None, use_nil, use_str, 0)
+                return
+
+            # Recurse through the fields.
+            for f in dna_type.fields:
+                yield from self.get_recursive_iter(f.name.name_only, path_full, default=default,
+                                                   null_terminated=null_terminated, as_str=as_str)
 
     def items_recursive_iter(self):
         for k in self.keys():
-            yield from self.get_recursive_iter(k, use_str=False)
+            yield from self.get_recursive_iter(k, as_str=False)
 
     def get_data_hash(self):
         """
