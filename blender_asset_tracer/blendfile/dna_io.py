@@ -4,7 +4,7 @@ import struct
 import typing
 
 
-class LittleEndianTypes:
+class EndianIO:
     UCHAR = struct.Struct(b'<b')
     USHORT = struct.Struct(b'<H')
     USHORT2 = struct.Struct(b'<HH')  # two shorts in a row
@@ -59,6 +59,10 @@ class LittleEndianTypes:
         if fileheader.pointer_size == 8:
             return cls.read_ulong(fileobj)
         raise ValueError('unsupported pointer size %d' % fileheader.pointer_size)
+
+
+class LittleEndianTypes(EndianIO):
+    pass
 
 
 class BigEndianTypes(LittleEndianTypes):

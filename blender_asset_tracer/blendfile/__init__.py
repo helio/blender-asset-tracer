@@ -29,7 +29,7 @@ import pathlib
 import tempfile
 import typing
 
-from . import exceptions, dna_io
+from . import exceptions, dna_io, dna
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class BlendFile:
         """
         self.filepath = path
 
-        fileobj = path.open(mode)
+        fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)
         magic = fileobj.read(len(BLENDFILE_MAGIC))
 
         if magic == BLENDFILE_MAGIC:
@@ -190,7 +190,7 @@ class BlendFile:
         for _ in range(names_len):
             typename = dna_io.read_data0_offset(data, offset)
             offset = offset + len(typename) + 1
-            typenames.append(DNAName(typename))
+            typenames.append(dna.Name(typename))
 
         offset = pad_up_4(offset)
         offset += 4
@@ -199,7 +199,7 @@ class BlendFile:
         self.log.debug("building #%d types" % types_len)
         for _ in range(types_len):
             dna_type_id = dna_io.read_data0_offset(data, offset)
-            types.append(DNAStruct(dna_type_id))
+            types.append(dna.Struct(dna_type_id))
             offset += len(dna_type_id) + 1
 
         offset = pad_up_4(offset)
@@ -239,9 +239,8 @@ class BlendFile:
                 else:
                     dna_size = dna_type.size * dna_name.array_size
 
-                field = DNAField(dna_type, dna_name, dna_size, dna_offset)
-                dna_struct.fields.append(field)
-                dna_struct.field_from_name[dna_name.name_only] = field
+                field = dna.Field(dna_type, dna_name, dna_size, dna_offset)
+                dna_struct.append_field(field)
                 dna_offset += dna_size
 
         return structs, sdna_index_from_id

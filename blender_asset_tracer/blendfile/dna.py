@@ -1,20 +1,11 @@
 import os
-import struct
+import typing
 
 
-class DNAName:
-    """
-    DNAName is a C-type name stored in the DNA
-    """
-    __slots__ = (
-        "name_full",
-        "name_only",
-        "is_pointer",
-        "is_method_pointer",
-        "array_size",
-    )
+class Name:
+    """dna.Name is a C-type name stored in the DNA as bytes."""
 
-    def __init__(self, name_full):
+    def __init__(self, name_full: bytes):
         self.name_full = name_full
         self.name_only = self.calc_name_only()
         self.is_pointer = self.calc_is_pointer()
@@ -24,100 +15,95 @@ class DNAName:
     def __repr__(self):
         return '%s(%r)' % (type(self).__qualname__, self.name_full)
 
-    def as_reference(self, parent):
-        if parent is None:
-            result = b''
-        else:
-            result = parent + b'.'
+    def as_reference(self, parent) -> bytes:
+        if not parent:
+            return self.name_only
+        return parent + b'.' + self.name_only
 
-        result = result + self.name_only
-        return result
-
-    def calc_name_only(self):
+    def calc_name_only(self) -> bytes:
         result = self.name_full.strip(b'*()')
         index = result.find(b'[')
-        if index != -1:
-            result = result[:index]
-        return result
+        if index == -1:
+            return result
+        return result[:index]
 
-    def calc_is_pointer(self):
-        return (b'*' in self.name_full)
+    def calc_is_pointer(self) -> bool:
+        return b'*' in self.name_full
 
     def calc_is_method_pointer(self):
-        return (b'(*' in self.name_full)
+        return b'(*' in self.name_full
 
     def calc_array_size(self):
         result = 1
-        temp = self.name_full
-        index = temp.find(b'[')
+        partial_name = self.name_full
 
-        while index != -1:
-            index_2 = temp.find(b']')
-            result *= int(temp[index + 1:index_2])
-            temp = temp[index_2 + 1:]
-            index = temp.find(b'[')
+        while True:
+            idx_start = partial_name.find(b'[')
+            if idx_start < 0:
+                break
+
+            idx_stop = partial_name.find(b']')
+            result *= int(partial_name[idx_start + 1:idx_stop])
+            partial_name = partial_name[idx_stop + 1:]
 
         return result
 
 
-class DNAField:
-    """
-    DNAField is a coupled DNAStruct and DNAName
-    and cache offset for reuse
-    """
-    __slots__ = (
-        # DNAName
-        "dna_name",
-        # tuple of 3 items
-        # [bytes (struct name), int (struct size), DNAStruct]
-        "dna_type",
-        # size on-disk
-        "dna_size",
-        # cached info (avoid looping over fields each time)
-        "dna_offset",
-    )
+class Field:
+    """dna.Field is a coupled dna.Struct and dna.Name.
 
-    def __init__(self, dna_type, dna_name, dna_size, dna_offset):
+    It also contains the file offset in bytes.
+
+    :ivar name: the name of the field.
+    :ivar dna_type: the type of the field.
+    :ivar size: size of the field on disk, in bytes.
+    :ivar offset: cached offset of the field, in bytes.
+    """
+
+    def __init__(self,
+                 dna_type: 'Struct',
+                 name: Name,
+                 size: int,
+                 offset: int):
         self.dna_type = dna_type
-        self.dna_name = dna_name
-        self.dna_size = dna_size
-        self.dna_offset = dna_offset
+        self.name = name
+        self.size = size
+        self.offset = offset
 
 
-class DNAStruct:
-    """
-    DNAStruct is a C-type structure stored in the DNA
-    """
-    __slots__ = (
-        "dna_type_id",
-        "size",
-        "fields",
-        "field_from_name",
-        "user_data",
-    )
+class Struct:
+    """dna.Struct is a C-type structure stored in the DNA."""
 
-    def __init__(self, dna_type_id):
+    def __init__(self, dna_type_id: bytes):
         self.dna_type_id = dna_type_id
-        self.fields = []
-        self.field_from_name = {}
-        self.user_data = None
+        self._fields = []
+        self._fields_by_name = {}
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__qualname__, self.dna_type_id)
 
-    def field_from_path(self, header, handle, path):
+    def append_field(self, field: Field):
+        self._fields.append(field)
+        self._fields_by_name[field.name.name_only] = field
+
+    def field_from_path(self,
+                        pointer_size: int,
+                        path: typing.Union[bytes, typing.Iterable[typing.Union[bytes, int]]]) \
+            -> typing.Tuple[typing.Optional[Field], int]:
         """
         Support lookups as bytes or a tuple of bytes and optional index.
 
         C style 'id.name'   -->  (b'id', b'name')
-        C style 'array[4]'  -->  ('array', 4)
+        C style 'array[4]'  -->  (b'array', 4)
+
+        :returns: the field itself, and its offset taking into account the optional index.
         """
-        if type(path) is tuple:
+        if isinstance(path, (tuple, list)):
             name = path[0]
-            if len(path) >= 2 and type(path[1]) is not bytes:
+            if len(path) >= 2 and not isinstance(path[1], bytes):
                 name_tail = path[2:]
                 index = path[1]
-                assert (type(index) is int)
+                assert isinstance(index, int)
             else:
                 name_tail = path[1:]
                 index = 0
@@ -126,23 +112,29 @@ class DNAStruct:
             name_tail = None
             index = 0
 
-        assert (type(name) is bytes)
+        if not isinstance(name, bytes):
+            raise TypeError('name should be bytes, but is %r' % type(name))
 
-        field = self.field_from_name.get(name)
+        field = self._fields_by_name.get(name)
+        if not field:
+            raise KeyError('%r has no field %r, only %r' %
+                           (self, name, sorted(self._fields_by_name.keys())))
 
-        if field is not None:
-            handle.seek(field.dna_offset, os.SEEK_CUR)
-            if index != 0:
-                if field.dna_name.is_pointer:
-                    index_offset = header.pointer_size * index
-                else:
-                    index_offset = field.dna_type.size * index
-                assert (index_offset < field.dna_size)
-                handle.seek(index_offset, os.SEEK_CUR)
-            if not name_tail:  # None or ()
-                return field
+        if name_tail:
+            return field.dna_type.field_from_path(pointer_size, name_tail)
+
+        offset = field.offset
+        # fileobj.seek(field.offset, os.SEEK_CUR)
+        if index:
+            if field.name.is_pointer:
+                index_offset = pointer_size * index
             else:
-                return field.dna_type.field_from_path(header, handle, name_tail)
+                index_offset = field.dna_type.size * index
+            if index_offset >= field.size:
+                raise OverflowError('path %r is out of bounds of its DNA type' % path)
+            # fileobj.seek(index_offset, os.SEEK_CUR)
+            offset += index_offset
+        return field, offset
 
     def field_get(self, header, handle, path,
                   default=...,
@@ -155,7 +147,7 @@ class DNAStruct:
             else:
                 raise KeyError("%r not found in %r (%r)" %
                                (
-                                   path, [f.dna_name.name_only for f in self.fields],
+                                   path, [f.dna_name.name_only for f in self._fields],
                                    self.dna_type_id))
 
         dna_type = field.dna_type
@@ -217,4 +209,3 @@ class DNAStruct:
         else:
             raise NotImplementedError("Setting %r is not yet supported for %r" %
                                       (dna_type, dna_name), dna_name, dna_type)
-
