@@ -1,4 +1,5 @@
 *.pyc
+*.blend[1-9]
 __pycache__
 /*.egg-info/
 /.cache
