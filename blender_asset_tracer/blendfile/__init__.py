@@ -138,17 +138,17 @@ class BlendFile:
     def __exit__(self, exctype, excvalue, traceback):
         self.close()
 
-    def find_blocks_from_code(self, code):
-        assert (type(code) == bytes)
-        if code not in self.code_index:
-            return []
+    def find_blocks_from_code(self, code: bytes) -> typing.List['BlendFileBlock']:
+        assert isinstance(code, bytes)
         return self.code_index[code]
 
-    def find_block_from_offset(self, offset):
-        # same as looking looping over all blocks,
-        # then checking ``block.addr_old == offset``
-        assert (type(offset) is int)
-        return self.block_from_addr.get(offset)
+    def find_block_from_address(self, address: int) -> typing.Optional['BlendFileBlock']:
+        """Return the block at that address, or None if not found.
+
+        :param address: the BlendFileBlock.addr_old value
+        """
+        assert type(address) is int
+        return self.block_from_addr.get(address)
 
     def close(self):
         """Close the blend file.
@@ -160,11 +160,12 @@ class BlendFile:
 
     def ensure_subtype_smaller(self, sdna_index_curr, sdna_index_next):
         # never refine to a smaller type
-        if (self.structs[sdna_index_curr].size >
-                self.structs[sdna_index_next].size):
-            raise RuntimeError("cant refine to smaller type (%s -> %s)" %
-                               (self.structs[sdna_index_curr].dna_type_id.decode('ascii'),
-                                self.structs[sdna_index_next].dna_type_id.decode('ascii')))
+        curr_struct = self.structs[sdna_index_curr]
+        next_struct = self.structs[sdna_index_next]
+        if curr_struct.size > next_struct.size:
+            raise RuntimeError("Can't refine to smaller type (%s -> %s)" %
+                               (curr_struct.dna_type_id.decode('utf-8'),
+                                next_struct.dna_type_id.decode('utf-8')))
 
     def decode_structs(self, block: 'BlendFileBlock'):
         """
@@ -366,17 +367,24 @@ class BlendFileBlock:
             ofs += (self.size // self.count) * base_index
         self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
-        if sdna_index_refine is None:
-            sdna_index_refine = self.sdna_index
-        else:
-            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
-
-        dna_struct = self.bfile.structs[sdna_index_refine]
+        dna_struct = self._get_struct(sdna_index_refine)
         return dna_struct.field_get(
             self.bfile.header, self.bfile.fileobj, path,
             default=default,
             null_terminated=null_terminated, as_str=as_str,
         )
+
+    def _get_struct(self, sdna_index_refine) -> dna.Struct:
+        """Gets the (possibly refined) struct for this block."""
+
+        if sdna_index_refine is None:
+            index = self.sdna_index
+        else:
+            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
+            index = sdna_index_refine
+
+        dna_struct = self.bfile.structs[index]
+        return dna_struct
 
     def get_recursive_iter(self,
                            path: dna.FieldPath,
@@ -439,12 +447,7 @@ class BlendFileBlock:
             sdna_index_refine=None,
             ):
 
-        if sdna_index_refine is None:
-            sdna_index_refine = self.sdna_index
-        else:
-            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
-
-        dna_struct = self.bfile.structs[sdna_index_refine]
+        dna_struct = self._get_struct(sdna_index_refine)
         self.bfile.handle.seek(self.file_offset, os.SEEK_SET)
         self.bfile.is_modified = True
         return dna_struct.field_set(
