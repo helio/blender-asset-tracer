@@ -1,5 +1,11 @@
-import os
 import typing
+
+import os
+
+from . import dna_io, header
+
+# Either a simple path b'propname', or a tuple (b'parentprop', b'actualprop', arrayindex)
+FieldPath = typing.Union[bytes, typing.Iterable[typing.Union[bytes, int]]]
 
 
 class Name:
@@ -74,13 +80,33 @@ class Field:
 class Struct:
     """dna.Struct is a C-type structure stored in the DNA."""
 
-    def __init__(self, dna_type_id: bytes):
+    def __init__(self, dna_type_id: bytes, size: int = None):
+        """
+        :param dna_type_id: name of the struct in C, like b'AlembicObjectPath'.
+        :param size: only for unit tests; typically set after construction by
+            BlendFile.decode_structs(). If not set, it is calculated on the fly
+            when struct.size is evaluated, based on the available fields.
+        """
         self.dna_type_id = dna_type_id
+        self._size = size
         self._fields = []
         self._fields_by_name = {}
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__qualname__, self.dna_type_id)
+
+    @property
+    def size(self) -> int:
+        if self._size is None:
+            if not self._fields:
+                raise ValueError('Unable to determine size of fieldless %r' % self)
+            last_field = max(self._fields, key=lambda f: f.offset)
+            self._size = last_field.offset + last_field.size
+        return self._size
+
+    @size.setter
+    def size(self, new_size: int):
+        self._size = new_size
 
     def append_field(self, field: Field):
         self._fields.append(field)
@@ -88,15 +114,18 @@ class Struct:
 
     def field_from_path(self,
                         pointer_size: int,
-                        path: typing.Union[bytes, typing.Iterable[typing.Union[bytes, int]]]) \
-            -> typing.Tuple[typing.Optional[Field], int]:
+                        path: FieldPath) \
+            -> typing.Tuple[Field, int]:
         """
         Support lookups as bytes or a tuple of bytes and optional index.
 
         C style 'id.name'   -->  (b'id', b'name')
         C style 'array[4]'  -->  (b'array', 4)
 
-        :returns: the field itself, and its offset taking into account the optional index.
+        :returns: the field itself, and its offset taking into account the
+            optional index. The offset is relative to the start of the struct,
+            i.e. relative to the BlendFileBlock containing the data.
+        :raises KeyError: if the field does not exist.
         """
         if isinstance(path, (tuple, list)):
             name = path[0]
@@ -124,71 +153,76 @@ class Struct:
             return field.dna_type.field_from_path(pointer_size, name_tail)
 
         offset = field.offset
-        # fileobj.seek(field.offset, os.SEEK_CUR)
         if index:
             if field.name.is_pointer:
                 index_offset = pointer_size * index
             else:
                 index_offset = field.dna_type.size * index
             if index_offset >= field.size:
-                raise OverflowError('path %r is out of bounds of its DNA type' % path)
-            # fileobj.seek(index_offset, os.SEEK_CUR)
+                raise OverflowError('path %r is out of bounds of its DNA type %s' %
+                                    (path, field.dna_type))
             offset += index_offset
+
         return field, offset
 
-    def field_get(self, header, handle, path,
+    def field_get(self,
+                  file_header: header.BlendFileHeader,
+                  fileobj: typing.BinaryIO,
+                  path: FieldPath,
                   default=...,
-                  use_nil=True, use_str=True,
+                  nil_terminated=True,
+                  as_str=True,
                   ):
-        field = self.field_from_path(header, handle, path)
-        if field is None:
-            if default is not ...:
-                return default
-            else:
-                raise KeyError("%r not found in %r (%r)" %
-                               (
-                                   path, [f.dna_name.name_only for f in self._fields],
-                                   self.dna_type_id))
+        """Read the value of the field from the blend file.
+
+        Assumes the file pointer of `fileobj` is seek()ed to the start of the
+        struct on disk (e.g. the start of the BlendFileBlock containing the
+        data).
+        """
+        try:
+            field, offset = self.field_from_path(file_header.pointer_size, path)
+        except KeyError:
+            if default is ...:
+                raise
+            return default
+
+        fileobj.seek(offset, os.SEEK_CUR)
 
         dna_type = field.dna_type
-        dna_name = field.dna_name
-        dna_size = field.dna_size
+        dna_name = field.name
+        types = file_header.endian
 
+        # Some special cases (pointers, strings/bytes)
         if dna_name.is_pointer:
-            return DNA_IO.read_pointer(handle, header)
-        elif dna_type.dna_type_id == b'int':
-            if dna_name.array_size > 1:
-                return [DNA_IO.read_int(handle, header) for i in range(dna_name.array_size)]
-            return DNA_IO.read_int(handle, header)
-        elif dna_type.dna_type_id == b'short':
-            if dna_name.array_size > 1:
-                return [DNA_IO.read_short(handle, header) for i in range(dna_name.array_size)]
-            return DNA_IO.read_short(handle, header)
-        elif dna_type.dna_type_id == b'uint64_t':
-            if dna_name.array_size > 1:
-                return [DNA_IO.read_ulong(handle, header) for i in range(dna_name.array_size)]
-            return DNA_IO.read_ulong(handle, header)
-        elif dna_type.dna_type_id == b'float':
-            if dna_name.array_size > 1:
-                return [DNA_IO.read_float(handle, header) for i in range(dna_name.array_size)]
-            return DNA_IO.read_float(handle, header)
-        elif dna_type.dna_type_id == b'char':
-            if dna_size == 1:
+            return types.read_pointer(fileobj, file_header.pointer_size)
+        if dna_type.dna_type_id == b'char':
+            if field.size == 1:
                 # Single char, assume it's bitflag or int value, and not a string/bytes data...
-                return DNA_IO.read_char(handle, header)
-            if use_str:
-                if use_nil:
-                    return DNA_IO.read_string0(handle, dna_name.array_size)
-                else:
-                    return DNA_IO.read_string(handle, dna_name.array_size)
+                return types.read_char(fileobj)
+            if nil_terminated:
+                data = types.read_bytes0(fileobj, dna_name.array_size)
             else:
-                if use_nil:
-                    return DNA_IO.read_bytes0(handle, dna_name.array_size)
-                else:
-                    return DNA_IO.read_bytes(handle, dna_name.array_size)
-        else:
+                data = fileobj.read(dna_name.array_size)
+
+            if as_str:
+                return data.decode('utf8')
+            return data
+
+        simple_readers = {
+            b'int': types.read_int,
+            b'short': types.read_short,
+            b'uint64_t': types.read_ulong,
+            b'float': types.read_float,
+        }
+        try:
+            simple_reader = simple_readers[dna_type.dna_type_id]
+        except KeyError:
             raise NotImplementedError("%r exists but isn't pointer, can't resolve field %r" %
                                       (path, dna_name.name_only), dna_name, dna_type)
+
+        if dna_name.array_size > 1:
+            return [simple_reader(fileobj) for _ in range(dna_name.array_size)]
+        return simple_reader(fileobj)
 
     def field_set(self, header, handle, path, value):
         assert (type(path) == bytes)

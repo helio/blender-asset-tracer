@@ -5,7 +5,7 @@ import typing
 
 
 class EndianIO:
-    UCHAR = struct.Struct(b'<b')
+    UCHAR = struct.Struct(b'<B')
     USHORT = struct.Struct(b'<H')
     USHORT2 = struct.Struct(b'<HH')  # two shorts in a row
     SSHORT = struct.Struct(b'<h')
@@ -48,17 +48,47 @@ class EndianIO:
         return cls._read(fileobj, cls.ULONG)
 
     @classmethod
-    def read_pointer(cls, fileobj: typing.BinaryIO, fileheader):
-        """Read a pointer from a file.
+    def read_pointer(cls, fileobj: typing.BinaryIO, pointer_size: int):
+        """Read a pointer from a file."""
 
-        The pointer size is given by the header (BlendFileHeader).
-        """
-
-        if fileheader.pointer_size == 4:
+        if pointer_size == 4:
             return cls.read_uint(fileobj)
-        if fileheader.pointer_size == 8:
+        if pointer_size == 8:
             return cls.read_ulong(fileobj)
-        raise ValueError('unsupported pointer size %d' % fileheader.pointer_size)
+        raise ValueError('unsupported pointer size %d' % pointer_size)
+
+    @classmethod
+    def write_string(cls, fileobj: typing.BinaryIO, astring: str, fieldlen: int):
+        assert isinstance(astring, str)
+        # TODO: truncate the string on a UTF-8 character boundary to avoid creating invalid UTF-8.
+        cls.write_bytes(fileobj, astring.encode('utf-8'), fieldlen)
+
+    @classmethod
+    def write_bytes(cls, fileobj: typing.BinaryIO, data: bytes, fieldlen: int):
+        assert isinstance(data, (bytes, bytearray))
+        if len(data) >= fieldlen:
+            to_write = data[0:fieldlen]
+        else:
+            to_write = data + b'\0'
+
+        fileobj.write(to_write)
+
+    @classmethod
+    def read_bytes0(cls, fileobj, length):
+        data = fileobj.read(length)
+        return cls.read_data0(data)
+
+    @classmethod
+    def read_data0_offset(cls, data, offset):
+        add = data.find(b'\0', offset) - offset
+        return data[offset:offset + add]
+
+    @classmethod
+    def read_data0(cls, data):
+        add = data.find(b'\0')
+        if add < 0:
+            return data
+        return data[:add]
 
 
 class LittleEndianTypes(EndianIO):
@@ -66,7 +96,7 @@ class LittleEndianTypes(EndianIO):
 
 
 class BigEndianTypes(LittleEndianTypes):
-    UCHAR = struct.Struct(b'>b')
+    UCHAR = struct.Struct(b'>B')
     USHORT = struct.Struct(b'>H')
     USHORT2 = struct.Struct(b'>HH')  # two shorts in a row
     SSHORT = struct.Struct(b'>h')
@@ -74,41 +104,3 @@ class BigEndianTypes(LittleEndianTypes):
     SINT = struct.Struct(b'>i')
     FLOAT = struct.Struct(b'>f')
     ULONG = struct.Struct(b'>Q')
-
-
-def write_string(fileobj: typing.BinaryIO, astring: str, fieldlen: int):
-    assert isinstance(astring, str)
-    write_bytes(fileobj, astring.encode('utf-8'), fieldlen)
-
-
-def write_bytes(fileobj: typing.BinaryIO, data: bytes, fieldlen: int):
-    assert isinstance(data, (bytes, bytearray))
-    if len(data) >= fieldlen:
-        to_write = data[0:fieldlen]
-    else:
-        to_write = data + b'\0'
-
-    fileobj.write(to_write)
-
-
-def read_bytes0(fileobj, length):
-    data = fileobj.read(length)
-    return read_data0(data)
-
-
-def read_string(fileobj, length):
-    return fileobj.read(length).decode('utf-8')
-
-
-def read_string0(fileobj, length):
-    return read_bytes0(fileobj, length).decode('utf-8')
-
-
-def read_data0_offset(data, offset):
-    add = data.find(b'\0', offset) - offset
-    return data[offset:offset + add]
-
-
-def read_data0(data):
-    add = data.find(b'\0')
-    return data[:add]

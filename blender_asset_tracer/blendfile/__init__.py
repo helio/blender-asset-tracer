@@ -29,7 +29,7 @@ import pathlib
 import tempfile
 import typing
 
-from . import exceptions, dna_io, dna
+from . import exceptions, dna_io, dna, header
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class BlendFile:
         elif magic != BLENDFILE_MAGIC:
             raise exceptions.BlendFileError("File is not a blend file", path)
 
-        self.header = BlendFileHeader(self.fileobj, self.raw_filepath)
+        self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
         self.block_header_struct = self.header.create_block_header_struct()
         self.blocks = []
         self.code_index = collections.defaultdict(list)
@@ -171,9 +171,10 @@ class BlendFile:
         DNACatalog is a catalog of all information in the DNA1 file-block
         """
         self.log.debug("building DNA catalog")
-        shortstruct = self.header.types.USHORT
-        shortstruct2 = self.header.types.USHORT2
-        intstruct = self.header.types.UINT
+        endian = self.header.endian
+        shortstruct = endian.USHORT
+        shortstruct2 = endian.USHORT2
+        intstruct = endian.UINT
         assert intstruct.size == 4
 
         data = self.fileobj.read(block.size)
@@ -188,7 +189,7 @@ class BlendFile:
 
         self.log.debug("building #%d names" % names_len)
         for _ in range(names_len):
-            typename = dna_io.read_data0_offset(data, offset)
+            typename = endian.read_data0_offset(data, offset)
             offset = offset + len(typename) + 1
             typenames.append(dna.Name(typename))
 
@@ -198,7 +199,7 @@ class BlendFile:
         offset += 4
         self.log.debug("building #%d types" % types_len)
         for _ in range(types_len):
-            dna_type_id = dna_io.read_data0_offset(data, offset)
+            dna_type_id = endian.read_data0_offset(data, offset)
             types.append(dna.Struct(dna_type_id))
             offset += len(dna_type_id) + 1
 
@@ -244,54 +245,6 @@ class BlendFile:
                 dna_offset += dna_size
 
         return structs, sdna_index_from_id
-
-
-class BlendFileHeader:
-    """
-    BlendFileHeader represents the first 12 bytes of a blend file.
-
-    it contains information about the hardware architecture, which is relevant
-    to the structure of the rest of the file.
-    """
-    log = log.getChild('BlendFileHeader')
-    structure = struct.Struct(b'7s1s1s3s')
-
-    def __init__(self, fileobj: typing.BinaryIO, path: pathlib.Path):
-        self.log.debug("reading blend-file-header %s", path)
-        header = fileobj.read(self.structure.size)
-        values = self.structure.unpack(header)
-
-        self.magic = values[0]
-
-        pointer_size_id = values[1]
-        if pointer_size_id == b'-':
-            self.pointer_size = 8
-        elif pointer_size_id == b'_':
-            self.pointer_size = 4
-        else:
-            raise exceptions.BlendFileError('invalid pointer size %r' % pointer_size_id, path)
-
-        endian_id = values[2]
-        if endian_id == b'v':
-            self.types = dna_io.LittleEndianTypes
-            self.endian_str = b'<'  # indication for struct.Struct()
-        elif endian_id == b'V':
-            self.types = dna_io.BigEndianTypes
-            self.endian_str = b'>'  # indication for struct.Struct()
-        else:
-            raise exceptions.BlendFileError('invalid endian indicator %r' % endian_id, path)
-
-        version_id = values[3]
-        self.version = int(version_id)
-
-    def create_block_header_struct(self) -> struct.Struct:
-        """Create a Struct instance for parsing data block headers."""
-        return struct.Struct(b''.join((
-            self.endian_str,
-            b'4sI',
-            b'I' if self.pointer_size == 4 else b'Q',
-            b'II',
-        )))
 
 
 class BlendFileBlock:
@@ -421,7 +374,7 @@ class BlendFileBlock:
         return dna_struct.field_get(
             self.file.header, self.file.handle, path,
             default=default,
-            use_nil=use_nil, use_str=use_str,
+            nil_terminated=use_nil, as_str=use_str,
         )
 
     def get_recursive_iter(self, path, path_root=b"",
