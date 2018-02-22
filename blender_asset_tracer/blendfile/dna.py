@@ -240,7 +240,8 @@ class Struct:
             simple_reader = simple_readers[dna_type.dna_type_id]
         except KeyError:
             raise exceptions.NoReaderImplemented(
-                "%r exists but isn't pointer, can't resolve field %r" % (path, dna_name.name_only),
+                "%r exists but not simple type (%r), can't resolve field %r" %
+                (path, dna_type.dna_type_id.decode(), dna_name.name_only),
                 dna_name, dna_type) from None
 
         if isinstance(path, tuple) and len(path) > 1 and isinstance(path[-1], int):
