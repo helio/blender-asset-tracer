@@ -102,18 +102,19 @@ class BlendFile:
         self.sdna_index_from_id = {}
         self.block_from_offset = {}
 
+        self.load_dna1_block()
+
     def load_dna1_block(self):
         """Read the blend file to load its DNA structure to memory."""
-        fileobj = self.fileobj
         while True:
-            block = BlendFileBlock(fileobj, self)
+            block = BlendFileBlock(self)
             if block.code == b'ENDB':
                 break
 
             if block.code == b'DNA1':
                 self.structs, self.sdna_index_from_id = self.decode_structs(block)
             else:
-                fileobj.seek(block.size, os.SEEK_CUR)
+                self.fileobj.seek(block.size, os.SEEK_CUR)
 
             self.blocks.append(block)
             self.code_index[block.code].append(block)
@@ -255,8 +256,8 @@ class BlendFileBlock:
     old_structure = struct.Struct(b'4sI')
     """old blend files ENDB block structure"""
 
-    def __init__(self, fileobj: typing.BinaryIO, bfile: BlendFile):
-        self.file = bfile
+    def __init__(self, bfile: BlendFile):
+        self.bfile = bfile
 
         # Defaults; actual values are set by interpreting the block header.
         self.code = b''
@@ -267,11 +268,12 @@ class BlendFileBlock:
         self.file_offset = 0
         """Offset in bytes from start of file to beginning of the data block.
 
-         Points to the data after the block header.
-         """
+        Points to the data after the block header.
+        """
+        self.endian = bfile.header.endian
 
         header_struct = bfile.block_header_struct
-        data = fileobj.read(header_struct.size)
+        data = bfile.fileobj.read(header_struct.size)
         if len(data) != header_struct.size:
             self.log.warning("Blend file %s seems to be truncated, "
                              "expected %d bytes but could read only %d",
@@ -286,17 +288,17 @@ class BlendFileBlock:
         if len(data) <= 15:
             self.log.debug('interpreting block as old-style ENB block')
             blockheader = self.old_structure.unpack(data)
-            self.code = dna_io.read_data0(blockheader[0])
+            self.code = self.endian.read_data0(blockheader[0])
             return
 
         blockheader = header_struct.unpack(data)
-        self.code = dna_io.read_data0(blockheader[0])
+        self.code = self.endian.read_data0(blockheader[0])
         if self.code != b'ENDB':
             self.size = blockheader[1]
             self.addr_old = blockheader[2]
             self.sdna_index = blockheader[3]
             self.count = blockheader[4]
-            self.file_offset = fileobj.tell()
+            self.file_offset = bfile.fileobj.tell()
 
     def __str__(self):
         return "<%s.%s (%s), size=%d at %s>" % (
@@ -308,22 +310,22 @@ class BlendFileBlock:
         )
 
     @property
-    def dna_type(self):
-        return self.file.structs[self.sdna_index]
+    def dna_type(self) -> dna.Struct:
+        return self.bfile.structs[self.sdna_index]
 
     @property
-    def dna_type_name(self):
+    def dna_type_name(self) -> str:
         return self.dna_type.dna_type_id.decode('ascii')
 
     def refine_type_from_index(self, sdna_index_next):
         assert (type(sdna_index_next) is int)
         sdna_index_curr = self.sdna_index
-        self.file.ensure_subtype_smaller(sdna_index_curr, sdna_index_next)
+        self.bfile.ensure_subtype_smaller(sdna_index_curr, sdna_index_next)
         self.sdna_index = sdna_index_next
 
     def refine_type(self, dna_type_id):
         assert (type(dna_type_id) is bytes)
-        self.refine_type_from_index(self.file.sdna_index_from_id[dna_type_id])
+        self.refine_type_from_index(self.bfile.sdna_index_from_id[dna_type_id])
 
     def get_file_offset(self, path,
                         default=...,
@@ -333,24 +335,24 @@ class BlendFileBlock:
         """
         Return (offset, length)
         """
-        assert (type(path) is bytes)
+        assert isinstance(path, bytes)
 
         ofs = self.file_offset
         if base_index != 0:
             assert (base_index < self.count)
             ofs += (self.size // self.count) * base_index
-        self.file.handle.seek(ofs, os.SEEK_SET)
+        self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
         if sdna_index_refine is None:
             sdna_index_refine = self.sdna_index
         else:
-            self.file.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
+            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
 
-        dna_struct = self.file.structs[sdna_index_refine]
+        dna_struct = self.bfile.structs[sdna_index_refine]
         field = dna_struct.field_from_path(
-            self.file.header, self.file.handle, path)
+            self.bfile.header, self.bfile.fileobj, path)
 
-        return (self.file.handle.tell(), field.dna_name.array_size)
+        return self.bfile.fileobj.tell(), field.dna_name.array_size
 
     def get(self, path,
             default=...,
@@ -363,16 +365,16 @@ class BlendFileBlock:
         if base_index != 0:
             assert (base_index < self.count)
             ofs += (self.size // self.count) * base_index
-        self.file.handle.seek(ofs, os.SEEK_SET)
+        self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
         if sdna_index_refine is None:
             sdna_index_refine = self.sdna_index
         else:
-            self.file.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
+            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
 
-        dna_struct = self.file.structs[sdna_index_refine]
+        dna_struct = self.bfile.structs[sdna_index_refine]
         return dna_struct.field_get(
-            self.file.header, self.file.handle, path,
+            self.bfile.header, self.bfile.fileobj, path,
             default=default,
             nil_terminated=use_nil, as_str=use_str,
         )
@@ -395,11 +397,11 @@ class BlendFileBlock:
                    self.get(path_full, default, sdna_index_refine, use_nil, use_str, base_index))
         except NotImplementedError as ex:
             msg, dna_name, dna_type = ex.args
-            struct_index = self.file.sdna_index_from_id.get(dna_type.dna_type_id, None)
+            struct_index = self.bfile.sdna_index_from_id.get(dna_type.dna_type_id, None)
             if struct_index is None:
                 yield (path_full, "<%s>" % dna_type.dna_type_id.decode('ascii'))
             else:
-                struct = self.file.structs[struct_index]
+                struct = self.bfile.structs[struct_index]
                 for f in struct.fields:
                     yield from self.get_recursive_iter(
                         f.dna_name.name_only, path_full, default, None, use_nil, use_str, 0)
@@ -433,13 +435,13 @@ class BlendFileBlock:
         if sdna_index_refine is None:
             sdna_index_refine = self.sdna_index
         else:
-            self.file.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
+            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
 
-        dna_struct = self.file.structs[sdna_index_refine]
-        self.file.handle.seek(self.file_offset, os.SEEK_SET)
-        self.file.is_modified = True
+        dna_struct = self.bfile.structs[sdna_index_refine]
+        self.bfile.handle.seek(self.file_offset, os.SEEK_SET)
+        self.bfile.is_modified = True
         return dna_struct.field_set(
-            self.file.header, self.file.handle, path, value)
+            self.bfile.header, self.bfile.handle, path, value)
 
     # ---------------
     # Utility get/set
@@ -459,13 +461,13 @@ class BlendFileBlock:
         if type(result) is not int:
             return result
 
-        assert (self.file.structs[sdna_index_refine].field_from_path(
-            self.file.header, self.file.handle, path).dna_name.is_pointer)
+        assert (self.bfile.structs[sdna_index_refine].field_from_path(
+            self.bfile.header, self.bfile.handle, path).dna_name.is_pointer)
         if result != 0:
             # possible (but unlikely)
             # that this fails and returns None
             # maybe we want to raise some exception in this case
-            return self.file.find_block_from_offset(result)
+            return self.bfile.find_block_from_offset(result)
         else:
             return None
 

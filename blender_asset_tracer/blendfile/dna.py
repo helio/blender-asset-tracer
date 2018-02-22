@@ -76,6 +76,9 @@ class Field:
         self.size = size
         self.offset = offset
 
+    def __repr__(self):
+        return '<%r %r (%s)>' % (type(self).__qualname__, self.name, self.dna_type)
+
 
 class Struct:
     """dna.Struct is a C-type structure stored in the DNA."""

@@ -17,7 +17,10 @@ class EndianIO:
     @classmethod
     def _read(cls, fileobj: typing.BinaryIO, typestruct: struct.Struct):
         data = fileobj.read(typestruct.size)
-        return typestruct.unpack(data)[0]
+        try:
+            return typestruct.unpack(data)[0]
+        except struct.error as ex:
+            raise struct.error('%s (read %d bytes)' % (ex, len(data))) from None
 
     @classmethod
     def read_char(cls, fileobj: typing.BinaryIO):

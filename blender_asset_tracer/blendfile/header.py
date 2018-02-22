@@ -1,4 +1,5 @@
 import logging
+import os
 import pathlib
 import struct
 import typing
@@ -12,13 +13,14 @@ class BlendFileHeader:
     """
     BlendFileHeader represents the first 12 bytes of a blend file.
 
-    it contains information about the hardware architecture, which is relevant
+    It contains information about the hardware architecture, which is relevant
     to the structure of the rest of the file.
     """
     structure = struct.Struct(b'7s1s1s3s')
 
     def __init__(self, fileobj: typing.BinaryIO, path: pathlib.Path):
         log.debug("reading blend-file-header %s", path)
+        fileobj.seek(0, os.SEEK_SET)
         header = fileobj.read(self.structure.size)
         values = self.structure.unpack(header)
 
