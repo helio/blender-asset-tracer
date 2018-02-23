@@ -72,12 +72,13 @@ class BlendFile:
             self.is_compressed = False
             self.raw_filepath = path
             self.fileobj = fileobj
-        elif magic == GZIP_MAGIC:
+        elif magic[:2] == GZIP_MAGIC:
             self.is_compressed = True
 
             log.debug("compressed blendfile detected: %s", path)
             # Decompress to a temporary file.
             tmpfile = tempfile.NamedTemporaryFile()
+            fileobj.seek(0, os.SEEK_SET)
             with gzip.GzipFile(fileobj=fileobj, mode=mode) as gzfile:
                 magic = gzfile.read(len(BLENDFILE_MAGIC))
                 if magic != BLENDFILE_MAGIC:

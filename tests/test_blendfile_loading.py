@@ -196,3 +196,13 @@ class PointerTest(AbstractBlendFileTest):
         seq.refine_type_from_index(sdna_idx_sequence)
         self.assertEqual(b'SQBlack', seq[b'name'])
         self.assertEqual(28, seq[b'type'])
+
+
+class LoadCompressedTest(AbstractBlendFileTest):
+    def test_loading(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file_compressed.blend')
+        self.assertTrue(self.bf.is_compressed)
+
+        ob = self.bf.code_index[b'OB'][0]
+        name = ob.get((b'id', b'name'))
+        self.assertEqual('OBümlaut', name)
