@@ -475,7 +475,7 @@ class BlendFileBlock:
             hsh = zlib.adler32(str(value).encode(), hsh)
         return hsh
 
-    def set(self, path: dna.FieldPath, value):  # TODO(Sybren): port to BAT
+    def set(self, path: dna.FieldPath, value):
         dna_struct = self.bfile.structs[self.sdna_index]
         self.bfile.mark_modified()
         self.bfile.fileobj.seek(self.file_offset, os.SEEK_SET)
