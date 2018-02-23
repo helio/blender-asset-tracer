@@ -171,7 +171,7 @@ class BlendFile:
             log.debug("recompressing modified blend file %s", self.raw_filepath)
             self.fileobj.seek(os.SEEK_SET, 0)
 
-            with gzip.open(self.filepath, 'wb') as gzfile:
+            with gzip.open(str(self.filepath), 'wb') as gzfile:
                 while True:
                     data = self.fileobj.read(FILE_BUFFER_SIZE)
                     if not data:
