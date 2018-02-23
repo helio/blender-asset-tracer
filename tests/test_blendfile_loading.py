@@ -1,7 +1,9 @@
 import os
+import pathlib
+import unittest
 
 from blender_asset_tracer import blendfile
-from blender_asset_tracer.blendfile import iterators
+from blender_asset_tracer.blendfile import iterators, exceptions
 from abstract_test import AbstractBlendFileTest
 
 
@@ -206,3 +208,9 @@ class LoadCompressedTest(AbstractBlendFileTest):
         ob = self.bf.code_index[b'OB'][0]
         name = ob.get((b'id', b'name'))
         self.assertEqual('OBümlaut', name)
+
+
+class LoadNonBlendfileTest(unittest.TestCase):
+    def test_loading(self):
+        with self.assertRaises(exceptions.BlendFileError):
+            blendfile.BlendFile(pathlib.Path(__file__))

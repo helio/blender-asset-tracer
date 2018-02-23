@@ -94,6 +94,7 @@ class BlendFile:
             fileobj.close()
             self.fileobj = tmpfile
         elif magic != BLENDFILE_MAGIC:
+            fileobj.close()
             raise exceptions.BlendFileError("File is not a blend file", path)
 
         self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
