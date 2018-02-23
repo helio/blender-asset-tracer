@@ -52,3 +52,12 @@ class NoReaderImplemented(NotImplementedError):
         super().__init__(message)
         self.dna_name = dna_name
         self.dna_type = dna_type
+
+
+class SegmentationFault(Exception):
+    """Raised when a pointer to a non-existant datablock was dereferenced."""
+
+    def __init__(self, message: str, field_path, address: int):
+        super().__init__(message)
+        self.field_path = field_path
+        self.address = address

@@ -315,15 +315,30 @@ class BlendFileBlock:
     def dna_type_name(self) -> str:
         return self.dna_type.dna_type_id.decode('ascii')
 
-    def refine_type_from_index(self, sdna_index_next):  # TODO(Sybren): port to BAT
-        assert (type(sdna_index_next) is int)
-        sdna_index_curr = self.sdna_index
-        self.bfile.ensure_subtype_smaller(sdna_index_curr, sdna_index_next)
-        self.sdna_index = sdna_index_next
+    def refine_type_from_index(self, sdna_index: int):
+        """Change the DNA Struct associated with this block.
 
-    def refine_type(self, dna_type_id):  # TODO(Sybren): port to BAT
-        assert (type(dna_type_id) is bytes)
-        self.refine_type_from_index(self.bfile.sdna_index_from_id[dna_type_id])
+        Use to make a block type more specific, for example when you have a
+        modifier but need to access it as SubSurfModifier.
+
+        :param sdna_index: the SDNA index of the DNA type.
+        """
+        assert type(sdna_index) is int
+        sdna_index_curr = self.sdna_index
+        self.bfile.ensure_subtype_smaller(sdna_index_curr, sdna_index)
+        self.sdna_index = sdna_index
+
+    def refine_type(self, dna_type_id: bytes):
+        """Change the DNA Struct associated with this block.
+
+        Use to make a block type more specific, for example when you have a
+        modifier but need to access it as SubSurfModifier.
+
+        :param dna_type_id: the name of the DNA type.
+        """
+        assert isinstance(dna_type_id, bytes)
+        sdna_index = self.bfile.sdna_index_from_id[dna_type_id]
+        self.refine_type_from_index(sdna_index)
 
     def get_file_offset(self, path: bytes) -> (int, int):  # TODO(Sybren): port to BAT
         """Return (offset, length)"""
@@ -338,7 +353,6 @@ class BlendFileBlock:
     def get(self,
             path: dna.FieldPath,
             default=...,
-            sdna_index_refine=None,
             null_terminated=True,
             as_str=True,
             base_index=0,
@@ -365,30 +379,17 @@ class BlendFileBlock:
             ofs += (self.size // self.count) * base_index
         self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
-        dna_struct = self._get_struct(sdna_index_refine)
+        dna_struct = self.bfile.structs[self.sdna_index]
         return dna_struct.field_get(
             self.bfile.header, self.bfile.fileobj, path,
             default=default,
             null_terminated=null_terminated, as_str=as_str,
         )
 
-    def _get_struct(self, sdna_index_refine) -> dna.Struct:
-        """Gets the (possibly refined) struct for this block."""
-
-        if sdna_index_refine is None:
-            index = self.sdna_index
-        else:
-            self.bfile.ensure_subtype_smaller(self.sdna_index, sdna_index_refine)
-            index = sdna_index_refine
-
-        dna_struct = self.bfile.structs[index]
-        return dna_struct
-
     def get_recursive_iter(self,
                            path: dna.FieldPath,
                            path_root: dna.FieldPath = b'',
                            default=...,
-                           sdna_index_refine=None,
                            null_terminated=True,
                            as_str=True,
                            base_index=0,
@@ -408,8 +409,7 @@ class BlendFileBlock:
         try:
             # Try accessing as simple property
             yield (path_full,
-                   self.get(path_full, default, sdna_index_refine, null_terminated, as_str,
-                            base_index))
+                   self.get(path_full, default, null_terminated, as_str, base_index))
         except exceptions.NoReaderImplemented as ex:
             # This was not a simple property, so recurse into its DNA Struct.
             dna_type = ex.dna_type
@@ -451,38 +451,31 @@ class BlendFileBlock:
         return dna_struct.field_set(
             self.bfile.header, self.bfile.handle, path, value)
 
-    # ---------------
-    # Utility get/set
-    #
-    #   avoid inline pointer casting
     def get_pointer(
-            self, path,
+            self, path: dna.FieldPath,
             default=...,
-            sdna_index_refine=None,
             base_index=0,
-    ):
-        if sdna_index_refine is None:
-            sdna_index_refine = self.sdna_index
-        result = self.get(path, default, sdna_index_refine=sdna_index_refine, base_index=base_index)
+    ) -> typing.Union[None, 'BlendFileBlock', typing.Any]:
+        """Same as get() but dereferences a pointer.
 
-        # default
+        :raises exceptions.SegmentationFault: when there is no datablock with
+            the pointed-to address.
+        """
+        result = self.get(path, default=default, base_index=base_index)
+
+        # If it's not an integer, we have no pointer to follow and this may
+        # actually be a non-pointer property.
         if type(result) is not int:
             return result
 
-        assert (self.bfile.structs[sdna_index_refine].field_from_path(
-            self.bfile.header, self.bfile.handle, path).dna_name.is_pointer)
-        if result != 0:
-            # possible (but unlikely)
-            # that this fails and returns None
-            # maybe we want to raise some exception in this case
-            return self.bfile.find_block_from_offset(result)
-        else:
+        if result == 0:
             return None
 
-    # ----------------------
-    # Python convenience API
+        try:
+            return self.bfile.block_from_addr[result]
+        except KeyError:
+            raise exceptions.SegmentationFault('address does not exist', path, result)
 
-    # dict like access
     def __getitem__(self, path: dna.FieldPath):
         return self.get(path, as_str=False)
 

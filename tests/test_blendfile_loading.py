@@ -4,19 +4,25 @@ import unittest
 import os
 
 from blender_asset_tracer import blendfile
+from blender_asset_tracer.blendfile import iterators
 
 
-class BlendFileBlockTest(unittest.TestCase):
+class AbstractBlendFileTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.blendfiles = pathlib.Path(__file__).with_name('blendfiles')
 
     def setUp(self):
-        self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file.blend')
+        self.bf = None
 
     def tearDown(self):
         if self.bf:
             self.bf.close()
+
+
+class BlendFileBlockTest(AbstractBlendFileTest):
+    def setUp(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file.blend')
 
     def test_loading(self):
         self.assertFalse(self.bf.is_compressed)
@@ -148,3 +154,60 @@ class BlendFileBlockTest(unittest.TestCase):
         ob = self.bf.code_index[b'OB'][0]
         assert isinstance(ob, blendfile.BlendFileBlock)
         self.assertEqual('OBümlaut', ob[b'id', b'name'].decode())
+
+
+class PointerTest(AbstractBlendFileTest):
+    def setUp(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'with_sequencer.blend')
+
+    def test_get_pointer_and_listbase(self):
+        scenes = self.bf.code_index[b'SC']
+        self.assertEqual(1, len(scenes), 'expecting 1 scene')
+        scene = scenes[0]
+        self.assertEqual(b'SCScene', scene[b'id', b'name'])
+
+        ed_ptr = scene[b'ed']
+        self.assertEqual(140051431100936, ed_ptr)
+
+        ed = scene.get_pointer(b'ed')
+        self.assertEqual(140051431100936, ed.addr_old)
+
+        seqbase = ed.get_pointer((b'seqbase', b'first'))
+        self.assertIsNotNone(seqbase)
+
+        types = {
+            b'SQBlack': 28,
+            b'SQCross': 8,
+            b'SQPink': 28,
+        }
+        seq = None
+        for seq in iterators.listbase(seqbase):
+            seq.refine_type(b'Sequence')
+            name = seq[b'name']
+            expected_type = types[name]
+            self.assertEqual(expected_type, seq[b'type'])
+
+        # The last 'seq' from the loop should be the last in the list.
+        seq_next = seq.get_pointer(b'next')
+        self.assertIsNone(seq_next)
+
+    def test_refine_sdna_by_name(self):
+        scene = self.bf.code_index[b'SC'][0]
+        ed = scene.get_pointer(b'ed')
+
+        seq = ed.get_pointer((b'seqbase', b'first'))
+
+        # This is very clear to me:
+        seq.refine_type(b'Sequence')
+        self.assertEqual(b'SQBlack', seq[b'name'])
+        self.assertEqual(28, seq[b'type'])
+
+    def test_refine_sdna_by_idx(self):
+        scene = self.bf.code_index[b'SC'][0]
+        ed = scene.get_pointer(b'ed')
+        seq = ed.get_pointer((b'seqbase', b'first'))
+
+        sdna_idx_sequence = self.bf.sdna_index_from_id[b'Sequence']
+        seq.refine_type_from_index(sdna_idx_sequence)
+        self.assertEqual(b'SQBlack', seq[b'name'])
+        self.assertEqual(28, seq[b'type'])
