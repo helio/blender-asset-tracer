@@ -208,6 +208,15 @@ class LoadCompressedTest(AbstractBlendFileTest):
         name = ob.get((b'id', b'name'))
         self.assertEqual('OBümlaut', name)
 
+    def test_as_context(self):
+        with blendfile.BlendFile(self.blendfiles / 'basic_file_compressed.blend') as bf:
+            filepath = bf.filepath
+            raw_filepath = bf.raw_filepath
+
+        self.assertTrue(bf.fileobj.closed)
+        self.assertTrue(filepath.exists())
+        self.assertFalse(raw_filepath.exists())
+
 
 class LoadNonBlendfileTest(AbstractBlendFileTest):
     def test_loading(self):
