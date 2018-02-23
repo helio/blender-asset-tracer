@@ -39,10 +39,6 @@ BLENDFILE_MAGIC = b'BLENDER'
 GZIP_MAGIC = b'\x1f\x8b'
 
 
-def pad_up_4(offset):
-    return (offset + 3) & ~3
-
-
 class BlendFile:
     """Representation of a blend file.
 
@@ -208,6 +204,9 @@ class BlendFile:
         shortstruct2 = endian.USHORT2
         intstruct = endian.UINT
         assert intstruct.size == 4
+
+        def pad_up_4(off: int) -> int:
+            return (off + 3) & ~3
 
         data = self.fileobj.read(block.size)
         types = []
