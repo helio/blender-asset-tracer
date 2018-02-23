@@ -102,9 +102,9 @@ class BlendFile:
         self.sdna_index_from_id = {}
         self.block_from_addr = {}
 
-        self.load_dna1_block()
+        self._load_blocks()
 
-    def load_dna1_block(self):
+    def _load_blocks(self):
         """Read the blend file to load its DNA structure to memory."""
         while True:
             block = BlendFileBlock(self)
@@ -118,13 +118,11 @@ class BlendFile:
 
             self.blocks.append(block)
             self.code_index[block.code].append(block)
+            self.block_from_addr[block.addr_old] = block
 
         if not self.structs:
             raise exceptions.NoDNA1Block("No DNA1 block in file, not a valid .blend file",
                                          self.filepath)
-
-        self.block_from_addr = {block.addr_old: block for block in self.blocks
-                                if block.code != b'ENDB'}
 
     def __repr__(self):
         clsname = self.__class__.__qualname__
