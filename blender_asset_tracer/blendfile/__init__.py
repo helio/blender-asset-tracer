@@ -372,15 +372,13 @@ class BlendFileBlock:
         sdna_index = self.bfile.sdna_index_from_id[dna_type_id]
         self.refine_type_from_index(sdna_index)
 
-    def get_file_offset(self, path: bytes) -> (int, int):  # TODO(Sybren): port to BAT
-        """Return (offset, length)"""
-        assert isinstance(path, bytes)
+    def abs_offset(self, path: dna.FieldPath) -> (int, int):
+        """Compute the absolute file offset of the field.
 
-        # TODO: refactor to just return the length, and check whether this isn't actually
-        # simply the same as self.size.
-        ofs = self.file_offset
-        field, _ = self.dna_type.field_from_path(self.bfile.header.pointer_size, path)
-        return ofs, field.name.array_size
+        :returns: tuple (offset in bytes, length of array in items)
+        """
+        field, field_offset = self.dna_type.field_from_path(self.bfile.header.pointer_size, path)
+        return self.file_offset + field_offset, field.name.array_size
 
     def get(self,
             path: dna.FieldPath,

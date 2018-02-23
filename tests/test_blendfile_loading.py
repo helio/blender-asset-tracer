@@ -206,6 +206,15 @@ class PointerTest(AbstractBlendFileTest):
         with self.assertRaises(exceptions.SegmentationFault):
             scene.get_pointer(b'ed')
 
+    def test_abs_offset(self):
+        scene = self.bf.code_index[b'SC'][0]
+        ed = scene.get_pointer(b'ed')
+        assert isinstance(ed, blendfile.BlendFileBlock)
+
+        abs_offset, field_size = ed.abs_offset((b'seqbase', b'first'))
+        self.assertEqual(ed.file_offset + 8, abs_offset)
+        self.assertEqual(1, field_size)
+
 
 class LoadCompressedTest(AbstractBlendFileTest):
     def test_loading(self):
