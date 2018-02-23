@@ -126,7 +126,7 @@ class StructTest(unittest.TestCase):
         self.assertEqual(self.s.field_from_path(psize, b'path'),
                          (self.f_path, 16))
         self.assertEqual(self.s.field_from_path(psize, (b'prev', b'path')),
-                         (self.f_path, 16))
+                         (self.f_path, 24))
         self.assertEqual(self.s.field_from_path(psize, (b'ptr', 2)),
                          (self.f_pointer, 16 + 4096 + 2 * psize))
         self.assertEqual(self.s.field_from_path(psize, (b'floaty', 1)),

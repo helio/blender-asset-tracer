@@ -160,9 +160,6 @@ class Struct:
             raise KeyError('%r has no field %r, only %r' %
                            (self, name, sorted(self._fields_by_name.keys())))
 
-        if name_tail:
-            return field.dna_type.field_from_path(pointer_size, name_tail)
-
         offset = field.offset
         if index:
             if field.name.is_pointer:
@@ -173,6 +170,10 @@ class Struct:
                 raise OverflowError('path %r is out of bounds of its DNA type %s' %
                                     (path, field.dna_type))
             offset += index_offset
+
+        if name_tail:
+            subval, suboff = field.dna_type.field_from_path(pointer_size, name_tail)
+            return subval, suboff + offset
 
         return field, offset
 
