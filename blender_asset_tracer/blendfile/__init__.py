@@ -456,22 +456,26 @@ class BlendFileBlock:
                 yield from self.get_recursive_iter(f.name.name_only, path_full, default=default,
                                                    null_terminated=null_terminated, as_str=as_str)
 
-    def get_data_hash(self):  # TODO(Sybren): port to BAT
+    def hash(self) -> int:
+        """Generate a pointer-independent hash for the block.
+
+        Generates a 'hash' that can be used instead of addr_old as block id,
+        which should be 'stable' across .blend file load & save (i.e. it does
+        not changes due to pointer addresses variations).
         """
-        Generates a 'hash' that can be used instead of addr_old as block id, and that should be 'stable' across .blend
-        file load & save (i.e. it does not changes due to pointer addresses variations).
-        """
-        # TODO This implementation is most likely far from optimal... and CRC32 is not renown as the best hashing
-        #      algo either. But for now does the job!
+        # TODO This implementation is most likely far from optimal... and CRC32
+        # is not kown as the best hashing algo either. But for now does the job!
         import zlib
-        def _is_pointer(self, k):
-            return self.file.structs[self.sdna_index].field_from_path(
-                self.file.header, self.file.handle, k).dna_name.is_pointer
+
+        dna_type = self.dna_type
+        pointer_size = self.bfile.header.pointer_size
 
         hsh = 1
-        for k, v in self.items_recursive():
-            if not _is_pointer(self, k):
-                hsh = zlib.adler32(str(v).encode(), hsh)
+        for path, value in self.items_recursive():
+            field, _ = dna_type.field_from_path(pointer_size, path)
+            if field.name.is_pointer:
+                continue
+            hsh = zlib.adler32(str(value).encode(), hsh)
         return hsh
 
     def set(self, path: dna.FieldPath, value):  # TODO(Sybren): port to BAT

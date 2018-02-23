@@ -1,5 +1,7 @@
 from shutil import copyfile
 
+import os
+
 from blender_asset_tracer import blendfile
 from abstract_test import AbstractBlendFileTest
 
@@ -25,13 +27,34 @@ class ModifyUncompressedTest(AbstractBlendFileTest):
         library[b'filepath'] = b'//basic_file.blend'
         library[b'name'] = b'//basic_file.blend'
 
-        # Reload the blend file to inspect that it was written properly.
-        self.bf.close()
-        self.bf = blendfile.BlendFile(self.to_modify, mode='r+b')
+        self.reload()
 
         library = self.bf.code_index[b'LI'][0]
         self.assertEqual(b'//basic_file.blend', library[b'filepath'])
         self.assertEqual(b'//basic_file.blend', library[b'name'])
+
+    def test_block_hash(self):
+        scene = self.bf.code_index[b'SC'][0]
+        assert isinstance(scene, blendfile.BlendFileBlock)
+
+        pre_hash = scene.hash()
+        self.assertIsInstance(pre_hash, int)
+
+        # Change the 'ed' pointer to some arbitrary value by hacking the blend file.
+        psize = self.bf.header.pointer_size
+        field, field_offset = scene.dna_type.field_from_path(psize, b'ed')
+        self.bf.fileobj.seek(scene.file_offset + field_offset, os.SEEK_SET)
+        self.bf.fileobj.write(b'12345678'[:psize])
+
+        self.reload()
+
+        scene = self.bf.code_index[b'SC'][0]
+        post_hash = scene.hash()
+        self.assertEqual(pre_hash, post_hash)
+
+    def reload(self):
+        self.bf.close()
+        self.bf = blendfile.BlendFile(self.to_modify, mode='r+b')
 
 
 class ModifyCompressedTest(AbstractBlendFileTest):
