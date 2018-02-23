@@ -63,6 +63,7 @@ class BlendFile:
         :param mode: see mode description of pathlib.Path.open()
         """
         self.filepath = path
+        self._is_modified = False
 
         fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)
         magic = fileobj.read(len(BLENDFILE_MAGIC))
@@ -136,6 +137,15 @@ class BlendFile:
     def __exit__(self, exctype, excvalue, traceback):
         self.close()
 
+    @property
+    def is_modified(self) -> bool:
+        return self._is_modified
+
+    def mark_modified(self):
+        """Recompess the file when it is closed."""
+        self.log.debug('Marking %s as modified', self.raw_filepath)
+        self._is_modified = True
+
     def find_blocks_from_code(self, code: bytes) -> typing.List['BlendFileBlock']:
         assert isinstance(code, bytes)
         return self.code_index[code]
@@ -151,10 +161,27 @@ class BlendFile:
     def close(self):
         """Close the blend file.
 
-        Writes the blend file to disk if it was changed.
+        Recompresses the blend file if it was compressed and changed.
         """
-        if self.fileobj:
-            self.fileobj.close()
+        if not self.fileobj:
+            return
+
+        if self._is_modified and self.is_compressed:
+            log.debug("recompressing modified blend file %s", self.raw_filepath)
+            self.fileobj.seek(os.SEEK_SET, 0)
+
+            with gzip.open(self.filepath, 'wb') as gzfile:
+                while True:
+                    data = self.fileobj.read(FILE_BUFFER_SIZE)
+                    if not data:
+                        break
+                    gzfile.write(data)
+            log.debug("compressing to %s finished", self.filepath)
+
+        # Close the file object after recompressing, as it may be a temporary
+        # file that'll disappear as soon as we close it.
+        self.fileobj.close()
+        self._is_modified = False
 
     def ensure_subtype_smaller(self, sdna_index_curr, sdna_index_next):
         # never refine to a smaller type
@@ -443,8 +470,8 @@ class BlendFileBlock:
 
     def set(self, path: dna.FieldPath, value):  # TODO(Sybren): port to BAT
         dna_struct = self.bfile.structs[self.sdna_index]
+        self.bfile.mark_modified()
         self.bfile.fileobj.seek(self.file_offset, os.SEEK_SET)
-        self.bfile.is_modified = True
         return dna_struct.field_set(self.bfile.header, self.bfile.fileobj, path, value)
 
     def get_pointer(

@@ -61,20 +61,33 @@ class EndianIO:
         raise ValueError('unsupported pointer size %d' % pointer_size)
 
     @classmethod
-    def write_string(cls, fileobj: typing.BinaryIO, astring: str, fieldlen: int):
+    def write_string(cls, fileobj: typing.BinaryIO, astring: str, fieldlen: int) -> int:
+        """Write a (truncated) string as UTF-8.
+
+        The string will always be written 0-terminated.
+
+        :returns: the number of bytes written.
+        """
         assert isinstance(astring, str)
         # TODO: truncate the string on a UTF-8 character boundary to avoid creating invalid UTF-8.
-        cls.write_bytes(fileobj, astring.encode('utf-8'), fieldlen)
+        encoded = astring.encode('utf-8')[:fieldlen-1] + b'\0'
+        return fileobj.write(encoded)
 
     @classmethod
-    def write_bytes(cls, fileobj: typing.BinaryIO, data: bytes, fieldlen: int):
+    def write_bytes(cls, fileobj: typing.BinaryIO, data: bytes, fieldlen: int) -> int:
+        """Write (truncated) bytes.
+
+        When len(data) < fieldlen, a terminating b'\0' will be appended.
+
+        :returns: the number of bytes written.
+        """
         assert isinstance(data, (bytes, bytearray))
         if len(data) >= fieldlen:
             to_write = data[0:fieldlen]
         else:
             to_write = data + b'\0'
 
-        fileobj.write(to_write)
+        return fileobj.write(to_write)
 
     @classmethod
     def read_bytes0(cls, fileobj, length):

@@ -1,23 +1,8 @@
-import pathlib
-import unittest
-
 import os
 
 from blender_asset_tracer import blendfile
 from blender_asset_tracer.blendfile import iterators
-
-
-class AbstractBlendFileTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.blendfiles = pathlib.Path(__file__).with_name('blendfiles')
-
-    def setUp(self):
-        self.bf = None
-
-    def tearDown(self):
-        if self.bf:
-            self.bf.close()
+from abstract_test import AbstractBlendFileTest
 
 
 class BlendFileBlockTest(AbstractBlendFileTest):

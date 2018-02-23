@@ -54,6 +54,19 @@ class NoReaderImplemented(NotImplementedError):
         self.dna_type = dna_type
 
 
+class NoWriterImplemented(NotImplementedError):
+    """Raised when writing a property of a non-implemented type.
+
+    :type dna_name: blender_asset_tracer.blendfile.dna.Name
+    :type dna_type: blender_asset_tracer.blendfile.dna.Struct
+    """
+
+    def __init__(self, message: str, dna_name, dna_type):
+        super().__init__(message)
+        self.dna_name = dna_name
+        self.dna_type = dna_type
+
+
 class SegmentationFault(Exception):
     """Raised when a pointer to a non-existant datablock was dereferenced."""
 

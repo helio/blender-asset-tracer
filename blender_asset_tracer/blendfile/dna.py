@@ -213,17 +213,17 @@ class Struct:
 
         dna_type = field.dna_type
         dna_name = field.name
-        types = file_header.endian
+        endian = file_header.endian
 
         # Some special cases (pointers, strings/bytes)
         if dna_name.is_pointer:
-            return types.read_pointer(fileobj, file_header.pointer_size)
+            return endian.read_pointer(fileobj, file_header.pointer_size)
         if dna_type.dna_type_id == b'char':
             if field.size == 1:
                 # Single char, assume it's bitflag or int value, and not a string/bytes data...
-                return types.read_char(fileobj)
+                return endian.read_char(fileobj)
             if null_terminated or (null_terminated is None and as_str):
-                data = types.read_bytes0(fileobj, dna_name.array_size)
+                data = endian.read_bytes0(fileobj, dna_name.array_size)
             else:
                 data = fileobj.read(dna_name.array_size)
 
@@ -232,10 +232,10 @@ class Struct:
             return data
 
         simple_readers = {
-            b'int': types.read_int,
-            b'short': types.read_short,
-            b'uint64_t': types.read_ulong,
-            b'float': types.read_float,
+            b'int': endian.read_int,
+            b'short': endian.read_short,
+            b'uint64_t': endian.read_ulong,
+            b'float': endian.read_float,
         }
         try:
             simple_reader = simple_readers[dna_type.dna_type_id]
@@ -255,22 +255,33 @@ class Struct:
             return [simple_reader(fileobj) for _ in range(dna_name.array_size)]
         return simple_reader(fileobj)
 
-    def field_set(self, header, handle, path, value):
+    def field_set(self,
+                  file_header: header.BlendFileHeader,
+                  fileobj: typing.BinaryIO,
+                  path: bytes,
+                  value: typing.Any):
+        """Write a value to the blend file.
+
+        Assumes the file pointer of `fileobj` is seek()ed to the start of the
+        struct on disk (e.g. the start of the BlendFileBlock containing the
+        data).
+        """
         assert (type(path) == bytes)
 
-        field = self.field_from_path(header, handle, path)
-        if field is None:
-            raise KeyError("%r not found in %r" %
-                           (path, [f.dna_name.name_only for f in self.fields]))
+        field, offset = self.field_from_path(file_header.pointer_size, path)
 
         dna_type = field.dna_type
-        dna_name = field.dna_name
+        dna_name = field.name
+        endian = file_header.endian
 
-        if dna_type.dna_type_id == b'char':
-            if type(value) is str:
-                return DNA_IO.write_string(handle, value, dna_name.array_size)
-            else:
-                return DNA_IO.write_bytes(handle, value, dna_name.array_size)
+        if dna_type.dna_type_id != b'char':
+            msg = "Setting type %r is not supported for %s.%s" % (
+                dna_type, self.dna_type_id.decode(), dna_name.name_full.decode())
+            raise exceptions.NoWriterImplemented(msg, dna_name, dna_type)
+
+        fileobj.seek(offset, os.SEEK_CUR)
+
+        if isinstance(value, str):
+            return endian.write_string(fileobj, value, dna_name.array_size)
         else:
-            raise NotImplementedError("Setting %r is not yet supported for %r" %
-                                      (dna_type, dna_name), dna_name, dna_type)
+            return endian.write_bytes(fileobj, value, dna_name.array_size)
