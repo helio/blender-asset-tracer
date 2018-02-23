@@ -198,6 +198,14 @@ class PointerTest(AbstractBlendFileTest):
         self.assertEqual(b'SQBlack', seq[b'name'])
         self.assertEqual(28, seq[b'type'])
 
+    def test_segfault(self):
+        scene = self.bf.code_index[b'SC'][0]
+        ed_ptr = scene.get(b'ed')
+        del self.bf.block_from_addr[ed_ptr]
+
+        with self.assertRaises(exceptions.SegmentationFault):
+            scene.get_pointer(b'ed')
+
 
 class LoadCompressedTest(AbstractBlendFileTest):
     def test_loading(self):
