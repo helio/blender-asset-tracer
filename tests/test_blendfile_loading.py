@@ -1,6 +1,5 @@
 import os
 import pathlib
-import unittest
 
 from blender_asset_tracer import blendfile
 from blender_asset_tracer.blendfile import iterators, exceptions
@@ -210,7 +209,11 @@ class LoadCompressedTest(AbstractBlendFileTest):
         self.assertEqual('OBümlaut', name)
 
 
-class LoadNonBlendfileTest(unittest.TestCase):
+class LoadNonBlendfileTest(AbstractBlendFileTest):
     def test_loading(self):
         with self.assertRaises(exceptions.BlendFileError):
             blendfile.BlendFile(pathlib.Path(__file__))
+
+    def test_no_datablocks(self):
+        with self.assertRaises(exceptions.NoDNA1Block):
+            blendfile.BlendFile(self.blendfiles / 'corrupt_only_magic.blend')

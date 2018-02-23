@@ -97,15 +97,19 @@ class BlendFile:
             fileobj.close()
             raise exceptions.BlendFileError("File is not a blend file", path)
 
-        self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
-        self.block_header_struct = self.header.create_block_header_struct()
         self.blocks = []
         self.code_index = collections.defaultdict(list)
         self.structs = []
         self.sdna_index_from_id = {}
         self.block_from_addr = {}
 
-        self._load_blocks()
+        try:
+            self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
+            self.block_header_struct = self.header.create_block_header_struct()
+            self._load_blocks()
+        except Exception:
+            fileobj.close()
+            raise
 
     def _load_blocks(self):
         """Read the blend file to load its DNA structure to memory."""
@@ -304,7 +308,7 @@ class BlendFileBlock:
         if len(data) != header_struct.size:
             self.log.warning("Blend file %s seems to be truncated, "
                              "expected %d bytes but could read only %d",
-                             header_struct.size, len(data))
+                             bfile.filepath, header_struct.size, len(data))
             self.code = b'ENDB'
             return
 
