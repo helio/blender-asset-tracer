@@ -315,17 +315,17 @@ class BlendFileBlock:
     def dna_type_name(self) -> str:
         return self.dna_type.dna_type_id.decode('ascii')
 
-    def refine_type_from_index(self, sdna_index_next):
+    def refine_type_from_index(self, sdna_index_next):  # TODO(Sybren): port to BAT
         assert (type(sdna_index_next) is int)
         sdna_index_curr = self.sdna_index
         self.bfile.ensure_subtype_smaller(sdna_index_curr, sdna_index_next)
         self.sdna_index = sdna_index_next
 
-    def refine_type(self, dna_type_id):
+    def refine_type(self, dna_type_id):  # TODO(Sybren): port to BAT
         assert (type(dna_type_id) is bytes)
         self.refine_type_from_index(self.bfile.sdna_index_from_id[dna_type_id])
 
-    def get_file_offset(self, path: bytes) -> (int, int):
+    def get_file_offset(self, path: bytes) -> (int, int):  # TODO(Sybren): port to BAT
         """Return (offset, length)"""
         assert isinstance(path, bytes)
 
@@ -423,7 +423,7 @@ class BlendFileBlock:
                 yield from self.get_recursive_iter(f.name.name_only, path_full, default=default,
                                                    null_terminated=null_terminated, as_str=as_str)
 
-    def get_data_hash(self):
+    def get_data_hash(self):  # TODO(Sybren): port to BAT
         """
         Generates a 'hash' that can be used instead of addr_old as block id, and that should be 'stable' across .blend
         file load & save (i.e. it does not changes due to pointer addresses variations).
@@ -443,7 +443,7 @@ class BlendFileBlock:
 
     def set(self, path, value,
             sdna_index_refine=None,
-            ):
+            ):  # TODO(Sybren): port to BAT
 
         dna_struct = self._get_struct(sdna_index_refine)
         self.bfile.handle.seek(self.file_offset, os.SEEK_SET)
