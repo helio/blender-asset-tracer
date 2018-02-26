@@ -144,7 +144,7 @@ class StructTest(unittest.TestCase):
     def test_simple_field_get(self):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\x01\x02\x03\x04\xff\xfe\xfd\xfa'
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'numbah')
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'numbah')
 
         self.assertEqual(val, 0x1020304fffefdfa)
         fileobj.seek.assert_called_with(4136, os.SEEK_CUR)
@@ -152,7 +152,7 @@ class StructTest(unittest.TestCase):
     def test_field_get_default(self):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.side_effect = RuntimeError
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'nonexistant', default=519871531)
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'nonexistant', default=519871531)
 
         self.assertEqual(val, 519871531)
         fileobj.seek.assert_not_called()
@@ -176,7 +176,7 @@ class StructTest(unittest.TestCase):
     def test_pointer_field_get(self):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\xf0\x9f\xa6\x87\x00dum'
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'ptr')
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'ptr')
 
         self.assertEqual(0xf09fa6870064756d, val)
         fileobj.seek.assert_called_with(4112, os.SEEK_CUR)
@@ -184,7 +184,7 @@ class StructTest(unittest.TestCase):
     def test_string_field_get(self):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\xf0\x9f\xa6\x87\x00dummydata'
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'path', as_str=True)
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'path', as_str=True)
 
         self.assertEqual('🦇', val)
         fileobj.seek.assert_called_with(16, os.SEEK_CUR)
@@ -192,7 +192,7 @@ class StructTest(unittest.TestCase):
     def test_string_field_get_single_char(self):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\xf0'
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'bitflag')
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'bitflag')
 
         self.assertEqual(0xf0, val)
         fileobj.seek.assert_called_with(4152, os.SEEK_CUR)
@@ -208,7 +208,7 @@ class StructTest(unittest.TestCase):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\x01\x02\x03\x04\xff\xfe\xfd\xfa\x00dummydata'
 
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'path', as_str=False)
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'path', as_str=False)
         self.assertEqual(b'\x01\x02\x03\x04\xff\xfe\xfd\xfa', val)
         fileobj.seek.assert_called_with(16, os.SEEK_CUR)
 
@@ -216,8 +216,8 @@ class StructTest(unittest.TestCase):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.return_value = b'\x01\x02\x03\x04\xff\xfe\xfd\xfa\x00dummydata'
 
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'path',
-                               as_str=False, null_terminated=False)
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'path',
+                                  as_str=False, null_terminated=False)
         self.assertEqual(b'\x01\x02\x03\x04\xff\xfe\xfd\xfa\x00dummydata', val)
         fileobj.seek.assert_called_with(16, os.SEEK_CUR)
 
@@ -225,7 +225,7 @@ class StructTest(unittest.TestCase):
         fileobj = mock.MagicMock(io.BufferedReader)
         fileobj.read.side_effect = (b'@333', b'@2\x8f\\')
 
-        val = self.s.field_get(self.FakeHeader(), fileobj, b'floaty')
+        _, val = self.s.field_get(self.FakeHeader(), fileobj, b'floaty')
         self.assertAlmostEqual(2.8, val[0])
         self.assertAlmostEqual(2.79, val[1])
         fileobj.seek.assert_called_with(4144, os.SEEK_CUR)

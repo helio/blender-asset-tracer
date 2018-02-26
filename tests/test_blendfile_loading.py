@@ -19,12 +19,12 @@ class BlendFileBlockTest(AbstractBlendFileTest):
 
         # Try low level operation to read a property.
         self.bf.fileobj.seek(ob.file_offset, os.SEEK_SET)
-        loc = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, b'loc')
+        _, loc = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, b'loc')
         self.assertEqual([2.0, 3.0, 5.0], loc)
 
         # Try low level operation to read an array element.
         self.bf.fileobj.seek(ob.file_offset, os.SEEK_SET)
-        loc_z = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, (b'loc', 2))
+        _, loc_z = ob.dna_type.field_get(self.bf.header, self.bf.fileobj, (b'loc', 2))
         self.assertEqual(5.0, loc_z)
 
         # Try high level operation to read the same property.

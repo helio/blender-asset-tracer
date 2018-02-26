@@ -386,6 +386,7 @@ class BlendFileBlock:
             null_terminated=True,
             as_str=False,
             base_index=0,
+            return_field=False
             ) -> typing.Any:
         """Read a property and return the value.
 
@@ -400,6 +401,8 @@ class BlendFileBlock:
             when reading binary data.
         :param as_str: When True, automatically decode bytes to string
             (assumes UTF-8 encoding).
+        :param return_field: When True, returns tuple (dna.Field, value).
+            Otherwise just returns the value.
         """
         ofs = self.file_offset
         if base_index != 0:
@@ -410,11 +413,14 @@ class BlendFileBlock:
         self.bfile.fileobj.seek(ofs, os.SEEK_SET)
 
         dna_struct = self.bfile.structs[self.sdna_index]
-        return dna_struct.field_get(
+        field, value = dna_struct.field_get(
             self.bfile.header, self.bfile.fileobj, path,
             default=default,
             null_terminated=null_terminated, as_str=as_str,
         )
+        if return_field:
+            return value, field
+        return value
 
     def get_recursive_iter(self,
                            path: dna.FieldPath,

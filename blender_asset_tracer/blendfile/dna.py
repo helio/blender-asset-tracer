@@ -184,7 +184,7 @@ class Struct:
                   default=...,
                   null_terminated=True,
                   as_str=True,
-                  ):
+                  ) -> typing.Tuple[typing.Optional[Field], typing.Any]:
         """Read the value of the field from the blend file.
 
         Assumes the file pointer of `fileobj` is seek()ed to the start of the
@@ -201,13 +201,15 @@ class Struct:
             default when reading binary data.
         :param as_str: When True, automatically decode bytes to string
             (assumes UTF-8 encoding).
+        :returns: The field instance and the value. If a default value was passed
+            and the field was not found, (None, default) is returned.
         """
         try:
             field, offset = self.field_from_path(file_header.pointer_size, path)
         except KeyError:
             if default is ...:
                 raise
-            return default
+            return None, default
 
         fileobj.seek(offset, os.SEEK_CUR)
 
@@ -217,19 +219,19 @@ class Struct:
 
         # Some special cases (pointers, strings/bytes)
         if dna_name.is_pointer:
-            return endian.read_pointer(fileobj, file_header.pointer_size)
+            return field, endian.read_pointer(fileobj, file_header.pointer_size)
         if dna_type.dna_type_id == b'char':
             if field.size == 1:
                 # Single char, assume it's bitflag or int value, and not a string/bytes data...
-                return endian.read_char(fileobj)
+                return field, endian.read_char(fileobj)
             if null_terminated or (null_terminated is None and as_str):
                 data = endian.read_bytes0(fileobj, dna_name.array_size)
             else:
                 data = fileobj.read(dna_name.array_size)
 
             if as_str:
-                return data.decode('utf8')
-            return data
+                return field, data.decode('utf8')
+            return field, data
 
         simple_readers = {
             b'int': endian.read_int,
@@ -249,11 +251,11 @@ class Struct:
             # The caller wants to get a single item from an array. The offset we seeked to already
             # points to this item. In this case we do not want to look at dna_name.array_size,
             # because we want a single item from that array.
-            return simple_reader(fileobj)
+            return field, simple_reader(fileobj)
 
         if dna_name.array_size > 1:
-            return [simple_reader(fileobj) for _ in range(dna_name.array_size)]
-        return simple_reader(fileobj)
+            return field, [simple_reader(fileobj) for _ in range(dna_name.array_size)]
+        return field, simple_reader(fileobj)
 
     def field_set(self,
                   file_header: header.BlendFileHeader,
