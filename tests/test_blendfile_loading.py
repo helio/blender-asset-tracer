@@ -32,7 +32,7 @@ class BlendFileBlockTest(AbstractBlendFileTest):
         self.assertEqual([2.0, 3.0, 5.0], loc)
 
         # Try getting a subproperty.
-        name = ob.get((b'id', b'name'))
+        name = ob.get((b'id', b'name'), as_str=True)
         self.assertEqual('OBümlaut', name)
 
         loc_z = ob.get((b'loc', 2))
@@ -41,7 +41,7 @@ class BlendFileBlockTest(AbstractBlendFileTest):
         # Try following a pointer.
         mesh_ptr = ob.get(b'data')
         mesh = self.bf.block_from_addr[mesh_ptr]
-        mname = mesh.get((b'id', b'name'))
+        mname = mesh.get((b'id', b'name'), as_str=True)
         self.assertEqual('MECube³', mname)
 
     def test_get_recursive_iter(self):
@@ -222,7 +222,7 @@ class LoadCompressedTest(AbstractBlendFileTest):
         self.assertTrue(self.bf.is_compressed)
 
         ob = self.bf.code_index[b'OB'][0]
-        name = ob.get((b'id', b'name'))
+        name = ob.get((b'id', b'name'), as_str=True)
         self.assertEqual('OBümlaut', name)
 
     def test_as_context(self):

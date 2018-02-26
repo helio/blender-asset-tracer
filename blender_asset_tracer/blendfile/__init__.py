@@ -384,7 +384,7 @@ class BlendFileBlock:
             path: dna.FieldPath,
             default=...,
             null_terminated=True,
-            as_str=True,
+            as_str=False,
             base_index=0,
             ) -> typing.Any:
         """Read a property and return the value.
@@ -507,7 +507,7 @@ class BlendFileBlock:
             raise exceptions.SegmentationFault('address does not exist', path, result)
 
     def __getitem__(self, path: dna.FieldPath):
-        return self.get(path, as_str=False)
+        return self.get(path)
 
     def __setitem__(self, item, value):
         self.set(item, value)
