@@ -2,8 +2,8 @@ import logging
 import pathlib
 import typing
 
-from blender_asset_tracer import bpathlib, blendfile
-from . import result, blocks
+from blender_asset_tracer import blendfile
+from . import result, block_walkers
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
 
     with blendfile.BlendFile(bfilepath) as bfile:
         for block in asset_holding_blocks(bfile):
-            yield from blocks.from_block(block)
+            yield from block_walkers.from_block(block)
 
         # TODO: handle library blocks for recursion.
 

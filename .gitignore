@@ -5,3 +5,5 @@ __pycache__
 /.cache
 /.pytest_cache
 /.coverage
+
+/tests/blendfiles/cache_ocean/
