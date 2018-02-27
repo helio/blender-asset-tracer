@@ -42,3 +42,12 @@ class BlendPathTest(unittest.TestCase):
                          BlendPath(b'../some/file.blend').absolute(b'/root/to'))
         self.assertEqual(b'/shared/some/file.blend',
                          BlendPath(b'/shared/some/file.blend').absolute(b'/root/to'))
+
+    def test_slash(self):
+        self.assertEqual(b'/root/and/parent.blend', BlendPath(b'/root/and') / b'parent.blend')
+        with self.assertRaises(ValueError):
+            BlendPath(b'/root/and') / b'/parent.blend'
+
+        self.assertEqual(b'/root/and/parent.blend', b'/root/and' / BlendPath(b'parent.blend'))
+        with self.assertRaises(ValueError):
+            b'/root/and' / BlendPath(b'/parent.blend')

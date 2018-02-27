@@ -25,6 +25,19 @@ class BlendPath(bytes):
         """
         return self.decode('utf8', errors='replace')
 
+    def __truediv__(self, subpath: bytes):
+        """Slash notation like pathlib.Path."""
+        sub = BlendPath(subpath)
+        if sub.is_absolute():
+            raise ValueError("'a / b' only works when 'b' is a relative path")
+        return BlendPath(os.path.join(self, sub))
+
+    def __rtruediv__(self, parentpath: bytes):
+        """Slash notation like pathlib.Path."""
+        if self.is_absolute():
+            raise ValueError("'a / b' only works when 'b' is a relative path")
+        return BlendPath(os.path.join(parentpath, self))
+
     def is_blendfile_relative(self) -> bool:
         return self[:2] == b'//'
 
