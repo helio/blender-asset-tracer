@@ -5,6 +5,7 @@ import typing
 
 
 class EndianIO:
+    # TODO(Sybren): note as UCHAR: struct.Struct = None and move actual structs to LittleEndianTypes
     UCHAR = struct.Struct(b'<B')
     USHORT = struct.Struct(b'<H')
     USHORT2 = struct.Struct(b'<HH')  # two shorts in a row
@@ -66,6 +67,9 @@ class EndianIO:
 
         The string will always be written 0-terminated.
 
+        :param fileobj: the file to write to.
+        :param astring: the string to write.
+        :param fieldlen: the field length in bytes.
         :returns: the number of bytes written.
         """
         assert isinstance(astring, str)
