@@ -1,7 +1,9 @@
 import collections
 import logging
+import typing
 
 from blender_asset_tracer import tracer, blendfile
+from blender_asset_tracer.blendfile import dna
 from abstract_test import AbstractBlendFileTest
 
 # Mimicks a BlockUsage, but without having to set the block to an expected value.
@@ -34,8 +36,8 @@ class AssetHoldingBlocksTest(AbstractTracerTest):
             # shouldn't be yielded.
             self.assertEqual(2, len(block.code))
 
-            # Library blocks should not be yielded either.
-            self.assertNotEqual(b'LI', block.code)
+            # World blocks should not yielded either.
+            self.assertNotEqual(b'WO', block.code)
 
             # Do some arbitrary tests that convince us stuff is read well.
             if block.code == b'SC':
@@ -57,27 +59,36 @@ class AssetHoldingBlocksTest(AbstractTracerTest):
         # The numbers here are taken from whatever the code does now; I didn't
         # count the actual blocks in the actual blend file.
         self.assertEqual(965, len(self.bf.blocks))
-        self.assertEqual(37, blocks_seen)
+        self.assertEqual(4, blocks_seen)
 
 
 class DepsTest(AbstractTracerTest):
+    @staticmethod
+    def field_name(field: dna.Field) -> typing.Optional[str]:
+        if field is None:
+            return None
+        return field.name.name_full.decode()
 
-    def assert_deps(self, blend_fname, expects):
-        for dep in tracer.deps(self.blendfiles / blend_fname):
+    def assert_deps(self, blend_fname, expects: dict, recursive=False):
+        for dep in tracer.deps(self.blendfiles / blend_fname, recursive=recursive):
+            actual_type = dep.block.dna_type.dna_type_id.decode()
+            actual_full_field = self.field_name(dep.path_full_field)
+            actual_dirname = self.field_name(dep.path_dir_field)
+            actual_basename = self.field_name(dep.path_base_field)
+
+            actual = Expect(actual_type, actual_full_field, actual_dirname, actual_basename,
+                            dep.asset_path, dep.is_sequence)
+
             exp = expects[dep.block_name]
-            self.assertEqual(exp.type, dep.block.dna_type.dna_type_id.decode())
-            self.assertEqual(exp.asset_path, dep.asset_path)
-            self.assertEqual(exp.is_sequence, dep.is_sequence)
-
-            if exp.full_field is not None:
-                self.assertEqual(exp.full_field, dep.path_full_field.name.name_full.decode())
-            if exp.dirname_field is not None:
-                self.assertEqual(exp.dirname_field, dep.path_dir_field.name.name_full.decode())
-            if exp.basename_field is not None:
-                self.assertEqual(exp.basename_field, dep.path_base_field.name.name_full.decode())
-
-            # Each expectation should be seen only once.
-            del expects[dep.block_name]
+            if isinstance(exp, set):
+                self.assertIn(actual, exp, msg='for block %s' % dep.block_name)
+                exp.discard(actual)
+                if not exp:
+                    # Don't leave empty sets in expects.
+                    del expects[dep.block_name]
+            else:
+                self.assertEqual(exp, actual, msg='for block %s' % dep.block_name)
+                del expects[dep.block_name]
 
         # All expected uses should have been seen.
         self.assertEqual({}, expects, 'Expected results were not seen.')
@@ -161,3 +172,27 @@ class DepsTest(AbstractTracerTest):
         self.assert_deps('linked_cube.blend', {
             b'LILib': Expect('Library', 'name[1024]', None, None, b'//basic_file.blend', False),
         })
+
+    def test_deps_recursive(self):
+        self.assert_deps('doubly_linked.blend', {
+            b'LILib': {
+                # From doubly_linked.blend
+                Expect('Library', 'name[1024]', None, None, b'//linked_cube.blend', False),
+
+                # From linked_cube.blend
+                Expect('Library', 'name[1024]', None, None, b'//basic_file.blend', False),
+            },
+            b'LILib.002': Expect('Library', 'name[1024]', None, None,
+                                 b'//material_textures.blend', False),
+
+            # From material_texture.blend
+            b'IMbrick_dotted_04-bump': Expect(
+                'Image', 'name[1024]', None, None,
+                b'//textures/Bricks/brick_dotted_04-bump.jpg', False),
+            b'IMbrick_dotted_04-color': Expect(
+                'Image', 'name[1024]', None, None,
+                b'//textures/Bricks/brick_dotted_04-color.jpg', False),
+            b'IMbuildings_roof_04-color': Expect(
+                'Image', 'name[1024]', None, None,
+                b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
+        }, recursive=True)

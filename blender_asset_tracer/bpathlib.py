@@ -5,6 +5,7 @@ or vice versa.
 """
 
 import os.path
+import pathlib
 import string
 
 
@@ -12,6 +13,8 @@ class BlendPath(bytes):
     """A path within Blender is always stored as bytes."""
 
     def __new__(cls, path):
+        if isinstance(path, pathlib.Path):
+            path = str(path)  # handle as string, which is encoded to bytes below.
         if isinstance(path, str):
             # As a convenience, when a string is given, interpret as UTF-8.
             return bytes.__new__(cls, path.encode('utf-8'))

@@ -30,6 +30,7 @@ import tempfile
 import typing
 
 from . import exceptions, dna_io, dna, header
+from blender_asset_tracer import bpathlib
 
 log = logging.getLogger(__name__)
 
@@ -276,6 +277,21 @@ class BlendFile:
                 dna_offset += dna_size
 
         return structs, sdna_index_from_id
+
+    def abspath(self, relpath: bpathlib.BlendPath) -> bpathlib.BlendPath:
+        """Construct an absolute path from a blendfile-relative path."""
+
+        if relpath.is_absolute():
+            return relpath
+
+        bfile_dir = self.filepath.absolute().parent
+        root = bpathlib.BlendPath(bfile_dir)
+        abspath = relpath.absolute(root)
+
+        my_log = self.log.getChild('abspath')
+        my_log.info('Resolved %s relative to %s to %s', relpath, self.filepath, abspath)
+
+        return abspath
 
 
 class BlendFileBlock:
