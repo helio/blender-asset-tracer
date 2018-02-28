@@ -36,7 +36,7 @@ setup(
         },
     entry_points={
         'console_scripts': [
-            # 'bf = bam.cli:main',
+            'bat = blender_asset_tracer.cli:cli_main',
         ],
     },
     zip_safe=True,

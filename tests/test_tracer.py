@@ -1,5 +1,6 @@
 import collections
 import logging
+import sys
 import typing
 
 from blender_asset_tracer import tracer, blendfile
@@ -203,3 +204,15 @@ class DepsTest(AbstractTracerTest):
                 'PointCache', 'name[64]', None, None,
                 b'//blendcache_bam_pack_bug/particles_*.bphys', True),
         })
+
+    def test_recursion_loop(self):
+        infinite_bfile = self.blendfiles / 'recursive_dependency_1.blend'
+
+        reclim = sys.getrecursionlimit()
+        try:
+            sys.setrecursionlimit(80)
+            # This should finish without hitting the recursion limit.
+            for _ in tracer.deps(infinite_bfile, recursive=True):
+                pass
+        finally:
+            sys.setrecursionlimit(reclim)

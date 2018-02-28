@@ -4,7 +4,7 @@ __pycache__
 /*.egg-info/
 /.cache
 /.pytest_cache
-/.coverage
+.coverage
 
 /tests/blendfiles/cache_ocean/
 /tests/blendfiles/T53562/blendcache_bam_pack_bug/

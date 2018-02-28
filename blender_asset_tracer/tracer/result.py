@@ -1,5 +1,12 @@
+import logging
+import pathlib
+import typing
+
 from blender_asset_tracer import blendfile, bpathlib
 from blender_asset_tracer.blendfile import dna
+from . import file_sequence
+
+log = logging.getLogger(__name__)
 
 
 class BlockUsage:
@@ -79,3 +86,27 @@ class BlockUsage:
             self.path_full_field.name.name_full.decode(), self.asset_path,
             ' sequence' if self.is_sequence else ''
         )
+
+    def files(self) -> typing.Iterator[pathlib.Path]:
+        """Determine absolute path(s) of the asset file(s).
+
+        A relative path is interpreted relative to the blend file referring
+        to the asset. If this BlockUsage represents a sequence, the filesystem
+        is inspected and the actual files in the sequence are yielded.
+
+        It is assumed that paths are valid UTF-8.
+        """
+
+        bpath = self.block.bfile.abspath(self.asset_path)
+        path = pathlib.Path(bpath.decode())
+        if not self.is_sequence:
+            if not path.exists():
+                log.warning('Path %s does not exist for %s', path, self)
+                return
+            yield path
+            return
+
+        try:
+            yield from file_sequence.expand_sequence(path)
+        except file_sequence.DoesNotExist:
+            log.warning('Path %s does not exist for %s', path, self)

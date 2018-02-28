@@ -17,38 +17,63 @@ codes_to_skip = {
 }
 
 
+class _Tracer:
+    """Trace dependencies with protection against infinite loops.
+
+    Don't use this directly, use the function deps(...) instead.
+    """
+    def __init__(self):
+        self.seen_files = set()
+
+    def deps(self, bfilepath: pathlib.Path, recursive=False) -> typing.Iterator[result.BlockUsage]:
+        """Open the blend file and report its dependencies.
+
+        :param bfilepath: File to open.
+        :param recursive: Also report dependencies inside linked blend files.
+        """
+        log.info('Tracing %s', bfilepath)
+        self.seen_files.add(bfilepath)
+
+        with blendfile.BlendFile(bfilepath) as bfile:
+            for block in asset_holding_blocks(bfile):
+                yield from block_walkers.from_block(block)
+
+                if recursive and block.code == b'LI':
+                    yield from self._recurse_deps(block)
+
+    def _recurse_deps(self, lib_block: blendfile.BlendFileBlock) \
+            -> typing.Iterator[result.BlockUsage]:
+        """Call deps() on the file linked from the library block."""
+        if lib_block.code != b'LI':
+            raise ValueError('Expected LI block, not %r' % lib_block)
+
+        relpath = bpathlib.BlendPath(lib_block[b'name'])
+        abspath = lib_block.bfile.abspath(relpath)
+
+        # Convert bytes to pathlib.Path object so we have a nice interface to work with.
+        # This assumes the path is encoded in UTF-8.
+        path = pathlib.Path(abspath.decode()).resolve()
+        if not path.exists():
+            log.warning('Linked blend file %s (%s) does not exist; skipping.', relpath, path)
+            return
+
+        # Avoid infinite recursion.
+        if path in self.seen_files:
+            log.debug('ignoring file, already seen %s', path)
+            return
+
+        yield from self.deps(path, recursive=True)
+
+
 def deps(bfilepath: pathlib.Path, recursive=False) -> typing.Iterator[result.BlockUsage]:
     """Open the blend file and report its dependencies.
 
     :param bfilepath: File to open.
     :param recursive: Also report dependencies inside linked blend files.
     """
-    log.info('Tracing %s', bfilepath)
 
-    with blendfile.BlendFile(bfilepath) as bfile:
-        for block in asset_holding_blocks(bfile):
-            yield from block_walkers.from_block(block)
-
-            if recursive and block.code == b'LI':
-                yield from _recurse_deps(block)
-
-
-def _recurse_deps(lib_block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
-    """Call deps() on the file linked from the library block."""
-    if lib_block.code != b'LI':
-        raise ValueError('Expected LI block, not %r' % lib_block)
-
-    relpath = bpathlib.BlendPath(lib_block[b'name'])
-    abspath = lib_block.bfile.abspath(relpath)
-
-    # Convert bytes to pathlib.Path object so we have a nice interface to work with.
-    # This assumes the path is encoded in UTF-8.
-    path = pathlib.Path(abspath.decode())
-    if not path.exists():
-        log.warning('Linked blend file %s (%s) does not exist; skipping.', relpath, path)
-        return
-
-    yield from deps(path, recursive=True)
+    tracer = _Tracer()
+    yield from tracer.deps(bfilepath, recursive=recursive)
 
 
 def asset_holding_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:
