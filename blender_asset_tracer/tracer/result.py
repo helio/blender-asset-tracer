@@ -8,7 +8,9 @@ class BlockUsage:
     :ivar block_name: an identifying name for this block. Defaults to the ID
         name of the block.
     :ivar block:
-    :ivar asset_path:
+    :ivar asset_path: The path of the asset, if is_sequence=False. Otherwise
+        it can be either a glob pattern (must contain a * byte), a directory,
+        or the path of the first file in the sequence.
     :ivar is_sequence: Indicates whether this file is alone (False), the
         first of a sequence (True, and the path points to a file), or a
         directory containing a sequence (True, and path points to a directory).

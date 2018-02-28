@@ -34,6 +34,7 @@ IMA_SRC_SEQUENCE = 2
 IMA_SRC_MOVIE = 3
 
 # DNA_modifier_types.h
+eModifierType_ParticleSystem = 19
 eModifierType_Ocean = 39
 eModifierType_MeshCache = 46
 
@@ -45,4 +46,10 @@ PART_DRAW_GR = 8
 # Object.transflag
 OB_DUPLIGROUP = 1 << 8
 
-CACHE_LIBRARY_SOURCE_CACHE = 1
+# DNA_object_force_types.h
+PTCACHE_DISK_CACHE = 64
+PTCACHE_EXTERNAL = 512
+
+# BKE_pointcache.h
+PTCACHE_EXT = b'.bphys'
+PTCACHE_PATH = b'blendcache_'

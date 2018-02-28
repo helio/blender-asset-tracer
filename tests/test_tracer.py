@@ -196,3 +196,10 @@ class DepsTest(AbstractTracerTest):
                 'Image', 'name[1024]', None, None,
                 b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
         }, recursive=True)
+
+    def test_sim_data(self):
+        self.assert_deps('T53562/bam_pack_bug.blend', {
+            b'OBEmitter.modifiers[0]': Expect(
+                'PointCache', 'name[64]', None, None,
+                b'//blendcache_bam_pack_bug/particles_*.bphys', True),
+        })

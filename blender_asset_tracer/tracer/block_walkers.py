@@ -12,7 +12,7 @@ import typing
 
 from blender_asset_tracer import blendfile, bpathlib
 from blender_asset_tracer.blendfile import iterators
-from . import result, cdefs
+from . import result, cdefs, modifier_walkers
 
 log = logging.getLogger(__name__)
 
@@ -105,20 +105,14 @@ def _from_block_ob(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     mods = block.get_pointer((b'modifiers', b'first'))
     for mod_idx, block_mod in enumerate(iterators.listbase(mods, next_path=(b'modifier', b'next'))):
         block_name = b'%s.modifiers[%d]' % (ob_idname, mod_idx)
-        log.debug('Tracing modifier %s', block_name.decode())
-
         mod_type = block_mod[b'modifier', b'type']
-        if mod_type == cdefs.eModifierType_Ocean:
-            if block_mod[b'cached']:
-                path, field = block_mod.get(b'cachepath', return_field=True)
-                # The path indicates the directory containing the cached files.
-                yield result.BlockUsage(block_mod, path, is_sequence=True, path_full_field=field,
-                                        block_name=block_name)
+        log.debug('Tracing modifier %s, type=%d', block_name.decode(), mod_type)
 
-        elif mod_type == cdefs.eModifierType_MeshCache:
-            path, field = block_mod.get(b'filepath', return_field=True)
-            yield result.BlockUsage(block_mod, path, is_sequence=False, path_full_field=field,
-                                    block_name=block_name)
+        try:
+            mod_handler = modifier_walkers.modifier_handlers[mod_type]
+        except KeyError:
+            continue
+        yield from mod_handler(block_mod, block_name)
 
 
 def _from_block_sc(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
