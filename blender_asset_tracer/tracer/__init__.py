@@ -13,6 +13,7 @@ codes_to_skip = {
 
 
 def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
+    """Open the blend file and report its dependencies."""
     log.info('Tracing %s', bfilepath)
 
     with blendfile.BlendFile(bfilepath) as bfile:
@@ -23,6 +24,7 @@ def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
 
 
 def asset_holding_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:
+    """Generator, yield data blocks that could reference external assets."""
     for block in bfile.blocks:
         assert isinstance(block, blendfile.BlendFileBlock)
         code = block.code
