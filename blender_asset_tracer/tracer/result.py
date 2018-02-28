@@ -34,13 +34,7 @@ class BlockUsage:
         if block_name:
             self.block_name = block_name
         else:
-            try:
-                self.block_name = block[b'id', b'name']
-            except KeyError:
-                try:
-                    self.block_name = block[b'name']
-                except KeyError:
-                    self.block_name = b'-unnamed-'
+            self.block_name = self.guess_block_name(block)
 
         assert isinstance(block, blendfile.BlendFileBlock)
         assert isinstance(asset_path, (bytes, bpathlib.BlendPath)), \
@@ -64,6 +58,18 @@ class BlockUsage:
         self.path_full_field = path_full_field
         self.path_dir_field = path_dir_field
         self.path_base_field = path_base_field
+
+    @staticmethod
+    def guess_block_name(block: blendfile.BlendFileBlock) -> bytes:
+        try:
+            return block[b'id', b'name']
+        except KeyError:
+            pass
+        try:
+            return block[b'name']
+        except KeyError:
+            pass
+        return b'-unnamed-'
 
     def __repr__(self):
         return '<BlockUsage name=%r type=%r field=%r asset=%r%s>' % (
