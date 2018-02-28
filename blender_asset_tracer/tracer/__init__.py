@@ -60,8 +60,10 @@ class _Tracer:
 
         # Convert bytes to pathlib.Path object so we have a nice interface to work with.
         # This assumes the path is encoded in UTF-8.
-        path = pathlib.Path(abspath.decode()).resolve()
-        if not path.exists():
+        path = pathlib.Path(abspath.decode())
+        try:
+            path = path.resolve()
+        except FileNotFoundError:
             log.warning('Linked blend file %s (%s) does not exist; skipping.', relpath, path)
             return
 
