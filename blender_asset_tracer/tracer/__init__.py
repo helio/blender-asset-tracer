@@ -34,12 +34,19 @@ class _Tracer:
         log.info('Tracing %s', bfilepath)
         self.seen_files.add(bfilepath)
 
+        recurse_into = []
         with blendfile.BlendFile(bfilepath) as bfile:
             for block in asset_holding_blocks(bfile):
                 yield from block_walkers.from_block(block)
 
                 if recursive and block.code == b'LI':
-                    yield from self._recurse_deps(block)
+                    recurse_into.append(block)
+
+            # Deal with recursion after we've handled all dependencies of the
+            # current file, so that file access isn't interleaved and all deps
+            # of one file are reported before moving to the next.
+            for block in recurse_into:
+                yield from self._recurse_deps(block)
 
     def _recurse_deps(self, lib_block: blendfile.BlendFileBlock) \
             -> typing.Iterator[result.BlockUsage]:
