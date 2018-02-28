@@ -8,7 +8,6 @@ from . import result, block_walkers
 log = logging.getLogger(__name__)
 
 codes_to_skip = {
-    b'LI',  # Library blocks we handle after the blend file itself.
     b'ID', b'WM', b'SN',  # These blocks never have external assets.
 }
 

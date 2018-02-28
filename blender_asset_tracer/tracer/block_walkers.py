@@ -69,6 +69,16 @@ def _from_block_im(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     yield result.BlockUsage(block, pathname, is_sequence, path_full_field=field)
 
 
+def _from_block_li(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+    """Library data blocks."""
+    path, field = block.get(b'name', return_field=True)
+    yield result.BlockUsage(block, path, path_full_field=field)
+
+    # The 'filepath' also points to the blend file. However, this is set to the
+    # absolute path of the file by Blender (see BKE_library_filepath_set). This
+    # is thus not a property we have to report or rewrite.
+
+
 def _from_block_me(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Mesh data blocks."""
     block_external = block.get_pointer((b'ldata', b'external'), None)

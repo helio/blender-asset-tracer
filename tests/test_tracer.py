@@ -76,9 +76,11 @@ class DepsTest(AbstractTracerTest):
             if exp.basename_field is not None:
                 self.assertEqual(exp.basename_field, dep.path_base_field.name.name_full.decode())
 
-            del expects[dep.block_name]  # should be seen only once
+            # Each expectation should be seen only once.
+            del expects[dep.block_name]
+
         # All expected uses should have been seen.
-        self.assertEqual({}, expects)
+        self.assertEqual({}, expects, 'Expected results were not seen.')
 
     def test_no_deps(self):
         self.assert_deps('basic_file.blend', {})
@@ -153,4 +155,9 @@ class DepsTest(AbstractTracerTest):
         self.assert_deps('with_font.blend', {
             b'VFHack-Bold': Expect('VFont', 'name[1024]', None, None,
                                    b'/usr/share/fonts/truetype/hack/Hack-Bold.ttf', False),
+        })
+
+    def test_block_li(self):
+        self.assert_deps('linked_cube.blend', {
+            b'LILib': Expect('Library', 'name[1024]', None, None, b'//basic_file.blend', False),
         })
