@@ -1,8 +1,11 @@
 """List dependencies of a blend file."""
+import json
 import logging
 import pathlib
+import sys
 
 from . import common
+from blender_asset_tracer import tracer
 
 log = logging.getLogger(__name__)
 
@@ -19,23 +22,34 @@ def add_parser(subparsers):
 
 
 def cli_list(args):
-    from blender_asset_tracer import tracer
-
     bpath = args.blendfile
     if not bpath.exists():
         log.fatal('File %s does not exist', args.blendfile)
         return 3
 
-    cwd = pathlib.Path.cwd()
+    recursive = not args.nonrecursive
+    if args.json:
+        report_json(bpath, recursive)
+    else:
+        report_text(bpath, recursive)
 
+
+def report_text(bpath, recursive):
     reported_assets = set()
     last_reported_bfile = None
+    cwd = pathlib.Path.cwd()
 
-    recursive = not args.nonrecursive
+    def shorten(somepath: pathlib.Path) -> pathlib.Path:
+        """Return 'somepath' relative to CWD if possible."""
+        try:
+            return somepath.relative_to(cwd)
+        except ValueError:
+            return somepath
+
     for usage in tracer.deps(bpath, recursive=recursive):
         filepath = usage.block.bfile.filepath.absolute()
         if filepath != last_reported_bfile:
-            print(filepath.relative_to(cwd))
+            print(shorten(filepath))
         last_reported_bfile = filepath
 
         for assetpath in usage.files():
@@ -44,8 +58,29 @@ def cli_list(args):
                 log.debug('Already reported %s', assetpath)
                 continue
 
-            try:
-                print('   ', assetpath.relative_to(cwd))
-            except ValueError:
-                print('   ', assetpath)
+            print('   ', shorten(assetpath))
             reported_assets.add(assetpath)
+
+
+class JSONSerialiser(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, pathlib.Path):
+            return str(o)
+        if isinstance(o, set):
+            return sorted(o)
+        return super().default(o)
+
+
+def report_json(bpath, recursive):
+    import collections
+
+    # Mapping from blend file to its dependencies.
+    report = collections.defaultdict(set)
+
+    for usage in tracer.deps(bpath, recursive=recursive):
+        filepath = usage.block.bfile.filepath.absolute()
+        for assetpath in usage.files():
+            assetpath = assetpath.resolve()
+            report[str(filepath)].add(assetpath)
+
+    json.dump(report, sys.stdout, cls=JSONSerialiser, indent=4)

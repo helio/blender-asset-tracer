@@ -32,6 +32,7 @@ class _Tracer:
         :param recursive: Also report dependencies inside linked blend files.
         """
         log.info('Tracing %s', bfilepath)
+        bfilepath = bfilepath.absolute().resolve()
         self.seen_files.add(bfilepath)
 
         recurse_into = []
