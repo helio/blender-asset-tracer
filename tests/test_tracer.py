@@ -134,6 +134,16 @@ class DepsTest(AbstractTracerTest):
         }
         self.assert_deps('image_sequencer.blend', expects)
 
+        # Test the filename expansion.
+        expected = [self.blendfiles / ('imgseq/%06d.png' % num)
+                    for num in range(210, 215)]
+        for dep in tracer.deps(self.blendfiles / 'image_sequencer.blend'):
+            if dep.block_name != b'SQ000210.png':
+                continue
+
+            actual = list(dep.files())
+            self.assertEqual(actual, expected)
+
     def test_block_cf(self):
         self.assert_deps('alembic-user.blend', {
             b'CFclothsim.abc': Expect('CacheFile', 'filepath[1024]', None, None,
