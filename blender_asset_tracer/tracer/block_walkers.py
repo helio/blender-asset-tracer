@@ -1,8 +1,6 @@
 """Block walkers.
 
-From a BlendFileBlock, the block walker functions yield BlockUsage objects.
-The top-level block walkers are implemented as _from_block_XX() function,
-where XX is the DNA code of the block.
+From a Blend file data block, iter_assts() yields all the referred-to assets.
 """
 
 import functools
