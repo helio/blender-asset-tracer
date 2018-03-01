@@ -38,7 +38,7 @@ class _Tracer:
         recurse_into = []
         with blendfile.BlendFile(bfilepath) as bfile:
             for block in asset_holding_blocks(bfile):
-                yield from block_walkers.from_block(block)
+                yield from block_walkers.iter_assets(block)
 
                 if recursive and block.code == b'LI':
                     recurse_into.append(block)

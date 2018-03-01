@@ -17,16 +17,16 @@ from . import result, cdefs, modifier_walkers
 log = logging.getLogger(__name__)
 
 _warned_about_types = set()
+_funcs_for_code = {}
 
 
-def from_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+def iter_assets(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+    """Generator, yield the assets used by this data block."""
     assert block.code != b'DATA'
 
-    module = sys.modules[__name__]
-    funcname = '_from_block_' + block.code.decode().lower()
     try:
-        block_reader = getattr(module, funcname)
-    except AttributeError:
+        block_reader = _funcs_for_code[block.code]
+    except KeyError:
         if block.code not in _warned_about_types:
             log.warning('No reader implemented for block type %r', block.code.decode())
             _warned_about_types.add(block.code)
@@ -34,6 +34,18 @@ def from_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockU
 
     log.debug('Tracing block %r', block)
     yield from block_reader(block)
+
+
+def dna_code(block_code: str):
+    """Decorator, marks decorated func as handler for that DNA code."""
+
+    assert isinstance(block_code, str)
+
+    def decorator(wrapped):
+        _funcs_for_code[block_code.encode()] = wrapped
+        return wrapped
+
+    return decorator
 
 
 def skip_packed(wrapped):
@@ -49,14 +61,16 @@ def skip_packed(wrapped):
     return wrapper
 
 
-def _from_block_cf(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('CF')
+def cache_file(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Cache file data blocks."""
     path, field = block.get(b'filepath', return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
+@dna_code('IM')
 @skip_packed
-def _from_block_im(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+def image(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Image data blocks."""
     # old files miss this
     image_source = block.get(b'source', default=cdefs.IMA_SRC_FILE)
@@ -69,7 +83,8 @@ def _from_block_im(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     yield result.BlockUsage(block, pathname, is_sequence, path_full_field=field)
 
 
-def _from_block_li(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('LI')
+def library(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Library data blocks."""
     path, field = block.get(b'name', return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
@@ -79,7 +94,8 @@ def _from_block_li(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     # is thus not a property we have to report or rewrite.
 
 
-def _from_block_me(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('ME')
+def mesh(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Mesh data blocks."""
     block_external = block.get_pointer((b'ldata', b'external'), None)
     if block_external is None:
@@ -91,14 +107,16 @@ def _from_block_me(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
-def _from_block_mc(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('MC')
+def movie_clip(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """MovieClip data blocks."""
     path, field = block.get(b'name', return_field=True)
     # TODO: The assumption that this is not a sequence may not be true for all modifiers.
     yield result.BlockUsage(block, path, is_sequence=False, path_full_field=field)
 
 
-def _from_block_ob(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('OB')
+def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Object data blocks."""
     # 'ob->modifiers[...].filepath'
     ob_idname = block[b'id', b'name']
@@ -115,7 +133,8 @@ def _from_block_ob(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
         yield from mod_handler(block_mod, block_name)
 
 
-def _from_block_sc(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+@dna_code('SC')
+def scene(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Scene data blocks."""
     # Sequence editor is the only interesting bit.
     block_ed = block.get_pointer(b'ed')
@@ -162,15 +181,17 @@ def _from_block_sc(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bl
     yield from iter_seqbase(sbase)
 
 
+@dna_code('SO')
 @skip_packed
-def _from_block_so(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+def sound(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Sound data blocks."""
     path, field = block.get(b'name', return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
+@dna_code('VF')
 @skip_packed
-def _from_block_vf(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
+def vector_font(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Vector Font data blocks."""
     path, field = block.get(b'name', return_field=True)
     if path == b'<builtin>':  # builtin font
