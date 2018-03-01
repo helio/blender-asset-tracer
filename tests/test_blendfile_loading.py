@@ -216,6 +216,47 @@ class PointerTest(AbstractBlendFileTest):
         self.assertEqual(1, field_size)
 
 
+class ArrayTest(AbstractBlendFileTest):
+    def test_array_of_pointers(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'multiple_materials.blend')
+        mesh = self.bf.code_index[b'ME'][0]
+        assert isinstance(mesh, blendfile.BlendFileBlock)
+
+        material_count = mesh[b'totcol']
+        self.assertEqual(4, material_count)
+
+        for i, material in enumerate(mesh.iter_array_of_pointers(b'mat', material_count)):
+            if i == 0:
+                name = b'MAMaterial.000'
+            elif i in {1, 3}:
+                name = b'MAMaterial.001'
+            else:
+                name = b'MAMaterial.002'
+            self.assertEqual(name, material[b'id', b'name'])
+
+    def test_array_of_lamp_textures(self):
+        self.bf = blendfile.BlendFile(self.blendfiles / 'lamp_textures.blend')
+        lamp = self.bf.code_index[b'LA'][0]
+        assert isinstance(lamp, blendfile.BlendFileBlock)
+
+        mtex0 = lamp.get_pointer(b'mtex')
+        tex = mtex0.get_pointer(b'tex')
+        self.assertEqual(b'TE', tex.code)
+        self.assertEqual(b'TEClouds', tex[b'id', b'name'])
+
+        for i, mtex in enumerate(lamp.iter_fixed_array_of_pointers(b'mtex')):
+            if i == 0:
+                name = b'TEClouds'
+            elif i == 1:
+                name = b'TEVoronoi'
+            else:
+                self.fail('Too many textures reported: %r' % mtex)
+
+            tex = mtex.get_pointer(b'tex')
+            self.assertEqual(b'TE', tex.code)
+            self.assertEqual(name, tex[b'id', b'name'])
+
+
 class LoadCompressedTest(AbstractBlendFileTest):
     def test_loading(self):
         self.bf = blendfile.BlendFile(self.blendfiles / 'basic_file_compressed.blend')

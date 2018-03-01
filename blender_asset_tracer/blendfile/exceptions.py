@@ -70,7 +70,7 @@ class NoWriterImplemented(NotImplementedError):
 class SegmentationFault(Exception):
     """Raised when a pointer to a non-existant datablock was dereferenced."""
 
-    def __init__(self, message: str, field_path, address: int):
+    def __init__(self, message: str, address: int, field_path=None):
         super().__init__(message)
-        self.field_path = field_path
         self.address = address
+        self.field_path = field_path

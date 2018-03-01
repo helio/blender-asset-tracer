@@ -158,6 +158,7 @@ class BlendFile:
 
         :param address: the BlendFileBlock.addr_old value
         """
+        # TODO(Sybren): mark as deprecated in favour of dereference_pointer().
         assert type(address) is int
         return self.block_from_addr.get(address)
 
@@ -293,6 +294,14 @@ class BlendFile:
 
         return abspath
 
+    def dereference_pointer(self, address: int) -> 'BlendFileBlock':
+        """Return the pointed-to block, or raise SegmentationFault."""
+
+        try:
+            return self.block_from_addr[address]
+        except KeyError:
+            raise exceptions.SegmentationFault('address does not exist', address)
+
 
 class BlendFileBlock:
     """
@@ -355,6 +364,16 @@ class BlendFileBlock:
             hex(self.addr_old),
         )
 
+    def __hash__(self) -> int:
+        return hash((self.code, self.addr_old, self.bfile.filepath))
+
+    def __eq__(self, other: 'BlendFileBlock') -> bool:
+        if not isinstance(other, BlendFileBlock):
+            return False
+        return (self.code == other.code and
+                self.addr_old == other.addr_old and
+                self.bfile.filepath == other.bfile.filepath)
+
     @property
     def dna_type(self) -> dna.Struct:
         return self.bfile.structs[self.sdna_index]
@@ -401,7 +420,6 @@ class BlendFileBlock:
             default=...,
             null_terminated=True,
             as_str=False,
-            base_index=0,
             return_field=False
             ) -> typing.Any:
         """Read a property and return the value.
@@ -420,13 +438,7 @@ class BlendFileBlock:
         :param return_field: When True, returns tuple (dna.Field, value).
             Otherwise just returns the value.
         """
-        ofs = self.file_offset
-        if base_index != 0:
-            if base_index >= self.count:
-                raise OverflowError('%r: index %d overflows size %d' %
-                                    (self, base_index, self.count))
-            ofs += (self.size // self.count) * base_index
-        self.bfile.fileobj.seek(ofs, os.SEEK_SET)
+        self.bfile.fileobj.seek(self.file_offset, os.SEEK_SET)
 
         dna_struct = self.bfile.structs[self.sdna_index]
         field, value = dna_struct.field_get(
@@ -444,7 +456,6 @@ class BlendFileBlock:
                            default=...,
                            null_terminated=True,
                            as_str=True,
-                           base_index=0,
                            ) -> typing.Iterator[typing.Tuple[bytes, typing.Any]]:
         """Generator, yields (path, property value) tuples.
 
@@ -461,7 +472,7 @@ class BlendFileBlock:
         try:
             # Try accessing as simple property
             yield (path_full,
-                   self.get(path_full, default, null_terminated, as_str, base_index))
+                   self.get(path_full, default, null_terminated, as_str))
         except exceptions.NoReaderImplemented as ex:
             # This was not a simple property, so recurse into its DNA Struct.
             dna_type = ex.dna_type
@@ -506,14 +517,13 @@ class BlendFileBlock:
     def get_pointer(
             self, path: dna.FieldPath,
             default=...,
-            base_index=0,
     ) -> typing.Union[None, 'BlendFileBlock', typing.Any]:
         """Same as get() but dereferences a pointer.
 
         :raises exceptions.SegmentationFault: when there is no datablock with
             the pointed-to address.
         """
-        result = self.get(path, default=default, base_index=base_index)
+        result = self.get(path, default=default)
 
         # If it's not an integer, we have no pointer to follow and this may
         # actually be a non-pointer property.
@@ -524,9 +534,67 @@ class BlendFileBlock:
             return None
 
         try:
-            return self.bfile.block_from_addr[result]
-        except KeyError:
-            raise exceptions.SegmentationFault('address does not exist', path, result)
+            return self.bfile.dereference_pointer(result)
+        except exceptions.SegmentationFault as ex:
+            ex.field_path = path
+            raise
+
+    def iter_array_of_pointers(self, path: dna.FieldPath, array_size: int) \
+            -> typing.Iterator['BlendFileBlock']:
+        """Dereference pointers from an array-of-pointers field.
+
+        Use this function when you have a field like materials: `Mat **mat`
+
+        :param path: The array-of-pointers field.
+        :param array_size: Number of items in the array. If None, the
+            on-disk size of the DNA field is divided by the pointer size to
+            obtain the array size.
+        """
+        if array_size == 0:
+            return
+
+        array = self.get_pointer(path)
+        assert array.code == b'DATA', \
+            'Array data block should have code DATA, is %r' % array.code.decode()
+        file_offset = array.file_offset
+
+        endian = self.bfile.header.endian
+        ps = self.bfile.header.pointer_size
+
+        for i in range(array_size):
+            fileobj = self.bfile.fileobj
+            fileobj.seek(file_offset + ps * i, os.SEEK_SET)
+            address = endian.read_pointer(fileobj, ps)
+            yield self.bfile.dereference_pointer(address)
+
+    def iter_fixed_array_of_pointers(self, path: dna.FieldPath) \
+            -> typing.Iterator['BlendFileBlock']:
+        """Yield blocks from a fixed-size array field.
+
+        Use this function when you have a field like lamp textures: `MTex *mtex[18]`
+
+        The size of the array is determined automatically by the size in bytes
+        of the field divided by the pointer size of the blend file.
+
+        :param path: The array field.
+        :raises KeyError: if the path does not exist.
+        """
+
+        dna_struct = self.dna_type
+        ps = self.bfile.header.pointer_size
+        endian = self.bfile.header.endian
+        fileobj = self.bfile.fileobj
+
+        field, offset_in_struct = dna_struct.field_from_path(ps, path)
+        array_size = field.size // ps
+
+        for i in range(array_size):
+            fileobj.seek(self.file_offset + offset_in_struct + ps * i, os.SEEK_SET)
+            address = endian.read_pointer(fileobj, ps)
+            if not address:
+                # Fixed-size arrays contain 0-pointers.
+                continue
+            yield self.bfile.dereference_pointer(address)
 
     def __getitem__(self, path: dna.FieldPath):
         return self.get(path)
