@@ -3,7 +3,7 @@ import pathlib
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib
-from . import result, block_walkers
+from . import result, blocks2assets
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class _Tracer:
         recurse_into = []
         with blendfile.BlendFile(bfilepath) as bfile:
             for block in asset_holding_blocks(bfile):
-                yield from block_walkers.iter_assets(block)
+                yield from blocks2assets.iter_assets(block)
 
                 if recursive and block.code == b'LI':
                     recurse_into.append(block)

@@ -1,4 +1,4 @@
-"""Modifier handling code used in block_walkers.py
+"""Modifier handling code used in blocks2assets.py
 
 The _modifier_xxx() functions all yield result.BlockUsage objects for external
 files used by the modifiers.
