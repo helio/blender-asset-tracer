@@ -7,9 +7,9 @@ import functools
 import logging
 import typing
 
-from blender_asset_tracer import blendfile, bpathlib
+from blender_asset_tracer import blendfile, bpathlib, cdefs
 from blender_asset_tracer.blendfile import iterators
-from . import result, cdefs, modifier_walkers
+from . import result, modifier_walkers
 
 log = logging.getLogger(__name__)
 

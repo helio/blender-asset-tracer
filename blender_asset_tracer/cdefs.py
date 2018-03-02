@@ -53,3 +53,6 @@ PTCACHE_EXTERNAL = 512
 # BKE_pointcache.h
 PTCACHE_EXT = b'.bphys'
 PTCACHE_PATH = b'blendcache_'
+
+# BKE_node.h
+CMP_NODE_R_LAYERS = 221

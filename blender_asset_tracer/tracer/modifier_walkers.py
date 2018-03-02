@@ -5,8 +5,8 @@ files used by the modifiers.
 """
 import typing
 
-from blender_asset_tracer import blendfile, bpathlib
-from . import result, cdefs
+from blender_asset_tracer import blendfile, bpathlib, cdefs
+from . import result
 
 
 def _modifier_filepath(modifier: blendfile.BlendFileBlock, block_name: bytes) \
