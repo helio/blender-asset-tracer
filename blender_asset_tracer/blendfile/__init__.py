@@ -326,6 +326,7 @@ class BlendFileBlock:
         Points to the data after the block header.
         """
         self.endian = bfile.header.endian
+        self._id_name = ...  # see the id_name property
 
         header_struct = bfile.block_header_struct
         data = bfile.fileobj.read(header_struct.size)
@@ -381,6 +382,20 @@ class BlendFileBlock:
     @property
     def dna_type_name(self) -> str:
         return self.dna_type.dna_type_id.decode('ascii')
+
+    @property
+    def id_name(self) -> typing.Optional[bytes]:
+        """Same as block[b'id', b'name']; None if there is no such field.
+
+        Evaluated only once, so safe to call multiple times without producing
+        excessive disk I/O.
+        """
+        if self._id_name is ...:
+            try:
+                self._id_name = self[b'id', b'name']
+            except KeyError:
+                self._id_name = None
+        return self._id_name
 
     def refine_type_from_index(self, sdna_index: int):
         """Change the DNA Struct associated with this block.
@@ -543,7 +558,8 @@ class BlendFileBlock:
             -> typing.Iterator['BlendFileBlock']:
         """Dereference pointers from an array-of-pointers field.
 
-        Use this function when you have a field like materials: `Mat **mat`
+        Use this function when you have a field like Mesh materials:
+        `Mat **mat`
 
         :param path: The array-of-pointers field.
         :param array_size: Number of items in the array. If None, the
@@ -571,7 +587,8 @@ class BlendFileBlock:
             -> typing.Iterator['BlendFileBlock']:
         """Yield blocks from a fixed-size array field.
 
-        Use this function when you have a field like lamp textures: `MTex *mtex[18]`
+        Use this function when you have a field like lamp textures:
+        `MTex *mtex[18]`
 
         The size of the array is determined automatically by the size in bytes
         of the field divided by the pointer size of the blend file.

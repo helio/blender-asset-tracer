@@ -139,7 +139,7 @@ class BlendFileBlockTest(AbstractBlendFileTest):
 
         ob = self.bf.code_index[b'OB'][0]
         assert isinstance(ob, blendfile.BlendFileBlock)
-        self.assertEqual('OBümlaut', ob[b'id', b'name'].decode())
+        self.assertEqual('OBümlaut', ob.id_name.decode())
 
 
 class PointerTest(AbstractBlendFileTest):
@@ -150,7 +150,7 @@ class PointerTest(AbstractBlendFileTest):
         scenes = self.bf.code_index[b'SC']
         self.assertEqual(1, len(scenes), 'expecting 1 scene')
         scene = scenes[0]
-        self.assertEqual(b'SCScene', scene[b'id', b'name'])
+        self.assertEqual(b'SCScene', scene.id_name)
 
         ed_ptr = scene[b'ed']
         self.assertEqual(140051431100936, ed_ptr)
@@ -232,7 +232,7 @@ class ArrayTest(AbstractBlendFileTest):
                 name = b'MAMaterial.001'
             else:
                 name = b'MAMaterial.002'
-            self.assertEqual(name, material[b'id', b'name'])
+            self.assertEqual(name, material.id_name)
 
     def test_array_of_lamp_textures(self):
         self.bf = blendfile.BlendFile(self.blendfiles / 'lamp_textures.blend')
@@ -242,7 +242,7 @@ class ArrayTest(AbstractBlendFileTest):
         mtex0 = lamp.get_pointer(b'mtex')
         tex = mtex0.get_pointer(b'tex')
         self.assertEqual(b'TE', tex.code)
-        self.assertEqual(b'TEClouds', tex[b'id', b'name'])
+        self.assertEqual(b'TEClouds', tex.id_name)
 
         for i, mtex in enumerate(lamp.iter_fixed_array_of_pointers(b'mtex')):
             if i == 0:
@@ -254,7 +254,7 @@ class ArrayTest(AbstractBlendFileTest):
 
             tex = mtex.get_pointer(b'tex')
             self.assertEqual(b'TE', tex.code)
-            self.assertEqual(name, tex[b'id', b'name'])
+            self.assertEqual(name, tex.id_name)
 
 
 class LoadCompressedTest(AbstractBlendFileTest):

@@ -43,7 +43,7 @@ class AssetHoldingBlocksTest(AbstractTracerTest):
             # Do some arbitrary tests that convince us stuff is read well.
             if block.code == b'SC':
                 seen_scene = True
-                self.assertEqual(b'SCScene', block[b'id', b'name'])
+                self.assertEqual(b'SCScene', block.id_name)
                 continue
 
             if block.code == b'OB':

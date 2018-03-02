@@ -5,7 +5,6 @@ From a Blend file data block, iter_assts() yields all the referred-to assets.
 
 import functools
 import logging
-import sys
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib
@@ -117,10 +116,9 @@ def movie_clip(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockU
 def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Object data blocks."""
     # 'ob->modifiers[...].filepath'
-    ob_idname = block[b'id', b'name']
     mods = block.get_pointer((b'modifiers', b'first'))
     for mod_idx, block_mod in enumerate(iterators.listbase(mods, next_path=(b'modifier', b'next'))):
-        block_name = b'%s.modifiers[%d]' % (ob_idname, mod_idx)
+        block_name = b'%s.modifiers[%d]' % (block.id_name, mod_idx)
         mod_type = block_mod[b'modifier', b'type']
         log.debug('Tracing modifier %s, type=%d', block_name.decode(), mod_type)
 
