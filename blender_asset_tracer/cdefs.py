@@ -55,4 +55,5 @@ PTCACHE_EXT = b'.bphys'
 PTCACHE_PATH = b'blendcache_'
 
 # BKE_node.h
+SH_NODE_TEX_IMAGE = 143
 CMP_NODE_R_LAYERS = 221

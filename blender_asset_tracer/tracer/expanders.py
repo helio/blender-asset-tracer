@@ -1,0 +1,230 @@
+"""Low-level functions called by file2block.
+
+Those can expand data blocks and yield their dependencies (e.g. other data
+blocks necessary to render/display/work with the given data block).
+"""
+import logging
+import typing
+
+from blender_asset_tracer import blendfile, cdefs
+from blender_asset_tracer.blendfile import iterators
+
+_warned_about_types = set()
+_funcs_for_code = {}
+log = logging.getLogger(__name__)
+
+
+def expand_block(block: blendfile.BlendFileBlock) -> typing.Iterator[blendfile.BlendFileBlock]:
+    """Generator, yield the data blocks used by this data block."""
+
+    try:
+        expander = _funcs_for_code[block.code]
+    except KeyError:
+        if block.code not in _warned_about_types:
+            log.info('No expander implemented for block type %r', block.code.decode())
+            _warned_about_types.add(block.code)
+        return
+
+    log.debug('Expanding block %r', block)
+    # Filter out falsy blocks, i.e. None values.
+    # Allowing expanders to yield None makes them more consise.
+    yield from filter(None, expander(block))
+
+
+def dna_code(block_code: str):
+    """Decorator, marks decorated func as expander for that DNA code."""
+
+    assert isinstance(block_code, str)
+
+    def decorator(wrapped):
+        _funcs_for_code[block_code.encode()] = wrapped
+        return wrapped
+
+    return decorator
+
+
+def _expand_generic_material(block: blendfile.BlendFileBlock):
+    array_len = block.get(b'totcol')
+    yield from block.iter_array_of_pointers(b'mat', array_len)
+
+
+def _expand_generic_mtex(block: blendfile.BlendFileBlock):
+    for mtex in block.iter_fixed_array_of_pointers(b'mtex'):
+        yield mtex.get_pointer(b'tex')
+        yield mtex.get_pointer(b'object')
+
+
+def _expand_generic_nodetree(block: blendfile.BlendFileBlock):
+    assert block.dna_type.dna_type_id == b'bNodeTree'
+
+    nodes = block.get_pointer((b'nodes', b'first'))
+    for node in iterators.listbase(nodes):
+        if node[b'type'] == cdefs.CMP_NODE_R_LAYERS:
+            continue
+        yield node
+
+        # The 'id' property points to whatever is used by the node
+        # (like the image in an image texture node).
+        yield node.get_pointer(b'id')
+
+
+def _expand_generic_nodetree_id(block: blendfile.BlendFileBlock):
+    block_ntree = block.get_pointer(b'nodetree', None)
+    if block_ntree is not None:
+        yield from _expand_generic_nodetree(block_ntree)
+
+
+def _expand_generic_animdata(block: blendfile.BlendFileBlock):
+    block_adt = block.get_pointer(b'adt')
+    if block_adt:
+        yield block_adt.get_pointer(b'action')
+    # TODO, NLA
+
+
+@dna_code('AR')
+def _expand_armature(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+
+
+@dna_code('CU')
+def _expand_curve(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_material(block)
+
+    for fieldname in (b'vfont', b'vfontb', b'vfonti', b'vfontbi',
+                      b'bevobj', b'taperobj', b'textoncurve'):
+        yield block.get_pointer(fieldname)
+
+
+@dna_code('GR')
+def _expand_group(block: blendfile.BlendFileBlock):
+    objects = block.get_pointer((b'gobject', b'first'))
+    for item in iterators.listbase(objects):
+        yield item.get_pointer(b'ob')
+
+
+@dna_code('LA')
+def _expand_lamp(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree_id(block)
+    yield from _expand_generic_mtex(block)
+
+
+@dna_code('MA')
+def _expand_material(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree_id(block)
+    yield from _expand_generic_mtex(block)
+
+    yield block.get_pointer(b'group')
+
+
+@dna_code('MB')
+def _expand_metaball(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_material(block)
+
+
+@dna_code('ME')
+def _expand_mesh(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_material(block)
+    yield block.get_pointer(b'texcomesh')
+    # TODO, TexFace? - it will be slow, we could simply ignore :S
+
+
+@dna_code('NT')
+def _expand_node_tree(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree(block)
+
+
+@dna_code('OB')
+def _expand_object(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_material(block)
+
+    yield block.get_pointer(b'data')
+
+    if block[b'transflag'] & cdefs.OB_DUPLIGROUP:
+        yield block.get_pointer(b'dup_group')
+
+    yield block.get_pointer(b'proxy')
+    yield block.get_pointer(b'proxy_group')
+
+    # 'ob->pose->chanbase[...].custom'
+    block_pose = block.get_pointer(b'pose')
+    if block_pose:
+        assert block_pose.dna_type.dna_type_id == b'bPose'
+        # sdna_index_bPoseChannel = block_pose.file.sdna_index_from_id[b'bPoseChannel']
+        channels = block_pose.get_pointer((b'chanbase', b'first'))
+        for pose_chan in iterators.listbase(channels):
+            yield pose_chan.get_pointer(b'custom')
+
+    # Expand the objects 'ParticleSettings' via 'ob->particlesystem[...].part'
+    # sdna_index_ParticleSystem = block.file.sdna_index_from_id.get(b'ParticleSystem')
+    # if sdna_index_ParticleSystem is not None:
+    psystems = block.get_pointer((b'particlesystem', b'first'))
+    for psystem in iterators.listbase(psystems):
+        yield psystem.get_pointer(b'part')
+
+
+@dna_code('PA')
+def _expand_particle_settings(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_mtex(block)
+
+    block_ren_as = block[b'ren_as']
+    if block_ren_as == cdefs.PART_DRAW_GR:
+        yield block.get_pointer(b'dup_group')
+    elif block_ren_as == cdefs.PART_DRAW_OB:
+        yield block.get_pointer(b'dup_ob')
+
+
+@dna_code('SC')
+def _expand_scene(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree_id(block)
+    yield block.get_pointer(b'camera')
+    yield block.get_pointer(b'world')
+    yield block.get_pointer(b'set', default=None)
+    yield block.get_pointer(b'clip', default=None)
+
+    # sdna_index_Base = block.file.sdna_index_from_id[b'Base']
+    # for item in bf_utils.iter_ListBase(block.get_pointer((b'base', b'first'))):
+    #     yield item.get_pointer(b'object', sdna_index_refine=sdna_index_Base)
+    bases = block.get_pointer((b'base', b'first'))
+    for base in iterators.listbase(bases):
+        yield base.get_pointer(b'object')
+
+    # Sequence Editor
+    block_ed = block.get_pointer(b'ed')
+    if not block_ed:
+        return
+
+    strip_type_to_field = {
+        cdefs.SEQ_TYPE_SCENE: b'scene',
+        cdefs.SEQ_TYPE_MOVIECLIP: b'clip',
+        cdefs.SEQ_TYPE_MASK: b'mask',
+        cdefs.SEQ_TYPE_SOUND_RAM: b'sound',
+    }
+    for strip, strip_type in iterators.sequencer_strips(block_ed):
+        try:
+            field_name = strip_type_to_field[strip_type]
+        except KeyError:
+            continue
+        yield strip.get_pointer(field_name)
+
+
+@dna_code('TE')
+def _expand_texture(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree_id(block)
+    yield block.get_pointer(b'ima')
+
+
+@dna_code('WO')
+def _expand_world(block: blendfile.BlendFileBlock):
+    yield from _expand_generic_animdata(block)
+    yield from _expand_generic_nodetree_id(block)
+    yield from _expand_generic_mtex(block)

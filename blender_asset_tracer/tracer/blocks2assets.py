@@ -140,41 +140,26 @@ def scene(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]
     single_asset_types = {cdefs.SEQ_TYPE_MOVIE, cdefs.SEQ_TYPE_SOUND_RAM, cdefs.SEQ_TYPE_SOUND_HD}
     asset_types = single_asset_types.union({cdefs.SEQ_TYPE_IMAGE})
 
-    def iter_seqbase(seqbase) -> typing.Iterator[result.BlockUsage]:
-        """Generate results from a ListBase of sequencer strips."""
+    for seq, seq_type in iterators.sequencer_strips(block_ed):
+        if seq_type not in asset_types:
+            continue
 
-        for seq in iterators.listbase(seqbase):
-            seq.refine_type(b'Sequence')
-            seq_type = seq[b'type']
+        seq_strip = seq.get_pointer(b'strip')
+        if seq_strip is None:
+            continue
+        seq_stripdata = seq_strip.get_pointer(b'stripdata')
+        if seq_stripdata is None:
+            continue
 
-            if seq_type == cdefs.SEQ_TYPE_META:
-                # Recurse into this meta-sequence.
-                subseq = seq.get_pointer((b'seqbase', b'first'))
-                yield from iter_seqbase(subseq)
-                continue
+        dirname, dn_field = seq_strip.get(b'dir', return_field=True)
+        basename, bn_field = seq_stripdata.get(b'name', return_field=True)
+        asset_path = bpathlib.BlendPath(dirname) / basename
 
-            if seq_type not in asset_types:
-                continue
-
-            seq_strip = seq.get_pointer(b'strip')
-            if seq_strip is None:
-                continue
-            seq_stripdata = seq_strip.get_pointer(b'stripdata')
-            if seq_stripdata is None:
-                continue
-
-            dirname, dn_field = seq_strip.get(b'dir', return_field=True)
-            basename, bn_field = seq_stripdata.get(b'name', return_field=True)
-            asset_path = bpathlib.BlendPath(dirname) / basename
-
-            is_sequence = seq_type not in single_asset_types
-            yield result.BlockUsage(seq, asset_path,
-                                    is_sequence=is_sequence,
-                                    path_dir_field=dn_field,
-                                    path_base_field=bn_field)
-
-    sbase = block_ed.get_pointer((b'seqbase', b'first'))
-    yield from iter_seqbase(sbase)
+        is_sequence = seq_type not in single_asset_types
+        yield result.BlockUsage(seq, asset_path,
+                                is_sequence=is_sequence,
+                                path_dir_field=dn_field,
+                                path_base_field=bn_field)
 
 
 @dna_code('SO')

@@ -300,7 +300,7 @@ class BlendFile:
         try:
             return self.block_from_addr[address]
         except KeyError:
-            raise exceptions.SegmentationFault('address does not exist', address)
+            raise exceptions.SegmentationFault('address does not exist', address) from None
 
 
 class BlendFileBlock:
@@ -374,6 +374,10 @@ class BlendFileBlock:
         return (self.code == other.code and
                 self.addr_old == other.addr_old and
                 self.bfile.filepath == other.bfile.filepath)
+
+    def __bool__(self) -> bool:
+        """Data blocks are always True."""
+        return True
 
     @property
     def dna_type(self) -> dna.Struct:
@@ -581,6 +585,8 @@ class BlendFileBlock:
             fileobj = self.bfile.fileobj
             fileobj.seek(file_offset + ps * i, os.SEEK_SET)
             address = endian.read_pointer(fileobj, ps)
+            if address == 0:
+                continue
             yield self.bfile.dereference_pointer(address)
 
     def iter_fixed_array_of_pointers(self, path: dna.FieldPath) \

@@ -29,7 +29,7 @@ class AssetHoldingBlocksTest(AbstractTracerTest):
         blocks_seen = 0
         seen_scene = seen_ob = False
 
-        for block in tracer.asset_holding_blocks(self.bf):
+        for block in tracer.asset_holding_blocks(self.bf.blocks):
             assert isinstance(block, blendfile.BlendFileBlock)
             blocks_seen += 1
 
@@ -70,8 +70,8 @@ class DepsTest(AbstractTracerTest):
             return None
         return field.name.name_full.decode()
 
-    def assert_deps(self, blend_fname, expects: dict, recursive=False):
-        for dep in tracer.deps(self.blendfiles / blend_fname, recursive=recursive):
+    def assert_deps(self, blend_fname, expects: dict):
+        for dep in tracer.deps(self.blendfiles / blend_fname):
             actual_type = dep.block.dna_type.dna_type_id.decode()
             actual_full_field = self.field_name(dep.path_full_field)
             actual_dirname = self.field_name(dep.path_dir_field)
@@ -92,7 +92,7 @@ class DepsTest(AbstractTracerTest):
                 del expects[dep.block_name]
 
         # All expected uses should have been seen.
-        self.assertEqual({}, expects, 'Expected results were not seen.')
+        self.assertEqual(expects, {}, 'Expected results were not seen.')
 
     def test_no_deps(self):
         self.assert_deps('basic_file.blend', {})
@@ -203,10 +203,14 @@ class DepsTest(AbstractTracerTest):
             b'IMbrick_dotted_04-color': Expect(
                 'Image', 'name[1024]', None, None,
                 b'//textures/Bricks/brick_dotted_04-color.jpg', False),
-            b'IMbuildings_roof_04-color': Expect(
-                'Image', 'name[1024]', None, None,
-                b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
-        }, recursive=True)
+
+            # This data block is in the basic_file.blend file, but not used by
+            # any of the objects linked in from linked_cube.blend or
+            # doubly_linked.blend, hence it should *not* be reported:
+            # b'IMbuildings_roof_04-color': Expect(
+            #     'Image', 'name[1024]', None, None,
+            #     b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
+        })
 
     def test_sim_data(self):
         self.assert_deps('T53562/bam_pack_bug.blend', {
@@ -222,7 +226,7 @@ class DepsTest(AbstractTracerTest):
         try:
             sys.setrecursionlimit(80)
             # This should finish without hitting the recursion limit.
-            for _ in tracer.deps(infinite_bfile, recursive=True):
+            for _ in tracer.deps(infinite_bfile):
                 pass
         finally:
             sys.setrecursionlimit(reclim)

@@ -4,8 +4,8 @@ import logging
 import pathlib
 import sys
 
-from . import common
 from blender_asset_tracer import tracer
+from . import common
 
 log = logging.getLogger(__name__)
 
@@ -16,8 +16,6 @@ def add_parser(subparsers):
     parser = subparsers.add_parser('list', help=__doc__)
     parser.set_defaults(func=cli_list)
     parser.add_argument('blendfile', type=pathlib.Path)
-    common.add_flag(parser, 'nonrecursive',
-                    help='Limit to direct dependencies of the named blend file')
     common.add_flag(parser, 'json', help='Output as JSON instead of human-readable text')
 
 
@@ -27,14 +25,13 @@ def cli_list(args):
         log.fatal('File %s does not exist', args.blendfile)
         return 3
 
-    recursive = not args.nonrecursive
     if args.json:
-        report_json(bpath, recursive)
+        report_json(bpath)
     else:
-        report_text(bpath, recursive)
+        report_text(bpath)
 
 
-def report_text(bpath, recursive):
+def report_text(bpath):
     reported_assets = set()
     last_reported_bfile = None
     cwd = pathlib.Path.cwd()
@@ -46,7 +43,7 @@ def report_text(bpath, recursive):
         except ValueError:
             return somepath
 
-    for usage in tracer.deps(bpath, recursive=recursive):
+    for usage in tracer.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
         if filepath != last_reported_bfile:
             print(shorten(filepath))
@@ -71,13 +68,13 @@ class JSONSerialiser(json.JSONEncoder):
         return super().default(o)
 
 
-def report_json(bpath, recursive):
+def report_json(bpath):
     import collections
 
     # Mapping from blend file to its dependencies.
     report = collections.defaultdict(set)
 
-    for usage in tracer.deps(bpath, recursive=recursive):
+    for usage in tracer.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
         for assetpath in usage.files():
             assetpath = assetpath.resolve()
