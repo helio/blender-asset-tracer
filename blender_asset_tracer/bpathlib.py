@@ -7,6 +7,7 @@ or vice versa.
 import os.path
 import pathlib
 import string
+import sys
 
 
 class BlendPath(bytes):
@@ -40,6 +41,22 @@ class BlendPath(bytes):
         if self.is_absolute():
             raise ValueError("'a / b' only works when 'b' is a relative path")
         return BlendPath(os.path.join(parentpath, self))
+
+    def to_path(self) -> pathlib.Path:
+        """Convert this path to a pathlib.Path.
+
+        Interprets the path as UTF-8, and if that fails falls back to the local
+        filesystem encoding.
+
+        Note that this does not handle blend-file-relative paths specially, so
+        the returned Path may still start with '//'.
+        """
+        # TODO(Sybren): once we target Python 3.6, implement __fspath__().
+        try:
+            decoded = self.decode('utf8')
+        except UnicodeDecodeError:
+            decoded = self.decode(sys.getfilesystemencoding())
+        return pathlib.Path(decoded)
 
     def is_blendfile_relative(self) -> bool:
         return self[:2] == b'//'

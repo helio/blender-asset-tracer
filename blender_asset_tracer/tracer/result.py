@@ -98,7 +98,7 @@ class BlockUsage:
         """
 
         bpath = self.block.bfile.abspath(self.asset_path)
-        path = pathlib.Path(bpath.decode())
+        path = bpath.to_path()
         if not self.is_sequence:
             if not path.exists():
                 log.warning('Path %s does not exist for %s', path, self)

@@ -59,8 +59,7 @@ class _Tracer:
         abspath = lib_block.bfile.abspath(relpath)
 
         # Convert bytes to pathlib.Path object so we have a nice interface to work with.
-        # This assumes the path is encoded in UTF-8.
-        path = pathlib.Path(abspath.decode())
+        path = abspath.to_path()
         try:
             path = path.resolve()
         except FileNotFoundError:
