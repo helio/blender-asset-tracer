@@ -1,4 +1,5 @@
 """Common functionality for CLI parsers."""
+import pathlib
 
 
 def add_flag(argparser, flag_name: str, **kwargs):
@@ -14,3 +15,9 @@ def add_flag(argparser, flag_name: str, **kwargs):
                            **kwargs)
 
 
+def shorten(cwd: pathlib.Path, somepath: pathlib.Path) -> pathlib.Path:
+    """Return 'somepath' relative to CWD if possible."""
+    try:
+        return somepath.relative_to(cwd)
+    except ValueError:
+        return somepath

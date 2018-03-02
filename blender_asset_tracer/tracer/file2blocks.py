@@ -35,7 +35,7 @@ class _BlockIterator:
                     limit_to: typing.Set[blendfile.BlendFileBlock] = frozenset(),
                     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
-        bpath = bfile.filepath
+        bpath = bfile.filepath.absolute().resolve()
         root_dir = bpathlib.BlendPath(bpath.parent)
 
         # Mapping from library path to data blocks to expand.
@@ -79,6 +79,12 @@ class _BlockIterator:
         # and iterate over the blocks referred there.
         for lib_bpath, idblocks in blocks_per_lib.items():
             lib_path = lib_bpath.to_path()
+            try:
+                lib_path = lib_path.resolve()
+            except FileNotFoundError:
+                log.warning('Library %s does not exist', lib_path)
+                continue
+
             log.debug('Expanding %d blocks in %s', len(idblocks), lib_path)
 
             with blendfile.BlendFile(lib_path) as libfile:

@@ -1,4 +1,5 @@
 """List dependencies of a blend file."""
+import functools
 import json
 import logging
 import pathlib
@@ -34,14 +35,7 @@ def cli_list(args):
 def report_text(bpath):
     reported_assets = set()
     last_reported_bfile = None
-    cwd = pathlib.Path.cwd()
-
-    def shorten(somepath: pathlib.Path) -> pathlib.Path:
-        """Return 'somepath' relative to CWD if possible."""
-        try:
-            return somepath.relative_to(cwd)
-        except ValueError:
-            return somepath
+    shorten = functools.partial(common.shorten, pathlib.Path.cwd())
 
     for usage in tracer.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
