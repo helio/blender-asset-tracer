@@ -156,7 +156,7 @@ def scene(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]
         asset_path = bpathlib.BlendPath(dirname) / basename
 
         is_sequence = seq_type not in single_asset_types
-        yield result.BlockUsage(seq, asset_path,
+        yield result.BlockUsage(seq_strip, asset_path,
                                 is_sequence=is_sequence,
                                 path_dir_field=dn_field,
                                 path_base_field=bn_field)

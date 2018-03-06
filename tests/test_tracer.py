@@ -80,15 +80,15 @@ class DepsTest(AbstractTracerTest):
             actual = Expect(actual_type, actual_full_field, actual_dirname, actual_basename,
                             dep.asset_path, dep.is_sequence)
 
-            exp = expects[dep.block_name]
-            if isinstance(exp, set):
+            exp = expects.get(dep.block_name, None)
+            if isinstance(exp, (set, list)):
                 self.assertIn(actual, exp, msg='for block %s' % dep.block_name)
-                exp.discard(actual)
+                exp.remove(actual)
                 if not exp:
                     # Don't leave empty sets in expects.
                     del expects[dep.block_name]
             else:
-                self.assertEqual(exp, actual, msg='for block %s' % dep.block_name)
+                self.assertEqual(actual, exp, msg='for block %s' % dep.block_name)
                 del expects[dep.block_name]
 
         # All expected uses should have been seen.
@@ -118,16 +118,17 @@ class DepsTest(AbstractTracerTest):
 
     def test_seq_image_sequence(self):
         expects = {
-            b'SQ000210.png': Expect(
-                'Sequence', None, 'dir[768]', 'name[256]', b'//imgseq/000210.png', True),
-            b'SQvideo-tiny.mkv': Expect(
-                'Sequence', None, 'dir[768]', 'name[256]',
-                b'//../../../../cloud/pillar/testfiles/video-tiny.mkv', False),
+            b'-unnamed-': [
+                Expect('Strip', None, 'dir[768]', 'name[256]', b'//imgseq/000210.png', True),
 
-            # The sound will be referenced twice, from the sequence strip and an SO data block.
-            b'SQvideo-tiny.001': Expect(
-                'Sequence', None, 'dir[768]', 'name[256]',
-                b'//../../../../cloud/pillar/testfiles/video-tiny.mkv', False),
+                # Video strip reference.
+                Expect('Strip', None, 'dir[768]', 'name[256]',
+                       b'//../../../../cloud/pillar/testfiles/video-tiny.mkv', False),
+
+                # The sound will be referenced twice, from the sequence strip and an SO data block.
+                Expect('Strip', None, 'dir[768]', 'name[256]',
+                       b'//../../../../cloud/pillar/testfiles/video-tiny.mkv', False),
+            ],
             b'SOvideo-tiny.mkv': Expect(
                 'bSound', 'name[1024]', None, None,
                 b'//../../../../cloud/pillar/testfiles/video-tiny.mkv', False),

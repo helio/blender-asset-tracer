@@ -14,12 +14,6 @@ class ExpandFileSequenceTest(AbstractBlendFileTest):
         actual = list(file_sequence.expand_sequence(path))
         self.assertEqual(self.imgseq, actual)
 
-    def test_directory(self):
-        path = self.blendfiles / 'imgseq'
-        actual = list(file_sequence.expand_sequence(path))
-        expected = self.imgseq + [self.blendfiles / 'imgseq/LICENSE.txt']
-        self.assertEqual(expected, actual)
-
     def test_first_file(self):
         path = self.blendfiles / 'imgseq/000210.png'
         actual = list(file_sequence.expand_sequence(path))

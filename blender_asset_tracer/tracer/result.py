@@ -16,8 +16,8 @@ class BlockUsage:
         name of the block.
     :ivar block:
     :ivar asset_path: The path of the asset, if is_sequence=False. Otherwise
-        it can be either a glob pattern (must contain a * byte), a directory,
-        or the path of the first file in the sequence.
+        it can be either a glob pattern (must contain a * byte) or the path of
+        the first file in the sequence.
     :ivar is_sequence: Indicates whether this file is alone (False), the
         first of a sequence (True, and the path points to a file), or a
         directory containing a sequence (True, and path points to a directory).
@@ -82,9 +82,15 @@ class BlockUsage:
         return b'-unnamed-'
 
     def __repr__(self):
+        if self.path_full_field is None:
+            field_name = self.path_dir_field.name.name_full.decode() + \
+                         '/' + \
+                         self.path_base_field.name.name_full.decode()
+        else:
+            field_name = self.path_full_field.name.name_full.decode()
         return '<BlockUsage name=%r type=%r field=%r asset=%r%s>' % (
             self.block_name, self.block.dna_type_name,
-            self.path_full_field.name.name_full.decode(), self.asset_path,
+            field_name, self.asset_path,
             ' sequence' if self.is_sequence else ''
         )
 

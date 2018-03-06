@@ -173,10 +173,23 @@ class Packer:
 
                     # Find the same block in the newly copied file.
                     block = bfile.dereference_pointer(usage.block.addr_old)
-                    log.info('   - updating field %s of block %s',
-                             usage.path_full_field.name.name_only, block)
-                    written = block.set(usage.path_full_field.name.name_only, relpath)
-                    log.info('   - written %d bytes', written)
+                    if usage.path_full_field is None:
+                        log.info('   - updating field %s of block %s',
+                                 usage.path_dir_field.name.name_only, block)
+                        reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
+                        written = block.set(usage.path_dir_field.name.name_only, reldir)
+                        log.info('   - written %d bytes', written)
+
+                        # BIG FAT ASSUMPTION that the filename (e.g. basename
+                        # without path) does not change. This makes things much
+                        # easier, as in the sequence editor the directory and
+                        # filename fields are in different blocks. See the
+                        # blocks2assets.scene() function for the implementation.
+                    else:
+                        log.info('   - updating field %s of block %s',
+                                 usage.path_full_field.name.name_only, block)
+                        written = block.set(usage.path_full_field.name.name_only, relpath)
+                        log.info('   - written %d bytes', written)
                 bfile.fileobj.flush()
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
@@ -188,9 +201,19 @@ class Packer:
 
         # Copy its dependencies.
         for usage in action.usages:
+            if not usage.is_sequence:
+                self._copy_to_target(usage.abspath, packed_path)
+                continue
+
+            first_pp = self._packed_paths[usage.abspath]
+
+            # In case of globbing, we only support globbing by filename,
+            # and not by directory.
+            assert '*' not in str(first_pp) or '*' in first_pp.name
+
+            packed_base_dir = first_pp.parent
             for file_path in usage.files():
-                # TODO(Sybren): handle sequences properly!
-                packed_path = self._packed_paths[file_path]
+                packed_path = packed_base_dir / file_path.name
                 self._copy_to_target(file_path, packed_path)
 
     def _copy_to_target(self, asset_path: pathlib.Path, target: pathlib.Path):
