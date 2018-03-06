@@ -20,6 +20,7 @@ class BlendPathTest(unittest.TestCase):
         self.assertFalse(BlendPath(b'//some/file.blend').is_absolute())
         self.assertTrue(BlendPath(b'/some/file.blend').is_absolute())
         self.assertTrue(BlendPath(b'C:/some/file.blend').is_absolute())
+        self.assertTrue(BlendPath(b'C:\\some\\file.blend').is_absolute())
         self.assertFalse(BlendPath(b'some/file.blend').is_absolute())
 
     def test_is_blendfile_relative(self):
