@@ -9,7 +9,8 @@ import typing
 from blender_asset_tracer import blendfile, cdefs
 from blender_asset_tracer.blendfile import iterators
 
-_warned_about_types = set()
+# Don't warn about these types at all.
+_warned_about_types = {b'LI', b'DATA'}
 _funcs_for_code = {}
 log = logging.getLogger(__name__)
 
