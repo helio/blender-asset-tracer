@@ -1,11 +1,13 @@
+import logging
+import os
 import typing
 
-import os
-
-from . import dna_io, header, exceptions
+from . import header, exceptions
 
 # Either a simple path b'propname', or a tuple (b'parentprop', b'actualprop', arrayindex)
 FieldPath = typing.Union[bytes, typing.Iterable[typing.Union[bytes, int]]]
+
+log = logging.getLogger(__name__)
 
 
 class Name:
@@ -82,6 +84,8 @@ class Field:
 
 class Struct:
     """dna.Struct is a C-type structure stored in the DNA."""
+
+    log = log.getChild('Struct')
 
     def __init__(self, dna_type_id: bytes, size: int = None):
         """
@@ -268,7 +272,7 @@ class Struct:
         struct on disk (e.g. the start of the BlendFileBlock containing the
         data).
         """
-        assert (type(path) == bytes)
+        assert isinstance(path, bytes), 'path should be bytes, but is %s' % type(path)
 
         field, offset = self.field_from_path(file_header.pointer_size, path)
 
@@ -282,6 +286,11 @@ class Struct:
             raise exceptions.NoWriterImplemented(msg, dna_name, dna_type)
 
         fileobj.seek(offset, os.SEEK_CUR)
+
+        if self.log.isEnabledFor(logging.DEBUG):
+            filepos = fileobj.tell()
+            thing = 'string' if isinstance(value, str) else 'bytes'
+            self.log.debug('writing %s %r at file offset %d / %x', thing, value, filepos, filepos)
 
         if isinstance(value, str):
             return endian.write_string(fileobj, value, dna_name.array_size)

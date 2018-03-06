@@ -21,6 +21,29 @@ class BlendPath(bytes):
             return bytes.__new__(cls, path.encode('utf-8'))
         return bytes.__new__(cls, path)
 
+    @classmethod
+    def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.Path) -> 'BlendPath':
+        """Construct a BlendPath to the asset relative to the blend file."""
+        from collections import deque
+
+        bdir_parts = deque(bfile_path.absolute().parent.parts)
+        asset_parts = deque(asset_path.absolute().parts)
+
+        # Remove matching initial parts. What is left in bdir_parts represents
+        # the number of '..' we need. What is left in asset_parts represents
+        # what we need after the '../../../'.
+        while bdir_parts:
+            if bdir_parts[0] != asset_parts[0]:
+                break
+            bdir_parts.popleft()
+            asset_parts.popleft()
+
+        rel_asset = pathlib.Path(*asset_parts)
+        # TODO(Sybren): should we use sys.getfilesystemencoding() instead?
+        rel_bytes = str(rel_asset).encode('utf-8')
+        as_bytes = b'//' + len(bdir_parts) * b'../' + rel_bytes
+        return cls(as_bytes)
+
     def __str__(self) -> str:
         """Decodes the path as UTF-8, replacing undecodable bytes.
 
@@ -76,7 +99,7 @@ class BlendPath(bytes):
 
         return False
 
-    def absolute(self, root: bytes=None) -> 'BlendPath':
+    def absolute(self, root: bytes = None) -> 'BlendPath':
         """Determine absolute path.
 
         :param root: root directory to compute paths relative to.

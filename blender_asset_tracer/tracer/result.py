@@ -67,6 +67,7 @@ class BlockUsage:
         self.path_full_field = path_full_field
         self.path_dir_field = path_dir_field
         self.path_base_field = path_base_field
+        self._abspath = None  # cached by __fspath__()
 
     @staticmethod
     def guess_block_name(block: blendfile.BlendFileBlock) -> bytes:
@@ -97,8 +98,7 @@ class BlockUsage:
         It is assumed that paths are valid UTF-8.
         """
 
-        bpath = self.block.bfile.abspath(self.asset_path)
-        path = bpath.to_path()
+        path = self.__fspath__()
         if not self.is_sequence:
             if not path.exists():
                 log.warning('Path %s does not exist for %s', path, self)
@@ -110,3 +110,12 @@ class BlockUsage:
             yield from file_sequence.expand_sequence(path)
         except file_sequence.DoesNotExist:
             log.warning('Path %s does not exist for %s', path, self)
+
+    def __fspath__(self) -> pathlib.Path:
+        """Determine the absolute path of the asset on the filesystem."""
+        if self._abspath is None:
+            bpath = self.block.bfile.abspath(self.asset_path)
+            self._abspath = bpath.to_path().resolve()
+        return self._abspath
+
+    abspath = property(__fspath__)

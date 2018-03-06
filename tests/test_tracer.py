@@ -212,6 +212,14 @@ class DepsTest(AbstractTracerTest):
             #     b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
         })
 
+    def test_usage_abspath(self):
+        deps = [dep for dep in tracer.deps(self.blendfiles / 'doubly_linked.blend')
+                if dep.asset_path == b'//material_textures.blend']
+        usage = deps[0]
+
+        expect = self.blendfiles / 'material_textures.blend'
+        self.assertEqual(expect, usage.abspath)
+
     def test_sim_data(self):
         self.assert_deps('T53562/bam_pack_bug.blend', {
             b'OBEmitter.modifiers[0]': Expect(

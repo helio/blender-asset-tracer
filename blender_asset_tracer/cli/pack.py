@@ -32,8 +32,8 @@ def add_parser(subparsers):
 def cli_pack(args):
     bpath, ppath, tpath = paths_from_cli(args)
     packer = pack.Packer(bpath, ppath, tpath, args.noop)
-    packer.investigate()
-    packer.pack()
+    packer.strategise()
+    packer.execute()
 
 
 def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
@@ -44,6 +44,9 @@ def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
     bpath = args.blendfile
     if not bpath.exists():
         log.critical('File %s does not exist', bpath)
+        sys.exit(3)
+    if bpath.is_dir():
+        log.critical('%s is a directory, should be a blend file')
         sys.exit(3)
 
     tpath = args.target
@@ -60,10 +63,19 @@ def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
     if not ppath.exists():
         log.critical('Project directory %s does not exist', ppath)
         sys.exit(5)
+    if not ppath.is_dir():
+        log.warning('Project path %s is not a directory; using the parent %s', ppath, ppath.parent)
+        ppath = ppath.parent
+
     try:
         bpath.absolute().relative_to(ppath)
     except ValueError:
         log.critical('Project directory %s does not contain blend file %s',
                      args.project, bpath.absolute())
         sys.exit(5)
+
+    log.info('Blend file to pack: %s', bpath)
+    log.info('Project path: %s', ppath)
+    log.info('Pack will be created in: %s', tpath)
+
     return bpath, ppath, tpath

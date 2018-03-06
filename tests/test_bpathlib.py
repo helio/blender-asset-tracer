@@ -1,3 +1,4 @@
+from pathlib import Path
 import unittest
 
 from blender_asset_tracer.bpathlib import BlendPath
@@ -52,3 +53,29 @@ class BlendPathTest(unittest.TestCase):
         self.assertEqual(b'/root/and/parent.blend', b'/root/and' / BlendPath(b'parent.blend'))
         with self.assertRaises(ValueError):
             b'/root/and' / BlendPath(b'/parent.blend')
+
+    def test_mkrelative(self):
+        self.assertEqual(b'//asset.png', BlendPath.mkrelative(
+            Path('/path/to/asset.png'),
+            Path('/path/to/bfile.blend'),
+        ))
+        self.assertEqual(b'//to/asset.png', BlendPath.mkrelative(
+            Path('/path/to/asset.png'),
+            Path('/path/bfile.blend'),
+        ))
+        self.assertEqual(b'//../of/asset.png', BlendPath.mkrelative(
+            Path('/path/of/asset.png'),
+            Path('/path/to/bfile.blend'),
+        ))
+        self.assertEqual(b'//../../path/of/asset.png', BlendPath.mkrelative(
+            Path('/path/of/asset.png'),
+            Path('/some/weird/bfile.blend'),
+        ))
+        self.assertEqual(b'//very/very/very/very/very/deep/asset.png', BlendPath.mkrelative(
+            Path('/path/to/very/very/very/very/very/deep/asset.png'),
+            Path('/path/to/bfile.blend'),
+        ))
+        self.assertEqual(b'//../../../../../../../../shallow/asset.png', BlendPath.mkrelative(
+            Path('/shallow/asset.png'),
+            Path('/path/to/very/very/very/very/very/deep/bfile.blend'),
+        ))

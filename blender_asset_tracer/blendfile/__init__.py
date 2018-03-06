@@ -63,6 +63,7 @@ class BlendFile:
         self._is_modified = False
 
         fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)
+        fileobj.seek(0, os.SEEK_SET)
         magic = fileobj.read(len(BLENDFILE_MAGIC))
 
         if magic == BLENDFILE_MAGIC:
@@ -169,6 +170,9 @@ class BlendFile:
         """
         if not self.fileobj:
             return
+
+        if self._is_modified:
+            log.debug('closing blend file %s after it was modified', self.raw_filepath)
 
         if self._is_modified and self.is_compressed:
             log.debug("recompressing modified blend file %s", self.raw_filepath)
@@ -290,7 +294,7 @@ class BlendFile:
         abspath = relpath.absolute(root)
 
         my_log = self.log.getChild('abspath')
-        my_log.info('Resolved %s relative to %s to %s', relpath, self.filepath, abspath)
+        my_log.debug('Resolved %s relative to %s to %s', relpath, self.filepath, abspath)
 
         return abspath
 
