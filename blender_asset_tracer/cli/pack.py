@@ -5,7 +5,7 @@ import pathlib
 import shutil
 import sys
 
-from blender_asset_tracer import tracer
+from blender_asset_tracer import tracer, pack
 from . import common
 
 log = logging.getLogger(__name__)
@@ -31,41 +31,9 @@ def add_parser(subparsers):
 
 def cli_pack(args):
     bpath, ppath, tpath = paths_from_cli(args)
-    if args.noop:
-        log.warning('Running in no-op mode, only showing what will be done.')
-
-    shorten = functools.partial(common.shorten, ppath)
-    already_copied = set()
-    for usage in tracer.deps(bpath):
-        if usage.asset_path.is_absolute():
-            raise NotImplementedError('Sorry, cannot handle absolute paths yet: %s' % usage)
-
-        for assetpath in usage.files():
-            try:
-                assetpath = assetpath.resolve()
-            except FileNotFoundError:
-                log.error('Dependency %s does not exist', assetpath)
-
-            if assetpath in already_copied:
-                log.debug('Already copied %s', assetpath)
-                continue
-            already_copied.add(assetpath)
-
-            relpath = shorten(assetpath)
-            if relpath.is_absolute():
-                raise NotImplementedError('Sorry, cannot handle absolute paths yet: %s in %s'
-                                          % (usage, assetpath))
-
-            full_target = tpath / relpath
-            full_target.parent.mkdir(parents=True, exist_ok=True)
-            if args.noop:
-                print('%s → %s' % (assetpath, full_target))
-            else:
-                print(relpath)
-                # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
-                shutil.copyfile(str(assetpath), str(full_target))
-
-    log.info('Copied %d files to %s', len(already_copied), tpath)
+    packer = pack.Packer(bpath, ppath, tpath, args.noop)
+    packer.investigate()
+    packer.pack()
 
 
 def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
@@ -87,7 +55,7 @@ def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
         ppath = bpath.absolute().parent
         log.warning('No project path given, using %s', ppath)
     else:
-        ppath = args.project
+        ppath = args.project.absolute()
 
     if not ppath.exists():
         log.critical('Project directory %s does not exist', ppath)
