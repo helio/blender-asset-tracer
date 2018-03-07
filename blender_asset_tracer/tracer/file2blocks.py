@@ -35,16 +35,20 @@ class _BlockIterator:
                     limit_to: typing.Set[blendfile.BlendFileBlock] = frozenset(),
                     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
+        if limit_to:
+            self._queue_named_blocks(bfile, limit_to)
+        else:
+            self._queue_all_blocks(bfile)
+
+        blocks_per_lib = yield from self._visit_blocks(bfile, limit_to)
+        yield from self._visit_linked_blocks(blocks_per_lib)
+
+    def _visit_blocks(self, bfile, limit_to):
         bpath = bfile.filepath.absolute().resolve()
         root_dir = bpathlib.BlendPath(bpath.parent)
 
         # Mapping from library path to data blocks to expand.
         blocks_per_lib = collections.defaultdict(set)
-
-        if limit_to:
-            self._queue_named_blocks(bfile, limit_to)
-        else:
-            self._queue_all_blocks(bfile)
 
         while self.to_visit:
             block = self.to_visit.popleft()
@@ -75,6 +79,9 @@ class _BlockIterator:
             self.blocks_yielded.add((bpath, block.addr_old))
             yield block
 
+        return blocks_per_lib
+
+    def _visit_linked_blocks(self, blocks_per_lib):
         # We've gone through all the blocks in this file, now open the libraries
         # and iterate over the blocks referred there.
         for lib_bpath, idblocks in blocks_per_lib.items():
@@ -95,6 +102,7 @@ class _BlockIterator:
         # to do with them anyway.
         self.to_visit.extend(block for block in bfile.blocks
                              if block.code != b'DATA')
+        self._sort_queue()
 
     def _queue_named_blocks(self,
                             bfile: blendfile.BlendFile,
@@ -106,6 +114,7 @@ class _BlockIterator:
             The queued blocks are loaded from the actual blend file, and
             selected by name.
         """
+
         for to_find in limit_to:
             assert to_find.code == b'ID'
             name_to_find = to_find[b'name']
@@ -116,9 +125,22 @@ class _BlockIterator:
                 if block.id_name == name_to_find:
                     log.debug('Queueing %r from file %s', block, bfile.filepath)
                     self.to_visit.append(block)
+        self._sort_queue()
 
     def _queue_dependencies(self, block: blendfile.BlendFileBlock):
         self.to_visit.extend(expanders.expand_block(block))
+        self._sort_queue()
+
+    def _sort_queue(self):
+        """Sort the queued blocks by file and by offset.
+
+        This allows us to go through the blend files sequentially.
+        """
+
+        def sort_key(block: blendfile.BlendFileBlock):
+            return block.bfile.filepath, block.file_offset
+
+        self.to_visit = collections.deque(sorted(self.to_visit, key=sort_key))
 
 
 def iter_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:

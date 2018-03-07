@@ -121,7 +121,7 @@ class BlendFile:
             fileobj.close()
             raise exceptions.BlendFileError("File is not a blend file", path)
 
-        self.blocks = []
+        self.blocks = []  # BlendFileBlocks, in disk order.
         self.code_index = collections.defaultdict(list)
         self.structs = []
         self.sdna_index_from_id = {}
@@ -333,6 +333,7 @@ class BlendFile:
             raise exceptions.SegmentationFault('address does not exist', address) from None
 
 
+@functools.total_ordering
 class BlendFileBlock:
     """
     Instance of a struct.
@@ -404,6 +405,14 @@ class BlendFileBlock:
         return (self.code == other.code and
                 self.addr_old == other.addr_old and
                 self.bfile.filepath == other.bfile.filepath)
+
+    def __lt__(self, other: 'BlendFileBlock') -> bool:
+        """Order blocks by file path and offset within that file."""
+        if not isinstance(other, BlendFileBlock):
+            raise NotImplemented()
+        my_key = self.bfile.filepath, self.file_offset
+        other_key = other.bfile.filepath, other.file_offset
+        return my_key < other_key
 
     def __bool__(self) -> bool:
         """Data blocks are always True."""
