@@ -86,9 +86,8 @@ class _BlockIterator:
                 continue
 
             log.debug('Expanding %d blocks in %s', len(idblocks), lib_path)
-
-            with blendfile.BlendFile(lib_path) as libfile:
-                yield from self.iter_blocks(libfile, idblocks)
+            libfile = blendfile.open_cached(lib_path)
+            yield from self.iter_blocks(libfile, idblocks)
 
     def _queue_all_blocks(self, bfile: blendfile.BlendFile):
         log.debug('Queueing all blocks from file %s', bfile.filepath)

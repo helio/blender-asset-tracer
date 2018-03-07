@@ -23,9 +23,9 @@ def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
     :param bfilepath: File to open.
     """
 
-    with blendfile.BlendFile(bfilepath) as bfile:
-        for block in asset_holding_blocks(file2blocks.iter_blocks(bfile)):
-            yield from blocks2assets.iter_assets(block)
+    bfile = blendfile.open_cached(bfilepath)
+    for block in asset_holding_blocks(file2blocks.iter_blocks(bfile)):
+        yield from blocks2assets.iter_assets(block)
 
 
 def asset_holding_blocks(blocks: typing.Iterable[blendfile.BlendFileBlock]) \

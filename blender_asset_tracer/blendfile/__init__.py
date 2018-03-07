@@ -20,6 +20,7 @@
 # (c) 2014, Blender Foundation - Campbell Barton
 # (c) 2018, Blender Foundation - Sybren A. Stüvel
 
+import atexit
 import collections
 import gzip
 import logging
@@ -27,6 +28,8 @@ import os
 import struct
 import pathlib
 import tempfile
+
+import functools
 import typing
 
 from . import exceptions, dna_io, dna, header
@@ -38,6 +41,29 @@ FILE_BUFFER_SIZE = 1024 * 1024
 
 BLENDFILE_MAGIC = b'BLENDER'
 GZIP_MAGIC = b'\x1f\x8b'
+
+_cached_bfiles = {}
+
+
+def open_cached(path: pathlib.Path, mode='rb') -> 'BlendFile':
+    """Open a blend file, ensuring it is only opened once."""
+    bfile_path = path.absolute().resolve()
+    try:
+        return _cached_bfiles[bfile_path]
+    except KeyError:
+        pass
+
+    bfile = BlendFile(path, mode=mode)
+    _cached_bfiles[bfile_path] = bfile
+    return bfile
+
+
+@atexit.register
+def close_all_cached():
+    log.info('Closing all blend files')
+    for bfile in _cached_bfiles.values():
+        bfile.close()
+    _cached_bfiles.clear()
 
 
 class BlendFile:
