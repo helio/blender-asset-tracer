@@ -8,6 +8,7 @@ from . import common, pack, list_deps
 
 def cli_main():
     parser = argparse.ArgumentParser(description='BAT: Blender Asset Tracer')
+    common.add_flag(parser, 'profile', help='Run the profiler, write to bam.prof')
 
     # func is set by subparsers to indicate which function to run.
     parser.set_defaults(func=None,
@@ -36,7 +37,19 @@ def cli_main():
 
     if not args.func:
         parser.error('No subcommand was given')
-    return args.func(args)
+
+    if args.profile:
+        import cProfile
+
+        prof_fname = 'bam.prof'
+        cProfile.runctx('args.func(args)',
+                        globals=globals(),
+                        locals=locals(),
+                        filename=prof_fname)
+        print('Profiler exported data to', prof_fname)
+        print('Run "pyprof2calltree -i %r -k" to convert and open in KCacheGrind' % prof_fname)
+    else:
+        return args.func(args)
 
 
 def config_logging(args):

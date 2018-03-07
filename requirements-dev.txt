@@ -2,7 +2,8 @@
 -e .
 pytest==3.4.1
 pytest-cov==2.5.1
-radon==2.2.0
+radon==2.2.0  # for the 'radon cc' command
+pyprof2calltree==1.4.3  # for converting profiler output to KCacheGrind input
 
 # Secondary requirements
 attrs==17.4.0
