@@ -1,7 +1,9 @@
 """Commandline entry points."""
 
 import argparse
+import datetime
 import logging
+import time
 
 from . import common, pack, list_deps
 
@@ -38,6 +40,7 @@ def cli_main():
     if not args.func:
         parser.error('No subcommand was given')
 
+    start_time = time.time()
     if args.profile:
         import cProfile
 
@@ -49,7 +52,9 @@ def cli_main():
         print('Profiler exported data to', prof_fname)
         print('Run "pyprof2calltree -i %r -k" to convert and open in KCacheGrind' % prof_fname)
     else:
-        return args.func(args)
+        retval = args.func(args)
+    duration = datetime.timedelta(seconds=time.time() - start_time)
+    log.info('Command took %s to complete', duration)
 
 
 def config_logging(args):
