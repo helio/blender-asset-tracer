@@ -1,3 +1,4 @@
+import functools
 import logging
 import pathlib
 import typing
@@ -9,6 +10,7 @@ from . import file_sequence
 log = logging.getLogger(__name__)
 
 
+@functools.total_ordering
 class BlockUsage:
     """Represents the use of an asset by a data block.
 
@@ -125,3 +127,17 @@ class BlockUsage:
         return self._abspath
 
     abspath = property(__fspath__)
+
+    def __lt__(self, other: 'BlockUsage'):
+        """Allow sorting for repeatable and predictable unit tests."""
+        if not isinstance(other, BlockUsage):
+            raise NotImplemented()
+        return self.block_name < other.block_name and self.block < other.block
+
+    def __eq__(self, other: 'BlockUsage'):
+        if not isinstance(other, BlockUsage):
+            return False
+        return self.block_name == other.block_name and self.block == other.block
+
+    def __hash__(self):
+        return hash((self.block_name, hash(self.block)))
