@@ -38,10 +38,6 @@ class AbstractPackTest(AbstractBlendFileTest):
             'textures/Bricks/brick_dotted_04-bump.jpg',
             'textures/Bricks/brick_dotted_04-color.jpg',
         )
-        self.assertEqual({self.blendfiles / fn: self.tpath / fn
-                          for fn in packed_files},
-                         packer._packed_paths)
-
         for pf in packed_files:
             path = self.blendfiles / pf
             act = packer._actions[path]
@@ -64,15 +60,8 @@ class AbstractPackTest(AbstractBlendFileTest):
             'textures/Bricks/brick_dotted_04-bump.jpg',
             'textures/Bricks/brick_dotted_04-color.jpg',
         )
-        self.assertEqual(self.tpath / 'doubly_linked_up.blend',
-                         packer._packed_paths[ppath / 'doubly_linked_up.blend'])
-
         # /tmp/target + /workspace/bat/tests/blendfiles → /tmp/target/workspace/bat/tests/blendfiles
         extpath = pathlib.Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
-        for fn in external_files:
-            self.assertEqual(extpath / fn,
-                             packer._packed_paths[self.blendfiles / fn],
-                             'for %s' % fn)
 
         act = packer._actions[ppath / 'doubly_linked_up.blend']
         self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for doubly_linked_up.blend')

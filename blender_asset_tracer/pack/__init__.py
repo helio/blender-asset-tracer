@@ -45,7 +45,6 @@ class Packer:
         # Filled by strategise()
         self._actions = collections.defaultdict(AssetAction)
         self._rewrites = collections.defaultdict(list)
-        self._packed_paths = {}  # from path in project to path in BAT Pack dir.
 
         self._copy_cache_miss = self._copy_cache_hit = 0
 
@@ -64,7 +63,7 @@ class Packer:
 
         act = self._actions[bfile_path]
         act.path_action = PathAction.KEEP_PATH
-        act.new_path = self._packed_paths[bfile_path] = bfile_pp
+        act.new_path = bfile_pp
 
         new_location_paths = set()
         for usage in tracer.deps(self.blendfile):
@@ -89,7 +88,7 @@ class Packer:
             else:
                 log.info('%s can keep using %s', bfile_path, usage.asset_path)
                 asset_pp = self.target / asset_path.relative_to(self.project)
-                act.new_path = self._packed_paths[asset_path] = asset_pp
+                act.new_path = asset_pp
 
         self._find_new_paths(new_location_paths)
         self._group_rewrites()
@@ -102,7 +101,6 @@ class Packer:
             assert isinstance(act, AssetAction)
             # Like a join, but ignoring the fact that 'path' is absolute.
             act.new_path = pathlib.Path(self.target, '_outside_project', *path.parts[1:])
-            self._packed_paths[path] = act.new_path
 
     def _group_rewrites(self):
         """For each blend file, collect which fields need rewriting.
@@ -158,7 +156,7 @@ class Packer:
 
         for bfile_path, rewrites in self._rewrites.items():
             assert isinstance(bfile_path, pathlib.Path)
-            bfile_pp = self._packed_paths[bfile_path]
+            bfile_pp = self._actions[bfile_path].new_path
 
             log.info('Rewriting %s', bfile_pp)
 
@@ -169,7 +167,7 @@ class Packer:
 
             for usage in rewrites:
                 assert isinstance(usage, result.BlockUsage)
-                asset_pp = self._packed_paths[usage.abspath]
+                asset_pp = self._actions[usage.abspath].new_path
                 assert isinstance(asset_pp, pathlib.Path)
 
                 log.debug('   - %s is packed at %s', usage.asset_path, asset_pp)
@@ -204,7 +202,7 @@ class Packer:
         log.info('Copying %s and dependencies', asset_path)
 
         # Copy the asset itself.
-        packed_path = self._packed_paths[asset_path]
+        packed_path = self._actions[asset_path].new_path
         self._copy_to_target(asset_path, packed_path)
 
         # Copy its sequence dependencies.
@@ -212,7 +210,7 @@ class Packer:
             if not usage.is_sequence:
                 continue
 
-            first_pp = self._packed_paths[usage.abspath]
+            first_pp = self._actions[usage.abspath].new_path
 
             # In case of globbing, we only support globbing by filename,
             # and not by directory.
