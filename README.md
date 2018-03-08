@@ -2,8 +2,9 @@
 
 Script to manage assets with Blender.
 
-Blender Asset Tracer, a.k.a. BAT🦇, is the replacement of [BAM](https://developer.blender.org/diffusion/BAM/)
-and [blender-file](https://developer.blender.org/source/blender-file/)
+Blender Asset Tracer, a.k.a. BAT🦇, is the replacement of
+[BAM](https://developer.blender.org/diffusion/BAM/) and
+[blender-file](https://developer.blender.org/source/blender-file/)
 
 Development is driven by choices explained in [T54125](https://developer.blender.org/T54125).
 
@@ -20,5 +21,5 @@ There are two object types used to represent file paths. Those are strictly sepa
    `pathlib.Path`.
 
 When it is necessary to interpret a `bpathlib.BlendPath` as a real path instead of a sequence of
-bytes, BAT assumes it is encoded as UTF-8. This is not necessarily true, and possibly using the
-local filesystem encoding might be better, but that is also no guarantee of correctness.
+bytes, BAT first attempts to decode it as UTF-8. If that fails, the local filesystem encoding is
+used. The latter is also no guarantee of correctness, though.
