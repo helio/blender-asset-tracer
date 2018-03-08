@@ -35,6 +35,10 @@ def cli_main():
 
     from blender_asset_tracer import __version__
     log = logging.getLogger(__name__)
+
+    # Make sure the things we log in our local logger are visible
+    if args.profile and args.loglevel > logging.INFO:
+        log.setLevel(logging.INFO)
     log.debug('Running BAT version %s', __version__)
 
     if not args.func:
@@ -45,12 +49,13 @@ def cli_main():
         import cProfile
 
         prof_fname = 'bam.prof'
+        log.info('Running profiler')
         cProfile.runctx('args.func(args)',
                         globals=globals(),
                         locals=locals(),
                         filename=prof_fname)
-        print('Profiler exported data to', prof_fname)
-        print('Run "pyprof2calltree -i %r -k" to convert and open in KCacheGrind' % prof_fname)
+        log.info('Profiler exported data to %s', prof_fname)
+        log.info('Run "pyprof2calltree -i %r -k" to convert and open in KCacheGrind', prof_fname)
     else:
         retval = args.func(args)
     duration = datetime.timedelta(seconds=time.time() - start_time)
