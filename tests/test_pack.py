@@ -5,7 +5,7 @@ import sys
 import tempfile
 import typing
 
-from blender_asset_tracer import blendfile, pack
+from blender_asset_tracer import blendfile, pack, bpathlib
 from blender_asset_tracer.blendfile import dna
 from abstract_test import AbstractBlendFileTest
 
@@ -104,3 +104,31 @@ class AbstractPackTest(AbstractBlendFileTest):
         self.assertEqual(b'//../linked_cube.blend', rw_dbllink[0].asset_path)
         self.assertEqual(b'LILib.002', rw_dbllink[1].block_name)
         self.assertEqual(b'//../material_textures.blend', rw_dbllink[1].asset_path)
+
+    def test_execute_rewrite(self):
+        ppath = self.blendfiles / 'subdir'
+        infile = ppath / 'doubly_linked_up.blend'
+
+        packer = pack.Packer(infile, ppath, self.tpath)
+        packer.strategise()
+        packer.execute()
+
+        extpath = pathlib.Path('//_outside_project', *self.blendfiles.parts[1:])
+        extbpath = bpathlib.BlendPath(extpath)
+
+        # Those libraries should be properly rewritten.
+        bfile = blendfile.open_cached(self.tpath / infile.name)
+        libs = sorted(bfile.code_index[b'LI'])
+        self.assertEqual(b'LILib', libs[0].id_name)
+        self.assertEqual(extbpath / b'linked_cube.blend', libs[0][b'name'])
+        self.assertEqual(b'LILib.002', libs[1].id_name)
+        self.assertEqual(extbpath / b'material_textures.blend', libs[1][b'name'])
+
+        # The original file shouldn't be touched, though.
+        bfile = blendfile.open_cached(infile)
+        libs = sorted(bfile.code_index[b'LI'])
+
+        self.assertEqual(b'LILib', libs[0].id_name)
+        self.assertEqual(b'//../linked_cube.blend', libs[0][b'name'])
+        self.assertEqual(b'LILib.002', libs[1].id_name)
+        self.assertEqual(b'//../material_textures.blend', libs[1][b'name'])
