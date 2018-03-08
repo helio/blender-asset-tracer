@@ -73,9 +73,25 @@ class EndianIO:
         :returns: the number of bytes written.
         """
         assert isinstance(astring, str)
-        # TODO: truncate the string on a UTF-8 character boundary to avoid creating invalid UTF-8.
-        encoded = astring.encode('utf-8')[:fieldlen-1] + b'\0'
-        return fileobj.write(encoded)
+        encoded = astring.encode('utf-8')
+
+        # Take into account we also need space for a trailing 0-byte.
+        maxlen = fieldlen - 1
+
+        if len(encoded) >= maxlen:
+            encoded = encoded[:maxlen]
+
+            # Keep stripping off the last byte until the string
+            # is valid UTF-8 again.
+            while True:
+                try:
+                    encoded.decode('utf8')
+                except UnicodeDecodeError:
+                    encoded = encoded[:-1]
+                else:
+                    break
+
+        return fileobj.write(encoded + b'\0')
 
     @classmethod
     def write_bytes(cls, fileobj: typing.BinaryIO, data: bytes, fieldlen: int) -> int:
