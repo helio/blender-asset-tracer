@@ -22,7 +22,7 @@ def expand_block(block: blendfile.BlendFileBlock) -> typing.Iterator[blendfile.B
         expander = _funcs_for_code[block.code]
     except KeyError:
         if block.code not in _warned_about_types:
-            log.info('No expander implemented for block type %r', block.code.decode())
+            log.debug('No expander implemented for block type %r', block.code.decode())
             _warned_about_types.add(block.code)
         return
 

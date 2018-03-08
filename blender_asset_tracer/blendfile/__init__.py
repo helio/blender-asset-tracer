@@ -66,7 +66,7 @@ def close_all_cached():
         # Don't even log anything when there is nothing to close
         return
 
-    log.info('Closing %d cached blend files', len(_cached_bfiles))
+    log.debug('Closing %d cached blend files', len(_cached_bfiles))
     for bfile in _cached_bfiles.values():
         bfile.close()
     _cached_bfiles.clear()
