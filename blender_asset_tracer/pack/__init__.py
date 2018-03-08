@@ -94,7 +94,6 @@ class Packer:
         self._find_new_paths(new_location_paths)
         self._group_rewrites()
 
-
     def _find_new_paths(self, asset_paths: typing.Set[pathlib.Path]):
         """Find new locations in the BAT Pack for the given assets."""
 
