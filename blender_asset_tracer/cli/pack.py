@@ -1,12 +1,9 @@
 """Create a BAT-pack for the given blend file."""
-import functools
 import logging
 import pathlib
-import shutil
 import sys
 
-from blender_asset_tracer import tracer, pack
-from . import common
+from blender_asset_tracer import pack
 
 log = logging.getLogger(__name__)
 
