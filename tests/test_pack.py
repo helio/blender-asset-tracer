@@ -132,3 +132,22 @@ class AbstractPackTest(AbstractBlendFileTest):
         self.assertEqual(b'//../linked_cube.blend', libs[0][b'name'])
         self.assertEqual(b'LILib.002', libs[1].id_name)
         self.assertEqual(b'//../material_textures.blend', libs[1][b'name'])
+
+    def test_noop(self):
+        ppath = self.blendfiles / 'subdir'
+        infile = ppath / 'doubly_linked_up.blend'
+
+        packer = pack.Packer(infile, ppath, self.tpath, noop=True)
+        packer.strategise()
+        packer.execute()
+
+        self.assertEqual([], list(self.tpath.iterdir()))
+
+        # The original file shouldn't be touched.
+        bfile = blendfile.open_cached(infile)
+        libs = sorted(bfile.code_index[b'LI'])
+
+        self.assertEqual(b'LILib', libs[0].id_name)
+        self.assertEqual(b'//../linked_cube.blend', libs[0][b'name'])
+        self.assertEqual(b'LILib.002', libs[1].id_name)
+        self.assertEqual(b'//../material_textures.blend', libs[1][b'name'])
