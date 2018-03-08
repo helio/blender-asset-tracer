@@ -38,7 +38,6 @@ from blender_asset_tracer import bpathlib
 log = logging.getLogger(__name__)
 
 FILE_BUFFER_SIZE = 1024 * 1024
-
 BLENDFILE_MAGIC = b'BLENDER'
 GZIP_MAGIC = b'\x1f\x8b'
 
@@ -378,6 +377,16 @@ class BlendFileBlock:
     """
     Instance of a struct.
     """
+
+    # Due to the huge number of BlendFileBlock objects created for packing a
+    # production-size blend file, using slots here actually makes the
+    # dependency tracer significantly (p<0.001) faster. In my test case the
+    # speed improvement was 16% for a 'bam list' command.
+    __slots__ = (
+        'bfile', 'code', 'size', 'addr_old', 'sdna_index',
+        'count', 'file_offset', 'endian', '_id_name',
+    )
+
     log = log.getChild('BlendFileBlock')
     old_structure = struct.Struct(b'4sI')
     """old blend files ENDB block structure"""
