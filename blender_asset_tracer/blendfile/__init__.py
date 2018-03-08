@@ -229,15 +229,6 @@ class BlendFile:
         assert isinstance(code, bytes)
         return self.code_index[code]
 
-    def find_block_from_address(self, address: int) -> typing.Optional['BlendFileBlock']:
-        """Return the block at that address, or None if not found.
-
-        :param address: the BlendFileBlock.addr_old value
-        """
-        # TODO(Sybren): mark as deprecated in favour of dereference_pointer().
-        assert type(address) is int
-        return self.block_from_addr.get(address)
-
     def close(self):
         """Close the blend file.
 

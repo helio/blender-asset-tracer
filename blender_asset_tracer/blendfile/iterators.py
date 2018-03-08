@@ -11,7 +11,9 @@ def listbase(block: BlendFileBlock, next_path: FieldPath = b'next') \
     while block:
         yield block
         next_ptr = block[next_path]
-        block = block.bfile.find_block_from_address(next_ptr)
+        if next_ptr == 0:
+            break
+        block = block.bfile.dereference_pointer(next_ptr)
 
 
 def sequencer_strips(sequence_editor: BlendFileBlock) \
