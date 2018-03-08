@@ -15,10 +15,10 @@ class BlendPath(bytes):
 
     def __new__(cls, path):
         if isinstance(path, pathlib.Path):
-            path = str(path)  # handle as string, which is encoded to bytes below.
-        if isinstance(path, str):
-            # As a convenience, when a string is given, interpret as UTF-8.
-            return bytes.__new__(cls, path.encode('utf-8'))
+            path = str(path).encode('utf-8')
+        if not isinstance(path, bytes):
+            raise TypeError('path must be bytes or pathlib.Path, but is %r' % path)
+
         return bytes.__new__(cls, path)
 
     @classmethod
