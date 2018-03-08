@@ -24,7 +24,11 @@ def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
     """
 
     bfile = blendfile.open_cached(bfilepath)
-    for block in asset_holding_blocks(file2blocks.iter_blocks(bfile)):
+
+    # Sort the asset-holding blocks so that we can iterate over them
+    # in disk order, which is slightly faster than random order.
+    ahb = asset_holding_blocks(file2blocks.iter_blocks(bfile))
+    for block in sorted(ahb):
         yield from blocks2assets.iter_assets(block)
 
 

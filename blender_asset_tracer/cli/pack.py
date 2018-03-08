@@ -33,7 +33,13 @@ def cli_pack(args):
     bpath, ppath, tpath = paths_from_cli(args)
     packer = pack.Packer(bpath, ppath, tpath, args.noop)
     packer.strategise()
-    packer.execute()
+
+    try:
+        packer.execute()
+    except pack.FileCopyError as ex:
+        log.error("%d files couldn't be copied, starting with %s",
+                  len(ex.files_not_copied), ex.files_not_copied[0])
+        raise SystemExit(1)
 
 
 def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):

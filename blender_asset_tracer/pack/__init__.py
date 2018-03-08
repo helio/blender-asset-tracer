@@ -2,7 +2,9 @@ import collections
 import enum
 import functools
 import logging
+import threading
 import pathlib
+import queue
 import shutil
 import typing
 
@@ -11,6 +13,22 @@ from blender_asset_tracer.cli import common
 from blender_asset_tracer.tracer import result
 
 log = logging.getLogger(__name__)
+
+# For copying in a different process. By using a priority queue the files
+# are automatically sorted alphabetically, which means we go through all files
+# in a single directory at a time. This should be faster to copy than random
+# access. The order isn't guaranteed, though, as we're not waiting around for
+# all file paths to be known before copying starts.
+file_copy_queue = queue.PriorityQueue()
+file_copy_done = threading.Event()
+
+
+class FileCopyError(IOError):
+    """Raised when one or more files could not be copied."""
+
+    def __init__(self, message, files_not_copied: typing.List[pathlib.Path]):
+        super().__init__(message)
+        self.files_not_copied = files_not_copied
 
 
 class PathAction(enum.Enum):
@@ -45,8 +63,6 @@ class Packer:
         # Filled by strategise()
         self._actions = collections.defaultdict(AssetAction)
         self._rewrites = collections.defaultdict(list)
-
-        self._copy_cache_miss = self._copy_cache_hit = 0
 
     def strategise(self):
         """Determine what to do with the assets.
@@ -134,7 +150,6 @@ class Packer:
         self._copy_files_to_target()
         if not self.noop:
             self._rewrite_paths()
-        log.info('Copy cache: %d hits / %d misses', self._copy_cache_miss, self._copy_cache_hit)
 
     def _copy_files_to_target(self):
         """Copy all assets to the target directoy.
@@ -142,14 +157,30 @@ class Packer:
         This creates the BAT Pack but does not yet do any path rewriting.
         """
         log.info('Executing %d copy actions', len(self._actions))
+
+        t = threading.Thread(target=copy_queued)
+        if not self.noop:
+            t.start()
+
         for asset_path, action in self._actions.items():
             self._copy_asset_and_deps(asset_path, action)
 
         if self.noop:
-            msg = 'Would copy'
-        else:
-            msg = 'Copied'
-        log.info('%s %d files to %s', msg, len(self._already_copied), self.target)
+            log.info('Would copy %d files to %s', len(self._already_copied), self.target)
+            return
+
+        file_copy_done.set()
+        t.join()
+
+        if not file_copy_queue.empty():
+            # Flush the queue so that we can report which files weren't copied yet.
+            files_remaining = []
+            while not file_copy_queue.empty():
+                src, dst = file_copy_queue.get_nowait()
+                files_remaining.append(src)
+            assert files_remaining
+            raise FileCopyError("%d files couldn't be copied" % len(files_remaining),
+                                files_remaining)
 
     def _rewrite_paths(self):
         """Rewrite paths to the new location of the assets."""
@@ -199,7 +230,7 @@ class Packer:
                     log.info('   - written %d bytes', written)
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
-        log.info('Copying %s and dependencies', asset_path)
+        log.debug('Queueing copy of %s and dependencies', asset_path)
 
         # Copy the asset itself.
         packed_path = self._actions[asset_path].new_path
@@ -225,10 +256,51 @@ class Packer:
             break
 
     def _copy_to_target(self, asset_path: pathlib.Path, target: pathlib.Path):
-        print('%s → %s' % (asset_path, target))
         if self.noop:
+            print('%s → %s' % (asset_path, target))
+            return
+        file_copy_queue.put((asset_path, target))
+
+
+def copy_queued():
+    my_log = log.getChild('copy_queued')
+    files_copied = 0
+    files_skipped = 0
+
+    while True:
+        try:
+            src, dst = file_copy_queue.get(timeout=0.1)
+        except queue.Empty:
+            if file_copy_done.is_set():
+                break
+            continue
+
+        try:
+            if dst.exists():
+                st_src = src.stat()
+                st_dst = dst.stat()
+                if st_dst.st_size == st_src.st_size and st_dst.st_mtime >= st_src.st_mtime:
+                    my_log.info('Skipping %s; already exists', src)
+                    files_skipped += 1
+                    continue
+
+            my_log.info('Copying %s → %s', src, dst)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
+            shutil.copy(str(src), str(dst))
+            files_copied += 1
+        except Exception:
+            # We have to catch exceptions in a broad way, as this is running in
+            # a separate thread, and exceptions won't otherwise be seen.
+            my_log.exception('Error copying %s to %s', src, dst)
+            # Put the files to copy back into the queue, and abort. This allows
+            # the main thread to inspect the queue and see which files were not
+            # copied. The one we just failed (due to this exception) should also
+            # be reported there.
+            file_copy_queue.put((src, dst))
             return
 
-        target.parent.mkdir(parents=True, exist_ok=True)
-        # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
-        shutil.copyfile(str(asset_path), str(target))
+    if files_copied:
+        my_log.info('Copied %d files', files_copied)
+    if files_skipped:
+        my_log.info('Skipped %d files', files_skipped)
