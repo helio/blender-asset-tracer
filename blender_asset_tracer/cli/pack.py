@@ -36,7 +36,7 @@ def cli_pack(args):
 
     try:
         packer.execute()
-    except pack.FileCopyError as ex:
+    except pack.queued_copy.FileCopyError as ex:
         log.error("%d files couldn't be copied, starting with %s",
                   len(ex.files_not_copied), ex.files_not_copied[0])
         raise SystemExit(1)
