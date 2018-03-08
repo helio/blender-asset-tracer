@@ -2,6 +2,8 @@ import logging
 import pathlib
 import unittest
 
+from blender_asset_tracer import blendfile
+
 
 class AbstractBlendFileTest(unittest.TestCase):
     @classmethod
@@ -15,5 +17,5 @@ class AbstractBlendFileTest(unittest.TestCase):
         self.bf = None
 
     def tearDown(self):
-        if self.bf:
-            self.bf.close()
+        self.bf = None
+        blendfile.close_all_cached()

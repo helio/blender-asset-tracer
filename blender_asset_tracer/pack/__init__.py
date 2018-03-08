@@ -30,7 +30,7 @@ class Packer:
                  blendfile: pathlib.Path,
                  project: pathlib.Path,
                  target: pathlib.Path,
-                 noop: bool):
+                 noop=False):
         self.blendfile = blendfile
         self.project = project
         self.target = target
@@ -47,6 +47,8 @@ class Packer:
         self._rewrites = collections.defaultdict(list)
         self._packed_paths = {}  # from path in project to path in BAT Pack dir.
 
+        self._copy_cache_miss = self._copy_cache_hit = 0
+
     def strategise(self):
         """Determine what to do with the assets.
 
@@ -58,9 +60,11 @@ class Packer:
         # The blendfile that we pack is generally not its own dependency, so
         # we have to explicitly add it to the _packed_paths.
         bfile_path = self.blendfile.absolute()
-        self._packed_paths[bfile_path] = self.target / bfile_path.relative_to(self.project)
+        bfile_pp = self.target / bfile_path.relative_to(self.project)
+
         act = self._actions[bfile_path]
         act.path_action = PathAction.KEEP_PATH
+        act.new_path = self._packed_paths[bfile_path] = bfile_pp
 
         new_location_paths = set()
         for usage in tracer.deps(self.blendfile):
@@ -84,7 +88,8 @@ class Packer:
                 new_location_paths.add(asset_path)
             else:
                 log.info('%s can keep using %s', bfile_path, usage.asset_path)
-                self._packed_paths[asset_path] = self.target / asset_path.relative_to(self.project)
+                asset_pp = self.target / asset_path.relative_to(self.project)
+                act.new_path = self._packed_paths[asset_path] = asset_pp
 
         self._find_new_paths(new_location_paths)
         self._group_rewrites()
@@ -132,6 +137,7 @@ class Packer:
         self._copy_files_to_target()
         if not self.noop:
             self._rewrite_paths()
+        log.info('Copy cache: %d hits / %d misses', self._copy_cache_miss, self._copy_cache_hit)
 
     def _copy_files_to_target(self):
         """Copy all assets to the target directoy.
@@ -157,40 +163,43 @@ class Packer:
 
             log.info('Rewriting %s', bfile_pp)
 
-            with blendfile.BlendFile(bfile_pp, 'rb+') as bfile:
-                for usage in rewrites:
-                    assert isinstance(usage, result.BlockUsage)
-                    asset_pp = self._packed_paths[usage.abspath]
-                    assert isinstance(asset_pp, pathlib.Path)
+            # The original blend file will have been cached, so we can use it
+            # to avoid re-parsing all data blocks in the to-be-rewritten file.
+            bfile = blendfile.open_cached(bfile_path, assert_cached=True)
+            bfile.rebind(bfile_pp, mode='rb+')
 
-                    log.debug('   - %s is packed at %s', usage.asset_path, asset_pp)
-                    relpath = bpathlib.BlendPath.mkrelative(asset_pp, bfile_pp)
-                    if relpath == usage.asset_path:
-                        log.info('   - %s remained at %s', usage.asset_path, relpath)
-                        continue
+            for usage in rewrites:
+                assert isinstance(usage, result.BlockUsage)
+                asset_pp = self._packed_paths[usage.abspath]
+                assert isinstance(asset_pp, pathlib.Path)
 
-                    log.info('   - %s moved to %s', usage.asset_path, relpath)
+                log.debug('   - %s is packed at %s', usage.asset_path, asset_pp)
+                relpath = bpathlib.BlendPath.mkrelative(asset_pp, bfile_pp)
+                if relpath == usage.asset_path:
+                    log.info('   - %s remained at %s', usage.asset_path, relpath)
+                    continue
 
-                    # Find the same block in the newly copied file.
-                    block = bfile.dereference_pointer(usage.block.addr_old)
-                    if usage.path_full_field is None:
-                        log.info('   - updating field %s of block %s',
-                                 usage.path_dir_field.name.name_only, block)
-                        reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
-                        written = block.set(usage.path_dir_field.name.name_only, reldir)
-                        log.info('   - written %d bytes', written)
+                log.info('   - %s moved to %s', usage.asset_path, relpath)
 
-                        # BIG FAT ASSUMPTION that the filename (e.g. basename
-                        # without path) does not change. This makes things much
-                        # easier, as in the sequence editor the directory and
-                        # filename fields are in different blocks. See the
-                        # blocks2assets.scene() function for the implementation.
-                    else:
-                        log.info('   - updating field %s of block %s',
-                                 usage.path_full_field.name.name_only, block)
-                        written = block.set(usage.path_full_field.name.name_only, relpath)
-                        log.info('   - written %d bytes', written)
-                bfile.fileobj.flush()
+                # Find the same block in the newly copied file.
+                block = bfile.dereference_pointer(usage.block.addr_old)
+                if usage.path_full_field is None:
+                    log.info('   - updating field %s of block %s',
+                             usage.path_dir_field.name.name_only, block)
+                    reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
+                    written = block.set(usage.path_dir_field.name.name_only, reldir)
+                    log.info('   - written %d bytes', written)
+
+                    # BIG FAT ASSUMPTION that the filename (e.g. basename
+                    # without path) does not change. This makes things much
+                    # easier, as in the sequence editor the directory and
+                    # filename fields are in different blocks. See the
+                    # blocks2assets.scene() function for the implementation.
+                else:
+                    log.info('   - updating field %s of block %s',
+                             usage.path_full_field.name.name_only, block)
+                    written = block.set(usage.path_full_field.name.name_only, relpath)
+                    log.info('   - written %d bytes', written)
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
         log.info('Copying %s and dependencies', asset_path)
@@ -199,10 +208,9 @@ class Packer:
         packed_path = self._packed_paths[asset_path]
         self._copy_to_target(asset_path, packed_path)
 
-        # Copy its dependencies.
+        # Copy its sequence dependencies.
         for usage in action.usages:
             if not usage.is_sequence:
-                self._copy_to_target(usage.abspath, packed_path)
                 continue
 
             first_pp = self._packed_paths[usage.abspath]
@@ -216,10 +224,10 @@ class Packer:
                 packed_path = packed_base_dir / file_path.name
                 self._copy_to_target(file_path, packed_path)
 
-    def _copy_to_target(self, asset_path: pathlib.Path, target: pathlib.Path):
-        if self._is_already_copied(asset_path):
-            return
+            # Assumption: all data blocks using this asset use it the same way.
+            break
 
+    def _copy_to_target(self, asset_path: pathlib.Path, target: pathlib.Path):
         print('%s → %s' % (asset_path, target))
         if self.noop:
             return
@@ -227,18 +235,3 @@ class Packer:
         target.parent.mkdir(parents=True, exist_ok=True)
         # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
         shutil.copyfile(str(asset_path), str(target))
-
-    def _is_already_copied(self, asset_path: pathlib.Path) -> bool:
-        try:
-            asset_path = asset_path.resolve()
-        except FileNotFoundError:
-            log.error('Dependency %s does not exist', asset_path)
-            return True
-
-        if asset_path in self._already_copied:
-            log.debug('Already copied %s', asset_path)
-            return True
-
-        # Assume the copy will happen soon.
-        self._already_copied.add(asset_path)
-        return False

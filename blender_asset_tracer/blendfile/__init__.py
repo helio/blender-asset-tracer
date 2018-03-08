@@ -45,13 +45,16 @@ GZIP_MAGIC = b'\x1f\x8b'
 _cached_bfiles = {}
 
 
-def open_cached(path: pathlib.Path, mode='rb') -> 'BlendFile':
+def open_cached(path: pathlib.Path, mode='rb', assert_cached=False) -> 'BlendFile':
     """Open a blend file, ensuring it is only opened once."""
     bfile_path = path.absolute().resolve()
     try:
         return _cached_bfiles[bfile_path]
     except KeyError:
         pass
+
+    if assert_cached:
+        raise AssertionError('File %s was not cached' % bfile_path)
 
     bfile = BlendFile(path, mode=mode)
     _cached_bfiles[bfile_path] = bfile
@@ -60,10 +63,26 @@ def open_cached(path: pathlib.Path, mode='rb') -> 'BlendFile':
 
 @atexit.register
 def close_all_cached():
-    log.info('Closing all blend files')
+    if not _cached_bfiles:
+        # Don't even log anything when there is nothing to close
+        return
+
+    log.info('Closing %d cached blend files', len(_cached_bfiles))
     for bfile in _cached_bfiles.values():
         bfile.close()
     _cached_bfiles.clear()
+
+
+def _cache(path: pathlib.Path, bfile: 'BlendFile'):
+    """Add a BlendFile to the cache."""
+    bfile_path = path.absolute().resolve()
+    _cached_bfiles[bfile_path] = bfile
+
+
+def _uncache(path: pathlib.Path):
+    """Remove a BlendFile object from the cache."""
+    bfile_path = path.absolute().resolve()
+    _cached_bfiles.pop(bfile_path, None)
 
 
 class BlendFile:
@@ -86,16 +105,45 @@ class BlendFile:
         :param mode: see mode description of pathlib.Path.open()
         """
         self.filepath = path
+        self.raw_filepath = path
         self._is_modified = False
+
+        self._open_file(path, mode)
+
+        self.blocks = []  # BlendFileBlocks, in disk order.
+        self.code_index = collections.defaultdict(list)
+        self.structs = []
+        self.sdna_index_from_id = {}
+        self.block_from_addr = {}
+
+        try:
+            self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
+            self.block_header_struct = self.header.create_block_header_struct()
+            self._load_blocks()
+        except Exception:
+            self.fileobj.close()
+            raise
+
+    def _open_file(self, path: pathlib.Path, mode: str):
+        """Open a blend file, decompressing if necessary.
+
+        This does not parse the blend file yet, just makes sure that
+        self.fileobj is opened and that self.filepath and self.raw_filepath
+        are set.
+
+        :raises exceptions.BlendFileError: when the blend file doesn't have the
+            correct magic bytes.
+        """
 
         fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)
         fileobj.seek(0, os.SEEK_SET)
-        magic = fileobj.read(len(BLENDFILE_MAGIC))
 
+        magic = fileobj.read(len(BLENDFILE_MAGIC))
         if magic == BLENDFILE_MAGIC:
             self.is_compressed = False
             self.raw_filepath = path
             self.fileobj = fileobj
+
         elif magic[:2] == GZIP_MAGIC:
             self.is_compressed = True
 
@@ -117,23 +165,10 @@ class BlendFile:
             self.raw_filepath = pathlib.Path(tmpfile.name)
             fileobj.close()
             self.fileobj = tmpfile
+
         elif magic != BLENDFILE_MAGIC:
             fileobj.close()
             raise exceptions.BlendFileError("File is not a blend file", path)
-
-        self.blocks = []  # BlendFileBlocks, in disk order.
-        self.code_index = collections.defaultdict(list)
-        self.structs = []
-        self.sdna_index_from_id = {}
-        self.block_from_addr = {}
-
-        try:
-            self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
-            self.block_header_struct = self.header.create_block_header_struct()
-            self._load_blocks()
-        except Exception:
-            fileobj.close()
-            raise
 
     def _load_blocks(self):
         """Read the blend file to load its DNA structure to memory."""
@@ -166,6 +201,20 @@ class BlendFile:
 
     def __exit__(self, exctype, excvalue, traceback):
         self.close()
+
+    def rebind(self, path: pathlib.Path, mode='rb'):
+        """Change which file is bound to this BlendFile.
+
+        This allows cloning a previously opened file, and rebinding it to reuse
+        the already-loaded DNA structs and data blocks.
+        """
+        log.debug('Rebinding %r to %s', self, path)
+
+        self.close()
+        _uncache(self.filepath)
+
+        self._open_file(path, mode=mode)
+        _cache(path, self)
 
     @property
     def is_modified(self) -> bool:
