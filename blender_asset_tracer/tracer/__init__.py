@@ -2,7 +2,7 @@ import logging
 import pathlib
 import typing
 
-from blender_asset_tracer import blendfile, bpathlib
+from blender_asset_tracer import blendfile
 from . import result, blocks2assets, file2blocks
 
 log = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
     :param bfilepath: File to open.
     """
 
+    log.info('opening: %s', bfilepath)
     bfile = blendfile.open_cached(bfilepath)
 
     # Sort the asset-holding blocks so that we can iterate over them

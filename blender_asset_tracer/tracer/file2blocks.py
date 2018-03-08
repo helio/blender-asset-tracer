@@ -35,6 +35,8 @@ class _BlockIterator:
                     limit_to: typing.Set[blendfile.BlendFileBlock] = frozenset(),
                     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
+
+        log.info('inspecting: %s', bfile.filepath)
         if limit_to:
             self._queue_named_blocks(bfile, limit_to)
         else:

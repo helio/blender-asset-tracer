@@ -86,7 +86,7 @@ class Packer:
                 act.path_action = PathAction.FIND_NEW_LOCATION
                 new_location_paths.add(asset_path)
             else:
-                log.info('%s can keep using %s', bfile_path, usage.asset_path)
+                log.debug('%s can keep using %s', bfile_path, usage.asset_path)
                 asset_pp = self.target / asset_path.relative_to(self.project)
                 act.new_path = asset_pp
 
@@ -140,7 +140,7 @@ class Packer:
 
         This creates the BAT Pack but does not yet do any path rewriting.
         """
-        log.info('Executing %d copy actions', len(self._actions))
+        log.debug('Executing %d copy actions', len(self._actions))
 
         fc = queued_copy.FileCopier()
         if not self.noop:
