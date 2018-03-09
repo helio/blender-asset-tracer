@@ -1,9 +1,12 @@
 import abc
 import enum
+import logging
 import pathlib
 import queue
 import threading
 import typing
+
+log = logging.getLogger(__name__)
 
 
 class FileTransferError(IOError):
@@ -25,12 +28,6 @@ QueueItem = typing.Tuple[pathlib.Path, pathlib.Path, Action]
 class FileTransferer(metaclass=abc.ABCMeta):
     """Interface for file transfer classes."""
 
-    class Empty(queue.Empty):
-        """No more files to transfer, but more may be queued later."""
-
-    class Done(queue.Empty):
-        """No more files to transfer, work is done."""
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -45,13 +42,18 @@ class FileTransferer(metaclass=abc.ABCMeta):
         # to finish copying a file.
         self.queue = queue.PriorityQueue(maxsize=100)  # type: queue.PriorityQueue[QueueItem]
         self.done = threading.Event()
+        self.abort = threading.Event()
 
     def queue_copy(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a copy action from 'src' to 'dst'."""
+        assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
+        assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.COPY))
 
     def queue_move(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a move action from 'src' to 'dst'."""
+        assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
+        assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.MOVE))
 
     def done_and_join(self) -> None:
@@ -69,15 +71,31 @@ class FileTransferer(metaclass=abc.ABCMeta):
 
         if not self.queue.empty():
             # Flush the queue so that we can report which files weren't copied yet.
-            files_remaining = []
-            while not self.queue.empty():
-                src, dst, act = self.queue.get_nowait()
-                files_remaining.append(src)
+            files_remaining = self._files_remaining()
             assert files_remaining
             raise FileTransferError(
                 "%d files couldn't be transferred" % len(files_remaining),
                 files_remaining)
 
+    def _files_remaining(self) -> typing.List[pathlib.Path]:
+        """Source files that were queued but not transferred."""
+        files_remaining = []
+        while not self.queue.empty():
+            src, dst, act = self.queue.get_nowait()
+            files_remaining.append(src)
+        return files_remaining
+
+    def abort_and_join(self) -> None:
+        """Abort the file transfer, and wait until done."""
+
+        self.abort.set()
+        self.join()
+
+        files_remaining = self._files_remaining()
+        if not files_remaining:
+            return
+        log.warning("%d files couldn't be transferred, starting with %s",
+                    len(files_remaining), files_remaining[0])
 
     def iter_queue(self) -> typing.Iterable[QueueItem]:
         """Generator, yield queued items until the work is done."""

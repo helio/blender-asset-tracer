@@ -7,7 +7,6 @@ import tempfile
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
-from blender_asset_tracer.cli import common
 from blender_asset_tracer.trace import result
 from . import queued_copy, transfer
 
@@ -63,6 +62,7 @@ class Packer:
         self.target = target
         self.noop = noop
 
+        from blender_asset_tracer.cli import common
         self._shorten = functools.partial(common.shorten, self.project)
 
         if noop:
@@ -184,13 +184,18 @@ class Packer:
         if not self.noop:
             ft.start()
 
-        for asset_path, action in self._actions.items():
-            self._copy_asset_and_deps(asset_path, action, ft)
+        try:
+            for asset_path, action in self._actions.items():
+                self._copy_asset_and_deps(asset_path, action, ft)
 
-        if self.noop:
-            log.info('Would copy %d files to %s', self._file_count, self.target)
-            return
-        ft.done_and_join()
+            if self.noop:
+                log.info('Would copy %d files to %s', self._file_count, self.target)
+                return
+            ft.done_and_join()
+        except KeyboardInterrupt:
+            log.info('File transfer interrupted with Ctrl+C, aborting.')
+            ft.abort_and_join()
+            raise
 
     def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
