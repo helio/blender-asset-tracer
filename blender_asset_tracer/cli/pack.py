@@ -4,6 +4,7 @@ import pathlib
 import sys
 import typing
 
+import blender_asset_tracer.pack.transfer
 from blender_asset_tracer import pack
 
 log = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def cli_pack(args):
 
     try:
         packer.execute()
-    except pack.queued_copy.FileCopyError as ex:
+    except blender_asset_tracer.pack.transfer.FileTransferError as ex:
         log.error("%d files couldn't be copied, starting with %s",
                   len(ex.files_remaining), ex.files_remaining[0])
         raise SystemExit(1)

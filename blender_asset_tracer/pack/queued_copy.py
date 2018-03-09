@@ -6,15 +6,9 @@ import queue
 import shutil
 import typing
 
+from . import transfer
+
 log = logging.getLogger(__name__)
-
-
-class FileCopyError(IOError):
-    """Raised when one or more files could not be transferred."""
-
-    def __init__(self, message, files_remaining: typing.List[pathlib.Path]) -> None:
-        super().__init__(message)
-        self.files_remaining = files_remaining
 
 
 class Action(enum.Enum):
@@ -22,7 +16,7 @@ class Action(enum.Enum):
     MOVE = 2
 
 
-class FileCopier(threading.Thread):
+class FileCopier(threading.Thread, transfer.FileTransferer):
     """Copies or moves files in source directory order."""
 
     def __init__(self, *args, **kwargs) -> None:
@@ -62,8 +56,9 @@ class FileCopier(threading.Thread):
                 src, dst = self.queue.get_nowait()
                 files_remaining.append(src)
             assert files_remaining
-            raise FileCopyError("%d files couldn't be transferred" % len(files_remaining),
-                                files_remaining)
+            raise transfer.FileTransferError(
+                "%d files couldn't be transferred" % len(files_remaining),
+                files_remaining)
 
     def run(self):
         files_transferred = 0
@@ -98,8 +93,8 @@ class FileCopier(threading.Thread):
                 dst.parent.mkdir(parents=True, exist_ok=True)
 
                 # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
-                transfer = transfer_funcs[act]
-                transfer(str(src), str(dst))
+                tfunc = transfer_funcs[act]
+                tfunc(str(src), str(dst))
 
                 files_transferred += 1
             except Exception:
