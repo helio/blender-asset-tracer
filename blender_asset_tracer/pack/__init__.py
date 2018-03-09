@@ -4,13 +4,12 @@ import functools
 import logging
 import pathlib
 import tempfile
-
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.cli import common
 from blender_asset_tracer.trace import result
-from . import queued_copy
+from . import queued_copy, transfer
 
 log = logging.getLogger(__name__)
 
@@ -75,11 +74,11 @@ class Packer:
         self._tmpdir = tempfile.TemporaryDirectory(suffix='-batpack')
         self._rewrite_in = pathlib.Path(self._tmpdir.name)
 
-    def close(self):
+    def close(self) -> None:
         """Clean up any temporary files."""
         self._tmpdir.cleanup()
 
-    def strategise(self):
+    def strategise(self) -> None:
         """Determine what to do with the assets.
 
         Places an asset into one of these categories:
@@ -133,7 +132,7 @@ class Packer:
             # Like a join, but ignoring the fact that 'path' is absolute.
             act.new_path = pathlib.Path(self.target, '_outside_project', *path.parts[1:])
 
-    def _group_rewrites(self):
+    def _group_rewrites(self) -> None:
         """For each blend file, collect which fields need rewriting.
 
         This ensures that the execute() step has to visit each blend file
@@ -158,7 +157,7 @@ class Packer:
             return False
         return True
 
-    def execute(self):
+    def execute(self) -> None:
         """Execute the strategy."""
         assert self._actions, 'Run strategise() first'
 
@@ -185,7 +184,7 @@ class Packer:
             return
         fc.done_and_join()
 
-    def _rewrite_paths(self):
+    def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
 
         Writes the rewritten blend files to a temporary location.

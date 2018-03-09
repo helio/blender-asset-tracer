@@ -71,7 +71,7 @@ def open_cached(path: pathlib.Path, mode='rb',
 
 
 @atexit.register
-def close_all_cached():
+def close_all_cached() -> None:
     if not _cached_bfiles:
         # Don't even log anything when there is nothing to close
         return
@@ -183,7 +183,7 @@ class BlendFile:
             fileobj.close()
             raise exceptions.BlendFileError("File is not a blend file", path)
 
-    def _load_blocks(self):
+    def _load_blocks(self) -> None:
         """Read the blend file to load its DNA structure to memory."""
 
         self.structs.clear()
@@ -206,19 +206,19 @@ class BlendFile:
             raise exceptions.NoDNA1Block("No DNA1 block in file, not a valid .blend file",
                                          self.filepath)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         clsname = self.__class__.__qualname__
         if self.filepath == self.raw_filepath:
             return '<%s %r>' % (clsname, self.filepath)
         return '<%s %r reading from %r>' % (clsname, self.filepath, self.raw_filepath)
 
-    def __enter__(self):
+    def __enter__(self) -> 'BlendFile':
         return self
 
-    def __exit__(self, exctype, excvalue, traceback):
+    def __exit__(self, exctype, excvalue, traceback) -> None:
         self.close()
 
-    def copy_and_rebind(self, path: pathlib.Path, mode='rb'):
+    def copy_and_rebind(self, path: pathlib.Path, mode='rb') -> None:
         """Change which file is bound to this BlendFile.
 
         This allows cloning a previously opened file, and rebinding it to reuse
@@ -240,7 +240,7 @@ class BlendFile:
     def is_modified(self) -> bool:
         return self._is_modified
 
-    def mark_modified(self):
+    def mark_modified(self) -> None:
         """Recompess the file when it is closed."""
         self.log.debug('Marking %s as modified', self.raw_filepath)
         self._is_modified = True
@@ -249,7 +249,7 @@ class BlendFile:
         assert isinstance(code, bytes)
         return self.code_index[code]
 
-    def close(self):
+    def close(self) -> None:
         """Close the blend file.
 
         Recompresses the blend file if it was compressed and changed.
@@ -282,7 +282,7 @@ class BlendFile:
         except KeyError:
             pass
 
-    def ensure_subtype_smaller(self, sdna_index_curr, sdna_index_next):
+    def ensure_subtype_smaller(self, sdna_index_curr, sdna_index_next) -> None:
         # never refine to a smaller type
         curr_struct = self.structs[sdna_index_curr]
         next_struct = self.structs[sdna_index_next]
@@ -462,7 +462,7 @@ class BlendFileBlock:
             self.count = blockheader[4]
             self.file_offset = bfile.fileobj.tell()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s.%s (%s), size=%d at %s>" % (
             self.__class__.__name__,
             self.dna_type_name,
@@ -740,28 +740,28 @@ class BlendFileBlock:
     def __getitem__(self, path: dna.FieldPath):
         return self.get(path)
 
-    def __setitem__(self, item, value):
+    def __setitem__(self, item: bytes, value) -> None:
         self.set(item, value)
 
     def keys(self) -> typing.Iterator[bytes]:
         """Generator, yields all field names of this block."""
         return (f.name.name_only for f in self.dna_type.fields)
 
-    def values(self):
+    def values(self) -> typing.Iterable[typing.Any]:
         for k in self.keys():
             try:
                 yield self[k]
             except exceptions.NoReaderImplemented as ex:
                 yield '<%s>' % ex.dna_type.dna_type_id.decode('ascii')
 
-    def items(self):
+    def items(self) -> typing.Iterable[typing.Tuple[bytes, typing.Any]]:
         for k in self.keys():
             try:
                 yield (k, self[k])
             except exceptions.NoReaderImplemented as ex:
                 yield (k, '<%s>' % ex.dna_type.dna_type_id.decode('ascii'))
 
-    def items_recursive(self):
+    def items_recursive(self) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
         """Generator, yields (property path, property value) recursively for all properties."""
         for k in self.keys():
             yield from self.get_recursive_iter(k, as_str=False)
