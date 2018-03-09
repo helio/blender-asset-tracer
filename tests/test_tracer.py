@@ -3,7 +3,7 @@ import logging
 import sys
 import typing
 
-from blender_asset_tracer import tracer, blendfile
+from blender_asset_tracer import trace, blendfile
 from blender_asset_tracer.blendfile import dna
 from abstract_test import AbstractBlendFileTest
 
@@ -29,7 +29,7 @@ class AssetHoldingBlocksTest(AbstractTracerTest):
         blocks_seen = 0
         seen_scene = seen_ob = False
 
-        for block in tracer.asset_holding_blocks(self.bf.blocks):
+        for block in trace.asset_holding_blocks(self.bf.blocks):
             assert isinstance(block, blendfile.BlendFileBlock)
             blocks_seen += 1
 
@@ -71,7 +71,7 @@ class DepsTest(AbstractTracerTest):
         return field.name.name_full.decode()
 
     def assert_deps(self, blend_fname, expects: dict):
-        for dep in tracer.deps(self.blendfiles / blend_fname):
+        for dep in trace.deps(self.blendfiles / blend_fname):
             actual_type = dep.block.dna_type.dna_type_id.decode()
             actual_full_field = self.field_name(dep.path_full_field)
             actual_dirname = self.field_name(dep.path_dir_field)
@@ -138,7 +138,7 @@ class DepsTest(AbstractTracerTest):
         # Test the filename expansion.
         expected = [self.blendfiles / ('imgseq/%06d.png' % num)
                     for num in range(210, 215)]
-        for dep in tracer.deps(self.blendfiles / 'image_sequencer.blend'):
+        for dep in trace.deps(self.blendfiles / 'image_sequencer.blend'):
             if dep.block_name != b'SQ000210.png':
                 continue
 
@@ -214,7 +214,7 @@ class DepsTest(AbstractTracerTest):
         })
 
     def test_usage_abspath(self):
-        deps = [dep for dep in tracer.deps(self.blendfiles / 'doubly_linked.blend')
+        deps = [dep for dep in trace.deps(self.blendfiles / 'doubly_linked.blend')
                 if dep.asset_path == b'//material_textures.blend']
         usage = deps[0]
 
@@ -235,7 +235,7 @@ class DepsTest(AbstractTracerTest):
         try:
             sys.setrecursionlimit(80)
             # This should finish without hitting the recursion limit.
-            for _ in tracer.deps(infinite_bfile):
+            for _ in trace.deps(infinite_bfile):
                 pass
         finally:
             sys.setrecursionlimit(reclim)

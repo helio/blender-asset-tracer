@@ -5,7 +5,7 @@ import logging
 import pathlib
 import sys
 
-from blender_asset_tracer import tracer
+from blender_asset_tracer import trace
 from . import common
 
 log = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def report_text(bpath):
     last_reported_bfile = None
     shorten = functools.partial(common.shorten, pathlib.Path.cwd())
 
-    for usage in tracer.deps(bpath):
+    for usage in trace.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
         if filepath != last_reported_bfile:
             print(shorten(filepath))
@@ -68,7 +68,7 @@ def report_json(bpath):
     # Mapping from blend file to its dependencies.
     report = collections.defaultdict(set)
 
-    for usage in tracer.deps(bpath):
+    for usage in trace.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
         for assetpath in usage.files():
             assetpath = assetpath.resolve()

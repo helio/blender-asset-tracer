@@ -1,6 +1,6 @@
 from abstract_test import AbstractBlendFileTest
 
-from blender_asset_tracer.tracer import file_sequence
+from blender_asset_tracer.trace import file_sequence
 
 
 class ExpandFileSequenceTest(AbstractBlendFileTest):

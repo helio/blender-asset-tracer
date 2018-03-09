@@ -5,9 +5,9 @@ import logging
 import pathlib
 import typing
 
-from blender_asset_tracer import tracer, bpathlib, blendfile
+from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.cli import common
-from blender_asset_tracer.tracer import result
+from blender_asset_tracer.trace import result
 from . import queued_copy
 
 log = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class Packer:
         act.new_path = bfile_pp
 
         new_location_paths = set()
-        for usage in tracer.deps(self.blendfile):
+        for usage in trace.deps(self.blendfile):
             # Needing rewriting is not a per-asset thing, but a per-asset-per-
             # blendfile thing, since different blendfiles can refer to it in
             # different ways (for example with relative and absolute paths).

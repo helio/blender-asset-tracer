@@ -1,5 +1,5 @@
 from blender_asset_tracer import blendfile
-from blender_asset_tracer.tracer import file2blocks
+from blender_asset_tracer.trace import file2blocks
 
 from test_tracer import AbstractTracerTest
 
