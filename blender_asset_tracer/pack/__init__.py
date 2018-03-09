@@ -21,8 +21,21 @@ class PathAction(enum.Enum):
 class AssetAction:
     def __init__(self):
         self.path_action = PathAction.KEEP_PATH
-        self.usages = []  # which data blocks are referring to this asset
+        self.usages = []
+        """BlockUsage objects referring to this asset.
+
+        Those BlockUsage objects could refer to data blocks in this blend file
+        (if the asset is a blend file) or in another blend file.
+        """
+
         self.new_path = None
+        """Absolute path to the asset in the BAT Pack."""
+
+        self.rewrites = []
+        """BlockUsage objects in this asset that may require rewriting.
+
+        Empty list if this AssetAction is not for a blend file.
+        """
 
 
 class Packer:
@@ -43,7 +56,6 @@ class Packer:
 
         # Filled by strategise()
         self._actions = collections.defaultdict(AssetAction)
-        self._rewrites = collections.defaultdict(list)
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
@@ -116,7 +128,7 @@ class Packer:
 
             for usage in action.usages:
                 bfile_path = usage.block.bfile.filepath.absolute().resolve()
-                self._rewrites[bfile_path].append(usage)
+                self._actions[bfile_path].rewrites.append(usage)
 
     def _path_in_project(self, path: pathlib.Path) -> bool:
         try:
@@ -157,7 +169,10 @@ class Packer:
     def _rewrite_paths(self):
         """Rewrite paths to the new location of the assets."""
 
-        for bfile_path, rewrites in self._rewrites.items():
+        for bfile_path, action in self._actions.items():
+            if not action.rewrites:
+                continue
+
             assert isinstance(bfile_path, pathlib.Path)
             bfile_pp = self._actions[bfile_path].new_path
 
@@ -168,7 +183,7 @@ class Packer:
             bfile = blendfile.open_cached(bfile_path, assert_cached=True)
             bfile.rebind(bfile_pp, mode='rb+')
 
-            for usage in rewrites:
+            for usage in action.rewrites:
                 assert isinstance(usage, result.BlockUsage)
                 asset_pp = self._actions[usage.abspath].new_path
                 assert isinstance(asset_pp, pathlib.Path)

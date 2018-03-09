@@ -24,6 +24,12 @@ class AbstractPackTest(AbstractBlendFileTest):
     def tearDown(self):
         self.tdir.cleanup()
 
+    @staticmethod
+    def rewrites(packer: pack.Packer):
+        return {path: action.rewrites
+                for path, action in packer._actions.items()
+                if action.rewrites}
+
     def test_strategise_no_rewrite_required(self):
         infile = self.blendfiles / 'doubly_linked.blend'
 
@@ -44,7 +50,7 @@ class AbstractPackTest(AbstractBlendFileTest):
             self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for %s' % pf)
             self.assertEqual(self.tpath / pf, act.new_path, 'for %s' % pf)
 
-        self.assertEqual({}, packer._rewrites)
+        self.assertEqual({}, self.rewrites(packer))
 
     def test_strategise_rewrite(self):
         ppath = self.blendfiles / 'subdir'
@@ -78,17 +84,18 @@ class AbstractPackTest(AbstractBlendFileTest):
             'material_textures.blend',
             'subdir/doubly_linked_up.blend',
         )
+        rewrites = self.rewrites(packer)
         self.assertEqual([self.blendfiles / fn for fn in to_rewrite],
-                         sorted(packer._rewrites.keys()))
+                         sorted(rewrites.keys()))
 
         # Library link referencing basic_file.blend should (maybe) be rewritten.
-        rw_linked_cube = packer._rewrites[self.blendfiles / 'linked_cube.blend']
+        rw_linked_cube = rewrites[self.blendfiles / 'linked_cube.blend']
         self.assertEqual(1, len(rw_linked_cube))
         self.assertEqual(b'LILib', rw_linked_cube[0].block_name)
         self.assertEqual(b'//basic_file.blend', rw_linked_cube[0].asset_path)
 
         # Texture links to image assets should (maybe) be rewritten.
-        rw_mattex = packer._rewrites[self.blendfiles / 'material_textures.blend']
+        rw_mattex = rewrites[self.blendfiles / 'material_textures.blend']
         self.assertEqual(2, len(rw_mattex))
         rw_mattex.sort()  # for repeatable tests
         self.assertEqual(b'IMbrick_dotted_04-bump', rw_mattex[0].block_name)
@@ -97,7 +104,7 @@ class AbstractPackTest(AbstractBlendFileTest):
         self.assertEqual(b'//textures/Bricks/brick_dotted_04-color.jpg', rw_mattex[1].asset_path)
 
         # Library links from doubly_linked_up.blend to the above to blend files should be rewritten.
-        rw_dbllink = packer._rewrites[self.blendfiles / 'subdir/doubly_linked_up.blend']
+        rw_dbllink = rewrites[self.blendfiles / 'subdir/doubly_linked_up.blend']
         self.assertEqual(2, len(rw_dbllink))
         rw_dbllink.sort()  # for repeatable tests
         self.assertEqual(b'LILib', rw_dbllink[0].block_name)
