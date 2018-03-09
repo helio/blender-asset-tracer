@@ -11,7 +11,7 @@ from blender_asset_tracer.blendfile import iterators
 
 # Don't warn about these types at all.
 _warned_about_types = {b'LI', b'DATA'}
-_funcs_for_code = {}
+_funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 log = logging.getLogger(__name__)
 
 

@@ -26,7 +26,7 @@ def sequencer_strips(sequence_editor: BlendFileBlock) \
     See blender_asset_tracer.cdefs.SEQ_TYPE_xxx for the type numbers.
     """
 
-    def iter_seqbase(seqbase) -> typing.Iterator[BlendFileBlock]:
+    def iter_seqbase(seqbase) -> typing.Iterator[typing.Tuple[BlendFileBlock, int]]:
         for seq in listbase(seqbase):
             seq.refine_type(b'Sequence')
             seq_type = seq[b'type']

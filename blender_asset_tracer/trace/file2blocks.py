@@ -7,12 +7,13 @@ blend files.
 """
 import collections
 import logging
+import pathlib
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib
 from . import expanders
 
-_funcs_for_code = {}
+_funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 log = logging.getLogger(__name__)
 
 
@@ -23,16 +24,16 @@ class _BlockIterator:
     without having to pass those variables to each recursive call.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Set of (blend file Path, block address) of already-reported blocks.
-        self.blocks_yielded = set()
+        self.blocks_yielded = set()  # type: typing.Set[typing.Tuple[pathlib.Path, int]]
 
         # Queue of blocks to visit
-        self.to_visit = collections.deque()
+        self.to_visit = collections.deque()  # type: typing.Deque[blendfile.BlendFileBlock]
 
     def iter_blocks(self,
                     bfile: blendfile.BlendFile,
-                    limit_to: typing.Set[blendfile.BlendFileBlock] = frozenset(),
+                    limit_to: typing.Set[blendfile.BlendFileBlock] = set(),
                     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
 

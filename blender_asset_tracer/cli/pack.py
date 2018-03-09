@@ -2,6 +2,7 @@
 import logging
 import pathlib
 import sys
+import typing
 
 from blender_asset_tracer import pack
 
@@ -39,7 +40,7 @@ def cli_pack(args):
         raise SystemExit(1)
 
 
-def paths_from_cli(args) -> (pathlib.Path, pathlib.Path, pathlib.Path):
+def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
     """Return paths to blendfile, project, and pack target.
 
     Calls sys.exit() if anything is wrong.

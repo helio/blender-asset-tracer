@@ -27,7 +27,7 @@ import pathlib
 class BlendFileError(Exception):
     """Raised when there was an error reading/parsing a blend file."""
 
-    def __init__(self, message: str, filepath: pathlib.Path):
+    def __init__(self, message: str, filepath: pathlib.Path) -> None:
         super().__init__(message)
         self.filepath = filepath
 
@@ -48,7 +48,7 @@ class NoReaderImplemented(NotImplementedError):
     :type dna_type: blender_asset_tracer.blendfile.dna.Struct
     """
 
-    def __init__(self, message: str, dna_name, dna_type):
+    def __init__(self, message: str, dna_name, dna_type) -> None:
         super().__init__(message)
         self.dna_name = dna_name
         self.dna_type = dna_type
@@ -61,7 +61,7 @@ class NoWriterImplemented(NotImplementedError):
     :type dna_type: blender_asset_tracer.blendfile.dna.Struct
     """
 
-    def __init__(self, message: str, dna_name, dna_type):
+    def __init__(self, message: str, dna_name, dna_type) -> None:
         super().__init__(message)
         self.dna_name = dna_name
         self.dna_type = dna_type
@@ -70,7 +70,7 @@ class NoWriterImplemented(NotImplementedError):
 class SegmentationFault(Exception):
     """Raised when a pointer to a non-existant datablock was dereferenced."""
 
-    def __init__(self, message: str, address: int, field_path=None):
+    def __init__(self, message: str, address: int, field_path=None) -> None:
         super().__init__(message)
         self.address = address
         self.field_path = field_path

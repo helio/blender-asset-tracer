@@ -40,8 +40,8 @@ class BlockUsage:
                  path_full_field: dna.Field = None,
                  path_dir_field: dna.Field = None,
                  path_base_field: dna.Field = None,
-                 block_name: bytes = '',
-                 ):
+                 block_name: bytes = b'',
+                 ) -> None:
         if block_name:
             self.block_name = block_name
         else:
@@ -69,7 +69,9 @@ class BlockUsage:
         self.path_full_field = path_full_field
         self.path_dir_field = path_dir_field
         self.path_base_field = path_base_field
-        self._abspath = None  # cached by __fspath__()
+
+        # cached by __fspath__()
+        self._abspath = None  # type: pathlib.Path
 
     @staticmethod
     def guess_block_name(block: blendfile.BlendFileBlock) -> bytes:
@@ -134,7 +136,7 @@ class BlockUsage:
             raise NotImplemented()
         return self.block_name < other.block_name and self.block < other.block
 
-    def __eq__(self, other: 'BlockUsage'):
+    def __eq__(self, other: object):
         if not isinstance(other, BlockUsage):
             return False
         return self.block_name == other.block_name and self.block == other.block

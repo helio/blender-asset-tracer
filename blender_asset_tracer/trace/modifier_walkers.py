@@ -53,7 +53,8 @@ def _modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: by
 
     if flag & cdefs.PTCACHE_EXTERNAL:
         path, field = pointcache.get(b'path', return_field=True)
-        yield result.BlockUsage(pointcache, path, path_full_field=field,
+        bpath = bpathlib.BlendPath(path)
+        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
                                 is_sequence=True, block_name=block_name)
 
 

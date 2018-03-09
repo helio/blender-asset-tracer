@@ -22,14 +22,13 @@
 
 import atexit
 import collections
+import functools
 import gzip
 import logging
 import os
 import struct
 import pathlib
 import tempfile
-
-import functools
 import typing
 
 from . import exceptions, dna_io, dna, header
@@ -40,8 +39,9 @@ log = logging.getLogger(__name__)
 FILE_BUFFER_SIZE = 1024 * 1024
 BLENDFILE_MAGIC = b'BLENDER'
 GZIP_MAGIC = b'\x1f\x8b'
+BFBList = typing.List['BlendFileBlock']
 
-_cached_bfiles = {}
+_cached_bfiles = {}  # type: typing.Dict[pathlib.Path, BlendFile]
 
 
 def open_cached(path: pathlib.Path, mode='rb', assert_cached=False) -> 'BlendFile':
@@ -94,7 +94,7 @@ class BlendFile:
     """
     log = log.getChild('BlendFile')
 
-    def __init__(self, path: pathlib.Path, mode='rb'):
+    def __init__(self, path: pathlib.Path, mode='rb') -> None:
         """Create a BlendFile instance for the blend file at the path.
 
         Opens the file for reading or writing pending on the access. Compressed
@@ -106,22 +106,21 @@ class BlendFile:
         self.filepath = path
         self.raw_filepath = path
         self._is_modified = False
+        self.fileobj = None  # type: typing.IO[bytes]
 
         self._open_file(path, mode)
 
-        self.blocks = []  # BlendFileBlocks, in disk order.
-        self.code_index = collections.defaultdict(list)
-        self.structs = []
-        self.sdna_index_from_id = {}
-        self.block_from_addr = {}
+        self.blocks = []  # type: BFBList
+        """BlendFileBlocks of this file, in disk order."""
 
-        try:
-            self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
-            self.block_header_struct = self.header.create_block_header_struct()
-            self._load_blocks()
-        except Exception:
-            self.fileobj.close()
-            raise
+        self.code_index = collections.defaultdict(list)  # type: typing.Dict[bytes, BFBList]
+        self.structs = []  # type: typing.List[dna.Struct]
+        self.sdna_index_from_id = {}  # type: typing.Dict[bytes, int]
+        self.block_from_addr = {}  # type: typing.Dict[int, BlendFileBlock]
+
+        self.header = header.BlendFileHeader(self.fileobj, self.raw_filepath)
+        self.block_header_struct = self.header.create_block_header_struct()
+        self._load_blocks()
 
     def _open_file(self, path: pathlib.Path, mode: str):
         """Open a blend file, decompressing if necessary.
@@ -134,7 +133,10 @@ class BlendFile:
             correct magic bytes.
         """
 
-        fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)
+        if 'b' not in mode:
+            raise ValueError('Only binary modes are supported, not %r' % mode)
+
+        fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)  # typing.IO[bytes]
         fileobj.seek(0, os.SEEK_SET)
 
         magic = fileobj.read(len(BLENDFILE_MAGIC))
@@ -171,13 +173,16 @@ class BlendFile:
 
     def _load_blocks(self):
         """Read the blend file to load its DNA structure to memory."""
+
+        self.structs.clear()
+        self.sdna_index_from_id.clear()
         while True:
             block = BlendFileBlock(self)
             if block.code == b'ENDB':
                 break
 
             if block.code == b'DNA1':
-                self.structs, self.sdna_index_from_id = self.decode_structs(block)
+                self.decode_structs(block)
             else:
                 self.fileobj.seek(block.size, os.SEEK_CUR)
 
@@ -270,6 +275,10 @@ class BlendFile:
         DNACatalog is a catalog of all information in the DNA1 file-block
         """
         self.log.debug("building DNA catalog")
+
+        # Get some names in the local scope for faster access.
+        structs = self.structs
+        sdna_index_from_id = self.sdna_index_from_id
         endian = self.header.endian
         shortstruct = endian.USHORT
         shortstruct2 = endian.USHORT2
@@ -282,8 +291,6 @@ class BlendFile:
         data = self.fileobj.read(block.size)
         types = []
         typenames = []
-        structs = []
-        sdna_index_from_id = {}
 
         offset = 8
         names_len = intstruct.unpack_from(data, offset)[0]
@@ -346,8 +353,6 @@ class BlendFile:
                 dna_struct.append_field(field)
                 dna_offset += dna_size
 
-        return structs, sdna_index_from_id
-
     def abspath(self, relpath: bpathlib.BlendPath) -> bpathlib.BlendPath:
         """Construct an absolute path from a blendfile-relative path."""
 
@@ -391,7 +396,7 @@ class BlendFileBlock:
     old_structure = struct.Struct(b'4sI')
     """old blend files ENDB block structure"""
 
-    def __init__(self, bfile: BlendFile):
+    def __init__(self, bfile: BlendFile) -> None:
         self.bfile = bfile
 
         # Defaults; actual values are set by interpreting the block header.
@@ -406,7 +411,7 @@ class BlendFileBlock:
         Points to the data after the block header.
         """
         self.endian = bfile.header.endian
-        self._id_name = ...  # see the id_name property
+        self._id_name = ...  # type: typing.Union[None, ellipsis, bytes]
 
         header_struct = bfile.block_header_struct
         data = bfile.fileobj.read(header_struct.size)
@@ -448,7 +453,7 @@ class BlendFileBlock:
     def __hash__(self) -> int:
         return hash((self.code, self.addr_old, self.bfile.filepath))
 
-    def __eq__(self, other: 'BlendFileBlock') -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, BlendFileBlock):
             return False
         return (self.code == other.code and
@@ -487,7 +492,10 @@ class BlendFileBlock:
                 self._id_name = self[b'id', b'name']
             except KeyError:
                 self._id_name = None
-        return self._id_name
+
+        # TODO(Sybren): figure out how to let mypy know self._id_name cannot
+        # be ellipsis at this point.
+        return self._id_name  # type: ignore
 
     def refine_type_from_index(self, sdna_index: int):
         """Change the DNA Struct associated with this block.
@@ -514,7 +522,7 @@ class BlendFileBlock:
         sdna_index = self.bfile.sdna_index_from_id[dna_type_id]
         self.refine_type_from_index(sdna_index)
 
-    def abs_offset(self, path: dna.FieldPath) -> (int, int):
+    def abs_offset(self, path: dna.FieldPath) -> typing.Tuple[int, int]:
         """Compute the absolute file offset of the field.
 
         :returns: tuple (offset in bytes, length of array in items)
@@ -563,18 +571,19 @@ class BlendFileBlock:
                            default=...,
                            null_terminated=True,
                            as_str=True,
-                           ) -> typing.Iterator[typing.Tuple[bytes, typing.Any]]:
+                           ) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
         """Generator, yields (path, property value) tuples.
 
         If a property cannot be decoded, a string representing its DNA type
         name is used as its value instead, between pointy brackets.
         """
+        path_full = path  # type: dna.FieldPath
         if path_root:
-            path_full = (
-                    (path_root if type(path_root) is tuple else (path_root,)) +
-                    (path if type(path) is tuple else (path,)))
-        else:
-            path_full = path
+            if isinstance(path_root, bytes):
+                path_root = (path_root,)
+            if isinstance(path, bytes):
+                path = (path,)
+            path_full = tuple(path_root) + tuple(path)
 
         try:
             # Try accessing as simple property
@@ -615,7 +624,7 @@ class BlendFileBlock:
             hsh = zlib.adler32(str(value).encode(), hsh)
         return hsh
 
-    def set(self, path: dna.FieldPath, value):
+    def set(self, path: bytes, value):
         dna_struct = self.bfile.structs[self.sdna_index]
         self.bfile.mark_modified()
         self.bfile.fileobj.seek(self.file_offset, os.SEEK_SET)

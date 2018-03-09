@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 class DoesNotExist(OSError):
     """Indicates a path does not exist on the filesystem."""
 
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path) -> None:
         super().__init__(path)
         self.path = path
 

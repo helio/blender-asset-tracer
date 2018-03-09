@@ -18,7 +18,7 @@ class BlendFileHeader:
     """
     structure = struct.Struct(b'7s1s1s3s')
 
-    def __init__(self, fileobj: typing.BinaryIO, path: pathlib.Path):
+    def __init__(self, fileobj: typing.IO[bytes], path: pathlib.Path) -> None:
         log.debug("reading blend-file-header %s", path)
         fileobj.seek(0, os.SEEK_SET)
         header = fileobj.read(self.structure.size)

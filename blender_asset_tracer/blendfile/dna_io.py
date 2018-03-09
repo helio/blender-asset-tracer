@@ -16,7 +16,7 @@ class EndianIO:
     ULONG = struct.Struct(b'<Q')
 
     @classmethod
-    def _read(cls, fileobj: typing.BinaryIO, typestruct: struct.Struct):
+    def _read(cls, fileobj: typing.IO[bytes], typestruct: struct.Struct):
         data = fileobj.read(typestruct.size)
         try:
             return typestruct.unpack(data)[0]
@@ -24,35 +24,35 @@ class EndianIO:
             raise struct.error('%s (read %d bytes)' % (ex, len(data))) from None
 
     @classmethod
-    def read_char(cls, fileobj: typing.BinaryIO):
+    def read_char(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.UCHAR)
 
     @classmethod
-    def read_ushort(cls, fileobj: typing.BinaryIO):
+    def read_ushort(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.USHORT)
 
     @classmethod
-    def read_short(cls, fileobj: typing.BinaryIO):
+    def read_short(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.SSHORT)
 
     @classmethod
-    def read_uint(cls, fileobj: typing.BinaryIO):
+    def read_uint(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.UINT)
 
     @classmethod
-    def read_int(cls, fileobj: typing.BinaryIO):
+    def read_int(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.SINT)
 
     @classmethod
-    def read_float(cls, fileobj: typing.BinaryIO):
+    def read_float(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.FLOAT)
 
     @classmethod
-    def read_ulong(cls, fileobj: typing.BinaryIO):
+    def read_ulong(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.ULONG)
 
     @classmethod
-    def read_pointer(cls, fileobj: typing.BinaryIO, pointer_size: int):
+    def read_pointer(cls, fileobj: typing.IO[bytes], pointer_size: int):
         """Read a pointer from a file."""
 
         if pointer_size == 4:
@@ -62,7 +62,7 @@ class EndianIO:
         raise ValueError('unsupported pointer size %d' % pointer_size)
 
     @classmethod
-    def write_string(cls, fileobj: typing.BinaryIO, astring: str, fieldlen: int) -> int:
+    def write_string(cls, fileobj: typing.IO[bytes], astring: str, fieldlen: int) -> int:
         """Write a (truncated) string as UTF-8.
 
         The string will always be written 0-terminated.
@@ -94,7 +94,7 @@ class EndianIO:
         return fileobj.write(encoded + b'\0')
 
     @classmethod
-    def write_bytes(cls, fileobj: typing.BinaryIO, data: bytes, fieldlen: int) -> int:
+    def write_bytes(cls, fileobj: typing.IO[bytes], data: bytes, fieldlen: int) -> int:
         """Write (truncated) bytes.
 
         When len(data) < fieldlen, a terminating b'\0' will be appended.

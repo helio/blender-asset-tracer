@@ -19,19 +19,23 @@ class PathAction(enum.Enum):
 
 
 class AssetAction:
-    def __init__(self):
+    """All the info required to rewrite blend files and copy assets."""
+
+    def __init__(self) -> None:
         self.path_action = PathAction.KEEP_PATH
-        self.usages = []
+        self.usages = []  # type: typing.List[result.BlockUsage]
         """BlockUsage objects referring to this asset.
 
         Those BlockUsage objects could refer to data blocks in this blend file
         (if the asset is a blend file) or in another blend file.
         """
 
-        self.new_path = None
+        self.new_path = None  # type: pathlib.Path
         """Absolute path to the asset in the BAT Pack."""
 
-        self.rewrites = []
+        self.read_from = None  # type: pathlib.Path
+
+        self.rewrites = []  # type: typing.List[result.BlockUsage]
         """BlockUsage objects in this asset that may require rewriting.
 
         Empty list if this AssetAction is not for a blend file.
@@ -43,7 +47,7 @@ class Packer:
                  blendfile: pathlib.Path,
                  project: pathlib.Path,
                  target: pathlib.Path,
-                 noop=False):
+                 noop=False) -> None:
         self.blendfile = blendfile
         self.project = project
         self.target = target
@@ -55,7 +59,8 @@ class Packer:
             log.warning('Running in no-op mode, only showing what will be done.')
 
         # Filled by strategise()
-        self._actions = collections.defaultdict(AssetAction)
+        self._actions = collections.defaultdict(
+            AssetAction)  # type: typing.DefaultDict[pathlib.Path, AssetAction]
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0

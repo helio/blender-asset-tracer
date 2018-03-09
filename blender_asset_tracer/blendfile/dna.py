@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 class Name:
     """dna.Name is a C-type name stored in the DNA as bytes."""
 
-    def __init__(self, name_full: bytes):
+    def __init__(self, name_full: bytes) -> None:
         self.name_full = name_full
         self.name_only = self.calc_name_only()
         self.is_pointer = self.calc_is_pointer()
@@ -72,7 +72,7 @@ class Field:
                  dna_type: 'Struct',
                  name: Name,
                  size: int,
-                 offset: int):
+                 offset: int) -> None:
         self.dna_type = dna_type
         self.name = name
         self.size = size
@@ -87,7 +87,7 @@ class Struct:
 
     log = log.getChild('Struct')
 
-    def __init__(self, dna_type_id: bytes, size: int = None):
+    def __init__(self, dna_type_id: bytes, size: int = None) -> None:
         """
         :param dna_type_id: name of the struct in C, like b'AlembicObjectPath'.
         :param size: only for unit tests; typically set after construction by
@@ -96,8 +96,8 @@ class Struct:
         """
         self.dna_type_id = dna_type_id
         self._size = size
-        self._fields = []
-        self._fields_by_name = {}
+        self._fields = []  # type: typing.List[Field]
+        self._fields_by_name = {}  # type: typing.Dict[bytes, Field]
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__qualname__, self.dna_type_id)
@@ -183,7 +183,7 @@ class Struct:
 
     def field_get(self,
                   file_header: header.BlendFileHeader,
-                  fileobj: typing.BinaryIO,
+                  fileobj: typing.IO[bytes],
                   path: FieldPath,
                   default=...,
                   null_terminated=True,
@@ -263,7 +263,7 @@ class Struct:
 
     def field_set(self,
                   file_header: header.BlendFileHeader,
-                  fileobj: typing.BinaryIO,
+                  fileobj: typing.IO[bytes],
                   path: bytes,
                   value: typing.Any):
         """Write a value to the blend file.

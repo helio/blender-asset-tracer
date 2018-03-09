@@ -13,8 +13,8 @@ from . import result, modifier_walkers
 
 log = logging.getLogger(__name__)
 
-_warned_about_types = set()
-_funcs_for_code = {}
+_warned_about_types = set()  # type: typing.Set[bytes]
+_funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 
 
 def iter_assets(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:

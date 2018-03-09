@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 class FileCopyError(IOError):
     """Raised when one or more files could not be copied."""
 
-    def __init__(self, message, files_not_copied: typing.List[pathlib.Path]):
+    def __init__(self, message, files_not_copied: typing.List[pathlib.Path]) -> None:
         super().__init__(message)
         self.files_not_copied = files_not_copied
 
@@ -19,7 +19,7 @@ class FileCopyError(IOError):
 class FileCopier(threading.Thread):
     """Copies files in directory order."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         # For copying in a different process. By using a priority queue the files
@@ -31,7 +31,8 @@ class FileCopier(threading.Thread):
         # maxsize=100 is just a guess as to a reasonable upper limit. When this limit
         # is reached, the main thread will simply block while waiting for this thread
         # to finish copying a file.
-        self.file_copy_queue = queue.PriorityQueue(maxsize=100)
+        self.file_copy_queue = queue.PriorityQueue(
+            maxsize=100)  # type: queue.PriorityQueue[typing.Tuple[pathlib.Path, pathlib.Path]]
         self.file_copy_done = threading.Event()
 
     def queue(self, src: pathlib.Path, dst: pathlib.Path):
