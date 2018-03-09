@@ -8,7 +8,7 @@ import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.trace import result
-from . import queued_copy, transfer
+from . import filesystem, transfer
 
 log = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ class Packer:
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
         """Create a FileCopier(), can be overridden in a subclass."""
-        return queued_copy.FileCopier()
+        return filesystem.FileCopier()
 
     def _copy_files_to_target(self) -> None:
         """Copy all assets to the target directoy.
