@@ -3,6 +3,8 @@ import enum
 import functools
 import logging
 import pathlib
+import tempfile
+
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
@@ -33,7 +35,12 @@ class AssetAction:
         self.new_path = None  # type: pathlib.Path
         """Absolute path to the asset in the BAT Pack."""
 
-        self.read_from = None  # type: pathlib.Path
+        self.read_from = None  # type: typing.Optional[pathlib.Path]
+        """Optional path from which to read the asset.
+
+        This is used when blend files have been rewritten. It is assumed that
+        when this property is set, the file can be moved instead of copied.
+        """
 
         self.rewrites = []  # type: typing.List[result.BlockUsage]
         """BlockUsage objects in this asset that may require rewriting.
@@ -64,6 +71,19 @@ class Packer:
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
+
+        self._tmpdir = tempfile.TemporaryDirectory(suffix='-batpack')
+        self._rewrite_in = pathlib.Path(self._tmpdir.name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        """Clean up any temporary files."""
+        self._tmpdir.cleanup()
 
     def strategise(self):
         """Determine what to do with the assets.
@@ -148,9 +168,9 @@ class Packer:
         """Execute the strategy."""
         assert self._actions, 'Run strategise() first'
 
-        self._copy_files_to_target()
         if not self.noop:
             self._rewrite_paths()
+        self._copy_files_to_target()
 
     def _copy_files_to_target(self):
         """Copy all assets to the target directoy.
@@ -172,21 +192,36 @@ class Packer:
         fc.done_and_join()
 
     def _rewrite_paths(self):
-        """Rewrite paths to the new location of the assets."""
+        """Rewrite paths to the new location of the assets.
+
+        Writes the rewritten blend files to a temporary location.
+        """
 
         for bfile_path, action in self._actions.items():
             if not action.rewrites:
                 continue
 
             assert isinstance(bfile_path, pathlib.Path)
+            # bfile_pp is the final path of this blend file in the BAT pack.
+            # It is used to determine relative paths to other blend files.
+            # It is *not* used for any disk I/O, since the file may not even
+            # exist on the local filesystem.
             bfile_pp = self._actions[bfile_path].new_path
 
-            log.info('Rewriting %s', bfile_pp)
+            # Use tempfile to create a unique name in our temporary directoy.
+            # The file should be deleted when self.close() is called, and not
+            # when the bfile_tp object is GC'd.
+            bfile_tmp = tempfile.NamedTemporaryFile(dir=str(self._rewrite_in),
+                                                    suffix='-' + bfile_path.name,
+                                                    delete=False)
+            bfile_tp = pathlib.Path(bfile_tmp.name)
+            action.read_from = bfile_tp
+            log.info('Rewriting %s to %s', bfile_path, bfile_tp)
 
             # The original blend file will have been cached, so we can use it
             # to avoid re-parsing all data blocks in the to-be-rewritten file.
             bfile = blendfile.open_cached(bfile_path, assert_cached=True)
-            bfile.rebind(bfile_pp, mode='rb+')
+            bfile.copy_and_rebind(bfile_tp, mode='rb+')
 
             for usage in action.rewrites:
                 assert isinstance(usage, result.BlockUsage)
@@ -204,11 +239,11 @@ class Packer:
                 # Find the same block in the newly copied file.
                 block = bfile.dereference_pointer(usage.block.addr_old)
                 if usage.path_full_field is None:
-                    log.info('   - updating field %s of block %s',
-                             usage.path_dir_field.name.name_only, block)
+                    log.debug('   - updating field %s of block %s',
+                              usage.path_dir_field.name.name_only, block)
                     reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
                     written = block.set(usage.path_dir_field.name.name_only, reldir)
-                    log.info('   - written %d bytes', written)
+                    log.debug('   - written %d bytes', written)
 
                     # BIG FAT ASSUMPTION that the filename (e.g. basename
                     # without path) does not change. This makes things much
@@ -216,18 +251,24 @@ class Packer:
                     # filename fields are in different blocks. See the
                     # blocks2assets.scene() function for the implementation.
                 else:
-                    log.info('   - updating field %s of block %s',
-                             usage.path_full_field.name.name_only, block)
+                    log.debug('   - updating field %s of block %s',
+                              usage.path_full_field.name.name_only, block)
                     written = block.set(usage.path_full_field.name.name_only, relpath)
-                    log.info('   - written %d bytes', written)
+                    log.debug('   - written %d bytes', written)
+
+            # Make sure we close the file, otherwise changes may not be
+            # flushed before it gets copied.
+            bfile.close()
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction,
                              fc: queued_copy.FileCopier):
-        log.debug('Queueing copy of %s and dependencies', asset_path)
-
         # Copy the asset itself.
-        packed_path = self._actions[asset_path].new_path
-        self._copy_to_target(asset_path, packed_path, fc)
+        packed_path = action.new_path
+        read_path = action.read_from or asset_path
+
+        # TODO(Sybren): if the asset is a rewritten blend file (and thus a copy),
+        # do a move instead of a copy.
+        self._copy_to_target(read_path, packed_path, fc)
 
         # Copy its sequence dependencies.
         for usage in action.usages:
@@ -253,4 +294,5 @@ class Packer:
             print('%s → %s' % (asset_path, target))
             self._file_count += 1
             return
+        log.debug('Queueing copy of %s', asset_path)
         fc.queue(asset_path, target)

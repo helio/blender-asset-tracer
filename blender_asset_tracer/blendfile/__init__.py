@@ -28,6 +28,7 @@ import logging
 import os
 import struct
 import pathlib
+import shutil
 import tempfile
 import typing
 
@@ -44,19 +45,28 @@ BFBList = typing.List['BlendFileBlock']
 _cached_bfiles = {}  # type: typing.Dict[pathlib.Path, BlendFile]
 
 
-def open_cached(path: pathlib.Path, mode='rb', assert_cached=False) -> 'BlendFile':
+def open_cached(path: pathlib.Path, mode='rb',
+                assert_cached: typing.Optional[bool] = None) -> 'BlendFile':
     """Open a blend file, ensuring it is only opened once."""
+    my_log = log.getChild('open_cached')
     bfile_path = path.absolute().resolve()
+
+    if assert_cached is not None:
+        is_cached = bfile_path in _cached_bfiles
+        if assert_cached and not is_cached:
+            raise AssertionError('File %s was not cached' % bfile_path)
+        elif not assert_cached and is_cached:
+            raise AssertionError('File %s was cached' % bfile_path)
+
     try:
-        return _cached_bfiles[bfile_path]
+        bfile = _cached_bfiles[bfile_path]
     except KeyError:
-        pass
+        my_log.debug('Opening non-cached %s', path)
+        bfile = BlendFile(path, mode=mode)
+        _cached_bfiles[bfile_path] = bfile
+    else:
+        my_log.debug('Returning cached %s', path)
 
-    if assert_cached:
-        raise AssertionError('File %s was not cached' % bfile_path)
-
-    bfile = BlendFile(path, mode=mode)
-    _cached_bfiles[bfile_path] = bfile
     return bfile
 
 
@@ -67,7 +77,7 @@ def close_all_cached():
         return
 
     log.debug('Closing %d cached blend files', len(_cached_bfiles))
-    for bfile in _cached_bfiles.values():
+    for bfile in list(_cached_bfiles.values()):
         bfile.close()
     _cached_bfiles.clear()
 
@@ -135,6 +145,8 @@ class BlendFile:
 
         if 'b' not in mode:
             raise ValueError('Only binary modes are supported, not %r' % mode)
+
+        self.filepath = path
 
         fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)  # typing.IO[bytes]
         fileobj.seek(0, os.SEEK_SET)
@@ -206,7 +218,7 @@ class BlendFile:
     def __exit__(self, exctype, excvalue, traceback):
         self.close()
 
-    def rebind(self, path: pathlib.Path, mode='rb'):
+    def copy_and_rebind(self, path: pathlib.Path, mode='rb'):
         """Change which file is bound to this BlendFile.
 
         This allows cloning a previously opened file, and rebinding it to reuse
@@ -216,6 +228,10 @@ class BlendFile:
 
         self.close()
         _uncache(self.filepath)
+
+        self.log.debug('Copying %s to %s', self.filepath, path)
+        # TODO(Sybren): remove str() calls when targeting Python 3.6+
+        shutil.copy(str(self.filepath), str(path))
 
         self._open_file(path, mode=mode)
         _cache(path, self)
@@ -260,6 +276,11 @@ class BlendFile:
         # file that'll disappear as soon as we close it.
         self.fileobj.close()
         self._is_modified = False
+
+        try:
+            del _cached_bfiles[self.filepath]
+        except KeyError:
+            pass
 
     def ensure_subtype_smaller(self, sdna_index_curr, sdna_index_next):
         # never refine to a smaller type

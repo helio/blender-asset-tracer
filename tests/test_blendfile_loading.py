@@ -1,5 +1,6 @@
 import os
 import pathlib
+import tempfile
 
 from blender_asset_tracer import blendfile
 from blender_asset_tracer.blendfile import iterators, exceptions
@@ -284,3 +285,93 @@ class LoadNonBlendfileTest(AbstractBlendFileTest):
     def test_no_datablocks(self):
         with self.assertRaises(exceptions.NoDNA1Block):
             blendfile.BlendFile(self.blendfiles / 'corrupt_only_magic.blend')
+
+
+class BlendFileCacheTest(AbstractBlendFileTest):
+    def setUp(self):
+        super().setUp()
+        self.tdir = tempfile.TemporaryDirectory()
+        self.tpath = pathlib.Path(self.tdir.name)
+
+    def tearDown(self):
+        self.tdir.cleanup()
+
+    def test_open_cached(self):
+        infile = self.blendfiles / 'basic_file.blend'
+        bf1 = blendfile.open_cached(infile)
+        bf2 = blendfile.open_cached(infile)
+
+        # The file should only be opened & parsed once.
+        self.assertIs(bf1, bf2)
+        self.assertIs(bf1, blendfile._cached_bfiles[infile])
+
+    def test_compressed(self):
+        infile = self.blendfiles / 'linked_cube_compressed.blend'
+        bf1 = blendfile.open_cached(infile)
+        bf2 = blendfile.open_cached(infile)
+
+        # The file should only be opened & parsed once.
+        self.assertIs(bf1, bf2)
+        self.assertIs(bf1, blendfile._cached_bfiles[infile])
+
+    def test_closed(self):
+        infile = self.blendfiles / 'linked_cube_compressed.blend'
+        bf = blendfile.open_cached(infile)
+        self.assertIs(bf, blendfile._cached_bfiles[infile])
+
+        blendfile.close_all_cached()
+        self.assertTrue(bf.fileobj.closed)
+        self.assertEqual({}, blendfile._cached_bfiles)
+
+    def test_close_one_file(self):
+        path1 = self.blendfiles / 'linked_cube_compressed.blend'
+        path2 = self.blendfiles / 'basic_file.blend'
+        bf1 = blendfile.open_cached(path1)
+        bf2 = blendfile.open_cached(path2)
+        self.assertIs(bf1, blendfile._cached_bfiles[path1])
+
+        # Closing a file should remove it from the cache.
+        bf1.close()
+        self.assertTrue(bf1.fileobj.closed)
+        self.assertEqual({path2: bf2}, blendfile._cached_bfiles)
+
+    def test_open_and_rebind(self):
+        infile = self.blendfiles / 'linked_cube.blend'
+        other = self.tpath / 'copy.blend'
+        self._open_and_rebind_test(infile, other)
+
+    def test_open_and_rebind_compressed(self):
+        infile = self.blendfiles / 'linked_cube_compressed.blend'
+        other = self.tpath / 'copy.blend'
+        self._open_and_rebind_test(infile, other)
+
+    def _open_and_rebind_test(self, infile: pathlib.Path, other: pathlib.Path):
+        self.assertFalse(other.exists())
+
+        bf = blendfile.open_cached(infile)
+
+        self.assertEqual(str(bf.raw_filepath), bf.fileobj.name)
+
+        before_filepath = bf.filepath
+        before_raw_fp = bf.raw_filepath
+        before_blocks = bf.blocks
+        before_compressed = bf.is_compressed
+
+        bf.copy_and_rebind(other, mode='rb+')
+
+        self.assertTrue(other.exists())
+        self.assertEqual(before_compressed, bf.is_compressed)
+
+        if bf.is_compressed:
+            self.assertNotEqual(bf.filepath, bf.raw_filepath)
+        else:
+            self.assertEqual(bf.filepath, bf.raw_filepath)
+
+        self.assertNotEqual(before_filepath, bf.filepath)
+        self.assertNotEqual(before_raw_fp, bf.raw_filepath)
+        self.assertEqual(other, bf.filepath)
+        self.assertIs(before_blocks, bf.blocks)
+        self.assertNotIn(infile, blendfile._cached_bfiles)
+        self.assertIs(bf, blendfile._cached_bfiles[other])
+
+        self.assertEqual(str(bf.raw_filepath), bf.fileobj.name)
