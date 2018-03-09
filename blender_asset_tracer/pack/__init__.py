@@ -265,10 +265,8 @@ class Packer:
         # Copy the asset itself.
         packed_path = action.new_path
         read_path = action.read_from or asset_path
-
-        # TODO(Sybren): if the asset is a rewritten blend file (and thus a copy),
-        # do a move instead of a copy.
-        self._copy_to_target(read_path, packed_path, fc)
+        self._send_to_target(read_path, packed_path, fc,
+                             may_move=action.read_from is not None)
 
         # Copy its sequence dependencies.
         for usage in action.usages:
@@ -284,15 +282,26 @@ class Packer:
             packed_base_dir = first_pp.parent
             for file_path in usage.files():
                 packed_path = packed_base_dir / file_path.name
-                self._copy_to_target(file_path, packed_path, fc)
+                # Assumption: assets in a sequence are never blend files.
+                self._send_to_target(file_path, packed_path, fc)
 
             # Assumption: all data blocks using this asset use it the same way.
             break
 
-    def _copy_to_target(self, asset_path: pathlib.Path, target: pathlib.Path, fc):
+    def _send_to_target(self,
+                        asset_path: pathlib.Path,
+                        target: pathlib.Path,
+                        fc: queued_copy.FileCopier,
+                        may_move=False):
         if self.noop:
             print('%s → %s' % (asset_path, target))
             self._file_count += 1
             return
-        log.debug('Queueing copy of %s', asset_path)
-        fc.queue(asset_path, target)
+
+        verb = 'move' if may_move else 'copy'
+        log.debug('Queueing %s of %s', verb, asset_path)
+
+        if may_move:
+            fc.queue_move(asset_path, target)
+        else:
+            fc.queue_copy(asset_path, target)
