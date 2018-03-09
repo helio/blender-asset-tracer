@@ -66,20 +66,14 @@ class Packer:
             log.warning('Running in no-op mode, only showing what will be done.')
 
         # Filled by strategise()
-        self._actions = collections.defaultdict(
-            AssetAction)  # type: typing.DefaultDict[pathlib.Path, AssetAction]
+        self._actions = collections.defaultdict(AssetAction) \
+            # type: typing.DefaultDict[pathlib.Path, AssetAction]
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
 
         self._tmpdir = tempfile.TemporaryDirectory(suffix='-batpack')
         self._rewrite_in = pathlib.Path(self._tmpdir.name)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
 
     def close(self):
         """Clean up any temporary files."""
