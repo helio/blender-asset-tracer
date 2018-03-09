@@ -135,7 +135,7 @@ class BlendFileBlockTest(AbstractBlendFileTest):
     def test_get_via_dict_interface(self):
         ma = self.bf.code_index[b'MA'][0]
         assert isinstance(ma, blendfile.BlendFileBlock)
-        self.assertEqual(0.8000000715255737, ma[b'r'])
+        self.assertAlmostEqual(0.8000000715255737, ma[b'r'])
 
         ob = self.bf.code_index[b'OB'][0]
         assert isinstance(ob, blendfile.BlendFileBlock)
