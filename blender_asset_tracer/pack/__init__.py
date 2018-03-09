@@ -32,7 +32,11 @@ class AssetAction:
         """
 
         self.new_path = None  # type: pathlib.Path
-        """Absolute path to the asset in the BAT Pack."""
+        """Absolute path to the asset in the BAT Pack.
+
+        This path may not exist on the local file system at all, for example
+        when uploading files to remote S3-compatible storage.
+        """
 
         self.read_from = None  # type: typing.Optional[pathlib.Path]
         """Optional path from which to read the asset.
@@ -165,24 +169,28 @@ class Packer:
             self._rewrite_paths()
         self._copy_files_to_target()
 
-    def _copy_files_to_target(self):
+    def _create_file_transferer(self) -> transfer.FileTransferer:
+        """Create a FileCopier(), can be overridden in a subclass."""
+        return queued_copy.FileCopier()
+
+    def _copy_files_to_target(self) -> None:
         """Copy all assets to the target directoy.
 
         This creates the BAT Pack but does not yet do any path rewriting.
         """
         log.debug('Executing %d copy actions', len(self._actions))
 
-        fc = queued_copy.FileCopier()
+        ft = self._create_file_transferer()
         if not self.noop:
-            fc.start()
+            ft.start()
 
         for asset_path, action in self._actions.items():
-            self._copy_asset_and_deps(asset_path, action, fc)
+            self._copy_asset_and_deps(asset_path, action, ft)
 
         if self.noop:
             log.info('Would copy %d files to %s', self._file_count, self.target)
             return
-        fc.done_and_join()
+        ft.done_and_join()
 
     def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
@@ -254,11 +262,11 @@ class Packer:
             bfile.close()
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction,
-                             fc: queued_copy.FileCopier):
+                             ft: transfer.FileTransferer):
         # Copy the asset itself.
         packed_path = action.new_path
         read_path = action.read_from or asset_path
-        self._send_to_target(read_path, packed_path, fc,
+        self._send_to_target(read_path, packed_path, ft,
                              may_move=action.read_from is not None)
 
         # Copy its sequence dependencies.
@@ -276,7 +284,7 @@ class Packer:
             for file_path in usage.files():
                 packed_path = packed_base_dir / file_path.name
                 # Assumption: assets in a sequence are never blend files.
-                self._send_to_target(file_path, packed_path, fc)
+                self._send_to_target(file_path, packed_path, ft)
 
             # Assumption: all data blocks using this asset use it the same way.
             break
@@ -284,7 +292,7 @@ class Packer:
     def _send_to_target(self,
                         asset_path: pathlib.Path,
                         target: pathlib.Path,
-                        fc: queued_copy.FileCopier,
+                        ft: transfer.FileTransferer,
                         may_move=False):
         if self.noop:
             print('%s → %s' % (asset_path, target))
@@ -295,6 +303,6 @@ class Packer:
         log.debug('Queueing %s of %s', verb, asset_path)
 
         if may_move:
-            fc.queue_move(asset_path, target)
+            ft.queue_move(asset_path, target)
         else:
-            fc.queue_copy(asset_path, target)
+            ft.queue_copy(asset_path, target)
