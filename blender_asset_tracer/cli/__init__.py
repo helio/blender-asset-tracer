@@ -66,6 +66,9 @@ def config_logging(args):
     """Configures the logging system based on CLI arguments."""
 
     logging.basicConfig(
-        level=args.loglevel,
+        level=logging.WARNING,
         format='%(asctime)-15s %(levelname)8s %(name)-40s %(message)s',
     )
+    # Only set the log level on our own logger. Otherwise
+    # debug logging will be completely swamped.
+    logging.getLogger('blender_asset_tracer').setLevel(args.loglevel)
