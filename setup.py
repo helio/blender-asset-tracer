@@ -39,5 +39,8 @@ setup(
             'bat = blender_asset_tracer.cli:cli_main',
         ],
     },
+    extras_require={
+        's3': ['boto3'],
+    },
     zip_safe=True,
 )

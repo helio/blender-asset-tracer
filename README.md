@@ -9,6 +9,23 @@ Blender Asset Tracer, a.k.a. BAT🦇, is the replacement of
 Development is driven by choices explained in [T54125](https://developer.blender.org/T54125).
 
 
+## Uploading to S3-compatible storage
+
+BAT Pack supports uploading to S3-compatible storage. This requires a credentials file in
+`~/.aws/credentials`. Replace the all-capital words to suit your situation.
+
+    [ENDPOINT]
+    aws_access_key_id = YOUR_ACCESS_KEY_ID
+    aws_secret_access_key = YOUR_SECRET
+
+You can then send a BAT Pack to the storage using a target `s3:/endpoint/bucketname/path-in-bucket`, for example:
+
+    bat pack my_blendfile.blend s3:/storage.qarnot.com/jobs/awesome_work
+
+This will upload the blend file and its dependencies to `awesome_work/my_blendfile.blend` in
+the `jobs` bucket.
+
+
 ## Paths
 
 There are two object types used to represent file paths. Those are strictly separated.

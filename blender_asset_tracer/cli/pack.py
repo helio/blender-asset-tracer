@@ -30,15 +30,34 @@ def add_parser(subparsers):
 
 def cli_pack(args):
     bpath, ppath, tpath = paths_from_cli(args)
-    packer = pack.Packer(bpath, ppath, tpath, args.noop)
-    packer.strategise()
 
+    packer = create_packer(args, bpath, ppath, tpath)
+    packer.strategise()
     try:
         packer.execute()
     except blender_asset_tracer.pack.transfer.FileTransferError as ex:
         log.error("%d files couldn't be copied, starting with %s",
                   len(ex.files_remaining), ex.files_remaining[0])
         raise SystemExit(1)
+
+
+def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
+                  tpath: pathlib.Path) -> pack.Packer:
+    if str(tpath).startswith('s3:/'):
+        if args.noop:
+            raise ValueError('S3 uploader does not support no-op.')
+
+        from blender_asset_tracer.pack import s3
+
+        # Split the target path into 's3:/', hostname, and actual target path
+        parts = tpath.parts
+        endpoint = parts[1]
+        tpath = pathlib.Path(*tpath.parts[2:])
+        log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
+
+        return s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)
+
+    return pack.Packer(bpath, ppath, tpath, args.noop)
 
 
 def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
