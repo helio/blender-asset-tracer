@@ -1,10 +1,10 @@
 from setuptools import setup
 
 import sys
-if sys.version_info < (3, 5):
-    print("Sorry, Python %s is not supported, minimum is Python 3.5" % (sys.version_info, ))
-    sys.exit(1)
 
+if sys.version_info < (3, 5):
+    print("Sorry, Python %s is not supported, minimum is Python 3.5" % (sys.version_info,))
+    sys.exit(1)
 
 setup(
     name='blender-asset-tracer',
@@ -33,7 +33,7 @@ setup(
     include_package_data=True,
     package_data={
         '': ['*.txt', '*.md'],
-        },
+    },
     entry_points={
         'console_scripts': [
             'bat = blender_asset_tracer.cli:cli_main',
