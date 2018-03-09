@@ -27,14 +27,7 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
             transfer.Action.MOVE: shutil.move,
         }
 
-        while True:
-            try:
-                src, dst, act = self.pop_queued()
-            except self.Done:
-                break
-            except self.Empty:
-                continue
-
+        for src, dst, act in self.iter_queue():
             try:
                 if dst.exists():
                     st_src = src.stat()
@@ -64,7 +57,7 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
                 # copied. The one we just failed (due to this exception) should also
                 # be reported there.
                 self.queue.put((src, dst, act))
-                return
+                break
 
         if files_transferred:
             log.info('Transferred %d files', files_transferred)

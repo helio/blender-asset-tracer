@@ -78,20 +78,19 @@ class FileTransferer(metaclass=abc.ABCMeta):
                 "%d files couldn't be transferred" % len(files_remaining),
                 files_remaining)
 
-    def pop_queued(self) -> typing.Optional[QueueItem]:
-        """Pops an item off the queue, waiting 0.1 sec if the queue is empty.
 
-        :raises Done: when all files have been handled, and the work is done.
-        :raises Empty: when the queue is empty, but more files may be queued
-            in the future.
-        """
+    def iter_queue(self) -> typing.Iterable[QueueItem]:
+        """Generator, yield queued items until the work is done."""
 
-        try:
-            return self.queue.get(timeout=0.1)
-        except queue.Empty:
-            if self.done.is_set():
-                raise self.Done()
-            raise self.Empty()
+        while True:
+            if self.abort.is_set():
+                return
+
+            try:
+                yield self.queue.get(timeout=0.1)
+            except queue.Empty:
+                if self.done.is_set():
+                    return
 
     @abc.abstractmethod
     def start(self) -> None:
