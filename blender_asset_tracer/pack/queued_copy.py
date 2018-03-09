@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 class FileCopier(threading.Thread, transfer.FileTransferer):
     """Copies or moves files in source directory order."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Stupid Thread.__init__ doesn't call super().__init__(),
         # so it doesn't get chained to transfer.FileTransferer.__init__().
         # However, I want to have Thread as first subclass so that its
@@ -18,7 +18,7 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
         threading.Thread.__init__(self)
         transfer.FileTransferer.__init__(self)
 
-    def run(self):
+    def run(self) -> None:
         files_transferred = 0
         files_skipped = 0
 
@@ -52,7 +52,7 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
 
                 # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
                 tfunc = transfer_funcs[act]
-                tfunc(str(src), str(dst))
+                tfunc(str(src), str(dst))  # type: ignore
 
                 files_transferred += 1
             except Exception:

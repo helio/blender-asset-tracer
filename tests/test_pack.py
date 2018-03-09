@@ -35,6 +35,8 @@ class AbstractPackTest(AbstractBlendFileTest):
                 for path, action in packer._actions.items()
                 if action.rewrites}
 
+
+class PackTest(AbstractPackTest):
     def test_strategise_no_rewrite_required(self):
         infile = self.blendfiles / 'doubly_linked.blend'
 
