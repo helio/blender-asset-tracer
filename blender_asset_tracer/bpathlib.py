@@ -19,7 +19,7 @@ class BlendPath(bytes):
         if not isinstance(path, bytes):
             raise TypeError('path must be bytes or pathlib.Path, but is %r' % path)
 
-        return bytes.__new__(cls, path)
+        return super().__new__(cls, path)
 
     @classmethod
     def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.Path) -> 'BlendPath':
