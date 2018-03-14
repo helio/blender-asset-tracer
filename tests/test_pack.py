@@ -167,6 +167,27 @@ class PackTest(AbstractPackTest):
 
         return infile, packer
 
+    def test_rewrite_sequence(self):
+        ppath = self.blendfiles / 'subdir'
+        infile = ppath / 'image_sequence_dir_up.blend'
+
+        with pack.Packer(infile, ppath, self.tpath) as packer:
+            packer.strategise()
+            packer.execute()
+
+        bf = blendfile.open_cached(self.tpath / infile.name, assert_cached=False)
+        scene = bf.code_index[b'SC'][0]
+        ed = scene.get_pointer(b'ed')
+        seq = ed.get_pointer((b'seqbase', b'first'))
+        seq_strip = seq.get_pointer(b'strip')
+
+        as_bytes = str((self.blendfiles / 'imgseq').absolute()).encode()
+        relpath = b'//_outside_project%b' % as_bytes
+
+        # The image sequence base path should be rewritten.
+        self.assertEqual(b'SQ000210.png', seq[b'name'])
+        self.assertEqual(relpath, seq_strip[b'dir'])
+
     def test_noop(self):
         ppath = self.blendfiles / 'subdir'
         infile = ppath / 'doubly_linked_up.blend'

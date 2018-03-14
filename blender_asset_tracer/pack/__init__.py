@@ -83,6 +83,12 @@ class Packer:
         """Clean up any temporary files."""
         self._tmpdir.cleanup()
 
+    def __enter__(self) -> 'Packer':
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
     def strategise(self) -> None:
         """Determine what to do with the assets.
 

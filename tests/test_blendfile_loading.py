@@ -184,7 +184,6 @@ class PointerTest(AbstractBlendFileTest):
 
         seq = ed.get_pointer((b'seqbase', b'first'))
 
-        # This is very clear to me:
         seq.refine_type(b'Sequence')
         self.assertEqual(b'SQBlack', seq[b'name'])
         self.assertEqual(28, seq[b'type'])
