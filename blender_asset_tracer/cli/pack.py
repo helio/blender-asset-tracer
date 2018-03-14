@@ -49,15 +49,7 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         if args.noop:
             raise ValueError('S3 uploader does not support no-op.')
 
-        from blender_asset_tracer.pack import s3
-
-        # Split the target path into 's3:/', hostname, and actual target path
-        parts = tpath.parts
-        endpoint = parts[1]
-        tpath = pathlib.Path(*tpath.parts[2:])
-        log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
-
-        packer = s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)  # type: pack.Packer
+        packer = create_s3packer(bpath, ppath, tpath)
     else:
         packer = pack.Packer(bpath, ppath, tpath, args.noop)
 
@@ -69,6 +61,18 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         log.info('Excluding: %s', ', '.join(repr(g) for g in globs))
         packer.exclude(*globs)
     return packer
+
+
+def create_s3packer(bpath, ppath, tpath) -> pack.Packer:
+    from blender_asset_tracer.pack import s3
+
+    # Split the target path into 's3:/', hostname, and actual target path
+    parts = tpath.parts
+    endpoint = parts[1]
+    tpath = pathlib.Path(*tpath.parts[2:])
+    log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
+
+    return s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)
 
 
 def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
