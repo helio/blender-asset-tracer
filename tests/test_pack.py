@@ -120,7 +120,7 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'//../material_textures.blend', rw_dbllink[1].asset_path)
 
     def test_execute_rewrite_no_touch_origs(self):
-        infile = self._pack_with_rewrite()
+        infile, _ = self._pack_with_rewrite()
 
         # The original file shouldn't be touched.
         bfile = blendfile.open_cached(infile, assert_cached=False)
@@ -132,7 +132,7 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'//../material_textures.blend', libs[1][b'name'])
 
     def test_execute_rewrite(self):
-        infile = self._pack_with_rewrite()
+        infile, _ = self._pack_with_rewrite()
 
         extpath = pathlib.Path('//_outside_project', *self.blendfiles.parts[1:])
         extbpath = bpathlib.BlendPath(extpath)
@@ -145,6 +145,18 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'LILib.002', libs[1].id_name)
         self.assertEqual(extbpath / b'material_textures.blend', libs[1][b'name'])
 
+    def test_execute_rewrite_cleanup(self):
+        infile, packer = self._pack_with_rewrite()
+
+        # Rewritten blend files shouldn't be in the temp directory any more;
+        # they should have been moved to the final directory (not copied).
+        self.assertTrue(packer._rewrite_in.exists())
+        self.assertEqual([], list(packer._rewrite_in.iterdir()))
+
+        # After closing the packer, the tempdir should also be gone.
+        packer.close()
+        self.assertFalse(packer._rewrite_in.exists())
+
     def _pack_with_rewrite(self):
         ppath = self.blendfiles / 'subdir'
         infile = ppath / 'doubly_linked_up.blend'
@@ -153,7 +165,7 @@ class PackTest(AbstractPackTest):
         packer.strategise()
         packer.execute()
 
-        return infile
+        return infile, packer
 
     def test_noop(self):
         ppath = self.blendfiles / 'subdir'
