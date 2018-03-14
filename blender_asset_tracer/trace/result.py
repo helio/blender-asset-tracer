@@ -122,10 +122,18 @@ class BlockUsage:
             log.warning('Path %s does not exist for %s', path, self)
 
     def __fspath__(self) -> pathlib.Path:
-        """Determine the absolute path of the asset on the filesystem."""
+        """Determine the absolute path of the asset on the filesystem.
+
+        The path is resolved (see pathlib.Path.resolve()) if it exists on the
+        filesystem.
+        """
         if self._abspath is None:
             bpath = self.block.bfile.abspath(self.asset_path)
-            self._abspath = bpath.to_path().resolve()
+            as_path = bpath.to_path()
+            try:
+                self._abspath = as_path.resolve()
+            except FileNotFoundError:
+                self._abspath = as_path
         return self._abspath
 
     abspath = property(__fspath__)

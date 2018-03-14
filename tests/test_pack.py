@@ -173,3 +173,14 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'//../linked_cube.blend', libs[0][b'name'])
         self.assertEqual(b'LILib.002', libs[1].id_name)
         self.assertEqual(b'//../material_textures.blend', libs[1][b'name'])
+
+    def test_missing_files(self):
+        infile = self.blendfiles / 'missing_textures.blend'
+        packer = pack.Packer(infile, self.blendfiles, self.tpath)
+        packer.strategise()
+
+        self.assertEqual(
+            [self.blendfiles / 'textures/HDRI/Myanmar/Golden Palace 2, Old Bagan-1k.exr',
+             self.blendfiles / 'textures/Textures/Marble/marble_decoration-color.png'],
+            sorted(packer.missing_files)
+        )

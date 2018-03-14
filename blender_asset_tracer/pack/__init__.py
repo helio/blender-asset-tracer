@@ -71,6 +71,7 @@ class Packer:
         # Filled by strategise()
         self._actions = collections.defaultdict(AssetAction) \
             # type: typing.DefaultDict[pathlib.Path, AssetAction]
+        self.missing_files = set()  # type: typing.Set[pathlib.Path]
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
@@ -105,6 +106,11 @@ class Packer:
             # blendfile thing, since different blendfiles can refer to it in
             # different ways (for example with relative and absolute paths).
             asset_path = usage.abspath
+            if not asset_path.exists():
+                log.info('Missing file: %s', asset_path)
+                self.missing_files.add(asset_path)
+                continue
+
             bfile_path = usage.block.bfile.filepath.absolute()
 
             path_in_project = self._path_in_project(asset_path)
