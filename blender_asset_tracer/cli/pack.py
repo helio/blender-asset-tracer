@@ -97,11 +97,13 @@ def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Pat
         ppath = bpath.absolute().parent
         log.warning('No project path given, using %s', ppath)
     else:
-        ppath = args.project.absolute()
+        ppath = args.project
 
     if not ppath.exists():
         log.critical('Project directory %s does not exist', ppath)
         sys.exit(5)
+
+    ppath = ppath.absolute().resolve()
     if not ppath.is_dir():
         log.warning('Project path %s is not a directory; using the parent %s', ppath, ppath.parent)
         ppath = ppath.parent
