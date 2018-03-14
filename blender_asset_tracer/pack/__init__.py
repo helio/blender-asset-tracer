@@ -62,6 +62,8 @@ class Packer:
         self.target = target
         self.noop = noop
 
+        self._exclude_globs = set()  # type: typing.Set[str]
+
         from blender_asset_tracer.cli import common
         self._shorten = functools.partial(common.shorten, self.project)
 
@@ -89,6 +91,10 @@ class Packer:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
+    def exclude(self, *globs: str):
+        """Register glob-compatible patterns of files that should be ignored."""
+        self._exclude_globs.update(globs)
+
     def strategise(self) -> None:
         """Determine what to do with the assets.
 
@@ -112,6 +118,10 @@ class Packer:
             # blendfile thing, since different blendfiles can refer to it in
             # different ways (for example with relative and absolute paths).
             asset_path = usage.abspath
+            if any(asset_path.match(glob) for glob in self._exclude_globs):
+                log.info('Excluding file: %s', asset_path)
+                continue
+
             if not asset_path.exists():
                 log.info('Missing file: %s', asset_path)
                 self.missing_files.add(asset_path)

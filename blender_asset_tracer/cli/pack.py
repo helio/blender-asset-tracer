@@ -26,19 +26,21 @@ def add_parser(subparsers):
                              'directoy.')
     parser.add_argument('-n', '--noop', default=False, action='store_true',
                         help="Don't copy files, just show what would be done.")
+    parser.add_argument('-e', '--exclude', nargs='*', default='',
+                        help="Space-separated list of glob patterns (like '*.abc') to exclude.")
 
 
 def cli_pack(args):
     bpath, ppath, tpath = paths_from_cli(args)
 
-    packer = create_packer(args, bpath, ppath, tpath)
-    packer.strategise()
-    try:
-        packer.execute()
-    except blender_asset_tracer.pack.transfer.FileTransferError as ex:
-        log.error("%d files couldn't be copied, starting with %s",
-                  len(ex.files_remaining), ex.files_remaining[0])
-        raise SystemExit(1)
+    with create_packer(args, bpath, ppath, tpath) as packer:
+        packer.strategise()
+        try:
+            packer.execute()
+        except blender_asset_tracer.pack.transfer.FileTransferError as ex:
+            log.error("%d files couldn't be copied, starting with %s",
+                      len(ex.files_remaining), ex.files_remaining[0])
+            raise SystemExit(1)
 
 
 def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
@@ -55,9 +57,18 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         tpath = pathlib.Path(*tpath.parts[2:])
         log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
 
-        return s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)
+        packer = s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)  # type: pack.Packer
+    else:
+        packer = pack.Packer(bpath, ppath, tpath, args.noop)
 
-    return pack.Packer(bpath, ppath, tpath, args.noop)
+    if args.exclude:
+        # args.exclude is a list, due to nargs='*', so we have to split and flatten.
+        globs = [glob
+                 for globs in args.exclude
+                 for glob in globs.split()]
+        log.info('Excluding: %s', ', '.join(repr(g) for g in globs))
+        packer.exclude(*globs)
+    return packer
 
 
 def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:

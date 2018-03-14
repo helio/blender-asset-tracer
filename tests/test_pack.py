@@ -217,3 +217,25 @@ class PackTest(AbstractPackTest):
              self.blendfiles / 'textures/Textures/Marble/marble_decoration-color.png'],
             sorted(packer.missing_files)
         )
+
+    def test_exclude_filter(self):
+        # Files shouldn't be reported missing if they should be ignored.
+        infile = self.blendfiles / 'image_sequencer.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.exclude('*.png', '*.nonsense')
+            packer.strategise()
+            packer.execute()
+
+        self.assertFalse((self.tpath / 'imgseq').exists())
+
+    def test_exclude_filter_missing_files(self):
+        # Files shouldn't be reported missing if they should be ignored.
+        infile = self.blendfiles / 'missing_textures.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.exclude('*.png')
+            packer.strategise()
+
+        self.assertEqual(
+            [self.blendfiles / 'textures/HDRI/Myanmar/Golden Palace 2, Old Bagan-1k.exr'],
+            list(packer.missing_files)
+        )
