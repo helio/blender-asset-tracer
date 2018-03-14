@@ -74,6 +74,7 @@ class Packer:
         self._actions = collections.defaultdict(AssetAction) \
             # type: typing.DefaultDict[pathlib.Path, AssetAction]
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
+        self._output_path = None  # type: pathlib.Path
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
@@ -91,6 +92,11 @@ class Packer:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
+    @property
+    def output_path(self) -> pathlib.Path:
+        """The path of the packed blend file in the target directory."""
+        return self._output_path
+
     def exclude(self, *globs: str):
         """Register glob-compatible patterns of files that should be ignored."""
         self._exclude_globs.update(globs)
@@ -107,6 +113,7 @@ class Packer:
         # we have to explicitly add it to the _packed_paths.
         bfile_path = self.blendfile.absolute()
         bfile_pp = self.target / bfile_path.relative_to(self.project)
+        self._output_path = bfile_pp
 
         act = self._actions[bfile_path]
         act.path_action = PathAction.KEEP_PATH

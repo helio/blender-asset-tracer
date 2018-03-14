@@ -239,3 +239,13 @@ class PackTest(AbstractPackTest):
             [self.blendfiles / 'textures/HDRI/Myanmar/Golden Palace 2, Old Bagan-1k.exr'],
             list(packer.missing_files)
         )
+
+    def test_output_path(self):
+        infile = self.blendfiles / 'basic_file.blend'
+        packer = pack.Packer(infile, self.blendfiles.parent, self.tpath)
+        packer.strategise()
+
+        self.assertEqual(
+            self.tpath / self.blendfiles.name / infile.name,
+            packer.output_path
+        )
