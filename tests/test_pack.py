@@ -1,12 +1,8 @@
-import collections
 import logging
 import pathlib
-import sys
 import tempfile
-import typing
 
 from blender_asset_tracer import blendfile, pack, bpathlib
-from blender_asset_tracer.blendfile import dna
 from abstract_test import AbstractBlendFileTest
 
 
