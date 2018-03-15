@@ -1,8 +1,12 @@
 import logging
 import pathlib
+import typing
+
 import tempfile
+from unittest import mock
 
 from blender_asset_tracer import blendfile, pack, bpathlib
+from blender_asset_tracer.pack import progress
 from abstract_test import AbstractBlendFileTest
 
 
@@ -30,6 +34,12 @@ class AbstractPackTest(AbstractBlendFileTest):
         return {path: action.rewrites
                 for path, action in packer._actions.items()
                 if action.rewrites}
+
+    def outside_project(self) -> pathlib.Path:
+        """Return the '_outside_project' path for files in self.blendfiles."""
+        # /tmp/target + /workspace/bat/tests/blendfiles → /tmp/target/workspace/bat/tests/blendfiles
+        extpath = pathlib.Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
+        return extpath
 
 
 class PackTest(AbstractPackTest):
@@ -69,8 +79,7 @@ class PackTest(AbstractPackTest):
             'textures/Bricks/brick_dotted_04-bump.jpg',
             'textures/Bricks/brick_dotted_04-color.jpg',
         )
-        # /tmp/target + /workspace/bat/tests/blendfiles → /tmp/target/workspace/bat/tests/blendfiles
-        extpath = pathlib.Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
+        extpath = self.outside_project()
 
         act = packer._actions[ppath / 'doubly_linked_up.blend']
         self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for doubly_linked_up.blend')
@@ -245,3 +254,102 @@ class PackTest(AbstractPackTest):
             self.tpath / self.blendfiles.name / infile.name,
             packer.output_path
         )
+
+
+class ProgressTest(AbstractPackTest):
+    def test_strategise(self):
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'subdir/doubly_linked_up.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.strategise()
+
+        self.assertEqual(1, cb.pack_start.call_count)
+        self.assertEqual(0, cb.pack_done.call_count)
+
+        expected_calls = [
+            mock.call(self.blendfiles / 'subdir/doubly_linked_up.blend'),
+            mock.call(self.blendfiles / 'linked_cube.blend'),
+            mock.call(self.blendfiles / 'basic_file.blend'),
+            mock.call(self.blendfiles / 'material_textures.blend'),
+        ]
+        cb.trace_blendfile.assert_has_calls(expected_calls, any_order=True)
+        self.assertEqual(len(expected_calls), cb.trace_blendfile.call_count)
+
+        expected_calls = [
+            mock.call(self.blendfiles / 'linked_cube.blend'),
+            mock.call(self.blendfiles / 'basic_file.blend'),
+            mock.call(self.blendfiles / 'material_textures.blend'),
+            mock.call(self.blendfiles / 'textures/Bricks/brick_dotted_04-color.jpg'),
+            mock.call(self.blendfiles / 'textures/Bricks/brick_dotted_04-bump.jpg'),
+        ]
+        cb.trace_asset.assert_has_calls(expected_calls, any_order=True)
+        self.assertEqual(len(expected_calls), cb.trace_asset.call_count)
+
+        self.assertEqual(0, cb.rewrite_blendfile.call_count)
+        self.assertEqual(0, cb.transfer_file.call_count)
+        self.assertEqual(0, cb.transfer_file_skipped.call_count)
+        self.assertEqual(0, cb.transfer_progress.call_count)
+        self.assertEqual(0, cb.missing_file.call_count)
+
+    def test_execute_with_rewrite(self):
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'subdir/doubly_linked_up.blend'
+        with pack.Packer(infile, infile.parent, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.strategise()
+            packer.execute()
+
+        self.assertEqual(1, cb.pack_start.call_count)
+        self.assertEqual(1, cb.pack_done.call_count)
+
+        # rewrite_blendfile should only be called paths in a blendfile are
+        # actually rewritten.
+        cb.rewrite_blendfile.assert_called_with(self.blendfiles / 'subdir/doubly_linked_up.blend')
+        self.assertEqual(1, cb.rewrite_blendfile.call_count)
+
+        # mock.ANY is used for temporary files in temporary paths, because they
+        # are hard to predict.
+        extpath = self.outside_project()
+        expected_calls = [
+            mock.call(mock.ANY, self.tpath / 'doubly_linked_up.blend'),
+            mock.call(mock.ANY, extpath / 'linked_cube.blend'),
+            mock.call(mock.ANY, extpath / 'basic_file.blend'),
+            mock.call(mock.ANY, extpath / 'material_textures.blend'),
+            mock.call(self.blendfiles / 'textures/Bricks/brick_dotted_04-color.jpg',
+                      extpath / 'textures/Bricks/brick_dotted_04-color.jpg'),
+            mock.call(self.blendfiles / 'textures/Bricks/brick_dotted_04-bump.jpg',
+                      extpath / 'textures/Bricks/brick_dotted_04-bump.jpg'),
+        ]
+        cb.transfer_file.assert_has_calls(expected_calls, any_order=True)
+        self.assertEqual(len(expected_calls), cb.transfer_file.call_count)
+
+        self.assertEqual(0, cb.transfer_file_skipped.call_count)
+        self.assertGreaterEqual(cb.transfer_progress.call_count, 6,
+                                'transfer_progress() should be called at least once per asset')
+        self.assertEqual(0, cb.missing_file.call_count)
+
+    def test_missing_files(self):
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'missing_textures.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.strategise()
+            packer.execute()
+
+        self.assertEqual(1, cb.pack_start.call_count)
+        self.assertEqual(1, cb.pack_done.call_count)
+
+        cb.rewrite_blendfile.assert_not_called()
+        cb.transfer_file.assert_called_with(infile, self.tpath / 'missing_textures.blend')
+
+        self.assertEqual(0, cb.transfer_file_skipped.call_count)
+        self.assertGreaterEqual(cb.transfer_progress.call_count, 1,
+                                'transfer_progress() should be called at least once per asset')
+
+        expected_calls = [
+            mock.call(self.blendfiles / 'textures/HDRI/Myanmar/Golden Palace 2, Old Bagan-1k.exr'),
+            mock.call(self.blendfiles / 'textures/Textures/Marble/marble_decoration-color.png'),
+        ]
+        cb.missing_file.assert_has_calls(expected_calls, any_order=True)
+        self.assertEqual(len(expected_calls), cb.missing_file.call_count)

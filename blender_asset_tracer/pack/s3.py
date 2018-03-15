@@ -52,20 +52,14 @@ class S3Packer(Packer):
         return S3Transferrer(self.client)
 
 
-class S3Transferrer(threading.Thread, transfer.FileTransferer):
+class S3Transferrer(transfer.FileTransferer):
     """Copies or moves files in source directory order."""
 
     class AbortUpload(Exception):
         """Raised from the upload callback to abort an upload."""
 
     def __init__(self, botoclient) -> None:
-        # Stupid Thread.__init__ doesn't call super().__init__(),
-        # so it doesn't get chained to transfer.FileTransferer.__init__().
-        # However, I want to have Thread as first subclass so that its
-        # start() and join() methods Just Work™.
-        threading.Thread.__init__(self)
-        transfer.FileTransferer.__init__(self)
-
+        super().__init__()
         self.client = botoclient
 
     def run(self) -> None:

@@ -4,7 +4,10 @@ import logging
 import pathlib
 import queue
 import threading
+import time
 import typing
+
+from . import progress
 
 log = logging.getLogger(__name__)
 
@@ -25,11 +28,16 @@ class Action(enum.Enum):
 QueueItem = typing.Tuple[pathlib.Path, pathlib.Path, Action]
 
 
-class FileTransferer(metaclass=abc.ABCMeta):
-    """Interface for file transfer classes."""
+class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
+    """Abstract superclass for file transfer classes.
+
+    Implement a run() function in a subclass that performs the actual file
+    transfer.
+    """
 
     def __init__(self) -> None:
         super().__init__()
+        self.log = log.getChild('FileTransferer')
 
         # For copying in a different process. By using a priority queue the files
         # are automatically sorted alphabetically, which means we go through all files
@@ -44,17 +52,35 @@ class FileTransferer(metaclass=abc.ABCMeta):
         self.done = threading.Event()
         self.abort = threading.Event()
 
+        # Instantiate a dummy progress callback so that we can call it
+        # without checking for None all the time.
+        self.progress_cb = progress.ThreadSafeCallback(progress.Callback())
+        self.total_queued_bytes = 0
+        self.total_transferred_bytes = 0
+
+    @abc.abstractmethod
+    def run(self):
+        """Perform actual file transfer in a thread."""
+
     def queue_copy(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a copy action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.COPY))
+        self.total_queued_bytes += src.stat().st_size
 
     def queue_move(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a move action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.MOVE))
+        self.total_queued_bytes += src.stat().st_size
+
+    def report_transferred(self, block_size: int):
+        """Report transfer of `block_size` bytes."""
+
+        self.total_transferred_bytes += block_size
+        self.progress_cb.transfer_progress(self.total_queued_bytes, self.total_transferred_bytes)
 
     def done_and_join(self) -> None:
         """Indicate all files have been queued, and wait until done.
@@ -105,21 +131,29 @@ class FileTransferer(metaclass=abc.ABCMeta):
                 return
 
             try:
-                yield self.queue.get(timeout=0.1)
+                src, dst, action = self.queue.get(timeout=0.1)
+                self.progress_cb.transfer_file(src, dst)
+                yield src, dst, action
             except queue.Empty:
                 if self.done.is_set():
                     return
 
-    @abc.abstractmethod
-    def start(self) -> None:
-        """Starts the file transfer thread/process.
+    def join(self, timeout: float = None) -> None:
+        """Wait for the transfer to finish/stop."""
 
-        This could spin up a separate thread to perform the actual file
-        transfer. After start() is called, implementations should still accept
-        calls to the queue_xxx() methods. In other words, this is not to be
-        used as queue-and-then-start, but as start-and-then-queue.
-        """
+        if timeout:
+            run_until = time.time() + timeout
+        else:
+            run_until = float('inf')
 
-    @abc.abstractmethod
-    def join(self, timeout=None):
-        """Wait for the thread/process to stop."""
+        # We can't simply block the thread, we have to keep watching the
+        # progress queue.
+        while self.is_alive():
+            if time.time() > run_until:
+                self.log.warning('Timeout while waiting for transfer to finish')
+                return
+
+            self.progress_cb.flush(timeout=0.1)
+
+        # Since Thread.join() neither returns anything nor raises any exception
+        # when timing out, we don't even have to call it any more.

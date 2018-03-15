@@ -7,16 +7,8 @@ from . import transfer
 log = logging.getLogger(__name__)
 
 
-class FileCopier(threading.Thread, transfer.FileTransferer):
+class FileCopier(transfer.FileTransferer):
     """Copies or moves files in source directory order."""
-
-    def __init__(self) -> None:
-        # Stupid Thread.__init__ doesn't call super().__init__(),
-        # so it doesn't get chained to transfer.FileTransferer.__init__().
-        # However, I want to have Thread as first subclass so that its
-        # start() and join() methods Just Work™.
-        threading.Thread.__init__(self)
-        transfer.FileTransferer.__init__(self)
 
     def run(self) -> None:
         files_transferred = 0
@@ -29,8 +21,8 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
 
         for src, dst, act in self.iter_queue():
             try:
+                st_src = src.stat()  # must exist, or it wouldn't be queued.
                 if dst.exists():
-                    st_src = src.stat()
                     st_dst = dst.stat()
                     if st_dst.st_size == st_src.st_size and st_dst.st_mtime >= st_src.st_mtime:
                         log.info('SKIP %s; already exists', src)
@@ -46,6 +38,7 @@ class FileCopier(threading.Thread, transfer.FileTransferer):
                 # TODO(Sybren): when we target Py 3.6+, remove the str() calls.
                 tfunc = transfer_funcs[act]
                 tfunc(str(src), str(dst))  # type: ignore
+                self.report_transferred(st_src.st_size)
 
                 files_transferred += 1
             except Exception:

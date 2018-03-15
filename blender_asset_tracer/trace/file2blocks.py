@@ -11,13 +11,13 @@ import pathlib
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib
-from . import expanders
+from . import expanders, progress
 
 _funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 log = logging.getLogger(__name__)
 
 
-class _BlockIterator:
+class BlockIterator:
     """Expand blocks with dependencies from other libraries.
 
     This class exists so that we have some context for the recursive expansion
@@ -31,12 +31,15 @@ class _BlockIterator:
         # Queue of blocks to visit
         self.to_visit = collections.deque()  # type: typing.Deque[blendfile.BlendFileBlock]
 
+        self.progress_cb = progress.Callback()
+
     def iter_blocks(self,
                     bfile: blendfile.BlendFile,
                     limit_to: typing.Set[blendfile.BlendFileBlock] = set(),
                     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
 
+        self.progress_cb.trace_blendfile(bfile.filepath)
         log.info('inspecting: %s', bfile.filepath)
         if limit_to:
             self._queue_named_blocks(bfile, limit_to)
@@ -148,5 +151,5 @@ class _BlockIterator:
 
 def iter_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:
     """Generator, yield all blocks in this file + required blocks in libs."""
-    bi = _BlockIterator()
+    bi = BlockIterator()
     yield from bi.iter_blocks(bfile)

@@ -3,7 +3,7 @@ import pathlib
 import typing
 
 from blender_asset_tracer import blendfile
-from . import result, blocks2assets, file2blocks
+from . import result, blocks2assets, file2blocks, progress
 
 log = logging.getLogger(__name__)
 
@@ -17,18 +17,24 @@ codes_to_skip = {
 }
 
 
-def deps(bfilepath: pathlib.Path) -> typing.Iterator[result.BlockUsage]:
+def deps(bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback] = None) \
+        -> typing.Iterator[result.BlockUsage]:
     """Open the blend file and report its dependencies.
 
     :param bfilepath: File to open.
+    :param progress_cb: Progress callback object.
     """
 
     log.info('opening: %s', bfilepath)
     bfile = blendfile.open_cached(bfilepath)
 
+    bi = file2blocks.BlockIterator()
+    if progress_cb:
+        bi.progress_cb = progress_cb
+
+    ahb = asset_holding_blocks(bi.iter_blocks(bfile))
     # Sort the asset-holding blocks so that we can iterate over them
     # in disk order, which is slightly faster than random order.
-    ahb = asset_holding_blocks(file2blocks.iter_blocks(bfile))
     for block in sorted(ahb):
         yield from blocks2assets.iter_assets(block)
 

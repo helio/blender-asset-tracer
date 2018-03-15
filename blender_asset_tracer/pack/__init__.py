@@ -3,12 +3,13 @@ import enum
 import functools
 import logging
 import pathlib
+import queue
 import tempfile
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.trace import result
-from . import filesystem, transfer
+from . import filesystem, transfer, progress
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class AssetAction:
         """
 
 
+
 class Packer:
     def __init__(self,
                  blendfile: pathlib.Path,
@@ -61,6 +63,11 @@ class Packer:
         self.project = project
         self.target = target
         self.noop = noop
+
+        # Set this to a custom Callback() subclass instance before calling
+        # strategise() to receive progress reports.
+        self._progress_cb = progress.Callback()
+        self._tscb = progress.ThreadSafeCallback(self._progress_cb)
 
         self._exclude_globs = set()  # type: typing.Set[str]
 
@@ -74,6 +81,7 @@ class Packer:
         self._actions = collections.defaultdict(AssetAction) \
             # type: typing.DefaultDict[pathlib.Path, AssetAction]
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
+        self._new_location_paths = set()  # type: typing.Set[pathlib.Path]
         self._output_path = None  # type: pathlib.Path
 
         # Number of files we would copy, if not for --noop
@@ -97,6 +105,16 @@ class Packer:
         """The path of the packed blend file in the target directory."""
         return self._output_path
 
+    @property
+    def progress_cb(self) -> progress.Callback:
+        return self._progress_cb
+
+    @progress_cb.setter
+    def progress_cb(self, new_progress_cb: progress.Callback):
+        self._tscb.flush()
+        self._progress_cb = new_progress_cb
+        self._tscb = progress.ThreadSafeCallback(self._progress_cb)
+
     def exclude(self, *globs: str):
         """Register glob-compatible patterns of files that should be ignored."""
         self._exclude_globs.update(globs)
@@ -115,51 +133,63 @@ class Packer:
         bfile_pp = self.target / bfile_path.relative_to(self.project)
         self._output_path = bfile_pp
 
+        self._progress_cb.pack_start()
+
         act = self._actions[bfile_path]
         act.path_action = PathAction.KEEP_PATH
         act.new_path = bfile_pp
 
-        new_location_paths = set()
-        for usage in trace.deps(self.blendfile):
+        self._new_location_paths = set()
+        for usage in trace.deps(self.blendfile, self._progress_cb):
             asset_path = usage.abspath
             if any(asset_path.match(glob) for glob in self._exclude_globs):
                 log.info('Excluding file: %s', asset_path)
                 continue
 
             if not asset_path.exists():
-                log.info('Missing file: %s', asset_path)
+                log.warning('Missing file: %s', asset_path)
                 self.missing_files.add(asset_path)
+                self._progress_cb.missing_file(asset_path)
                 continue
 
-            bfile_path = usage.block.bfile.filepath.absolute()
+            self._visit_asset(asset_path, usage)
 
-            # Needing rewriting is not a per-asset thing, but a per-asset-per-
-            # blendfile thing, since different blendfiles can refer to it in
-            # different ways (for example with relative and absolute paths).
-            path_in_project = self._path_in_project(asset_path)
-            use_as_is = usage.asset_path.is_blendfile_relative() and path_in_project
-            needs_rewriting = not use_as_is
-
-            act = self._actions[asset_path]
-            assert isinstance(act, AssetAction)
-
-            act.usages.append(usage)
-            if needs_rewriting:
-                log.info('%s needs rewritten path to %s', bfile_path, usage.asset_path)
-                act.path_action = PathAction.FIND_NEW_LOCATION
-                new_location_paths.add(asset_path)
-            else:
-                log.debug('%s can keep using %s', bfile_path, usage.asset_path)
-                asset_pp = self.target / asset_path.relative_to(self.project)
-                act.new_path = asset_pp
-
-        self._find_new_paths(new_location_paths)
+        self._find_new_paths()
         self._group_rewrites()
 
-    def _find_new_paths(self, asset_paths: typing.Set[pathlib.Path]):
+    def _visit_asset(self, asset_path: pathlib.Path, usage: result.BlockUsage):
+        """Determine what to do with this asset.
+
+        Determines where this asset will be packed, whether it needs rewriting,
+        and records the blend file data block referring to it.
+        """
+        bfile_path = usage.block.bfile.filepath.absolute()
+        self._progress_cb.trace_asset(asset_path)
+
+        # Needing rewriting is not a per-asset thing, but a per-asset-per-
+        # blendfile thing, since different blendfiles can refer to it in
+        # different ways (for example with relative and absolute paths).
+        path_in_project = self._path_in_project(asset_path)
+        use_as_is = usage.asset_path.is_blendfile_relative() and path_in_project
+        needs_rewriting = not use_as_is
+
+        act = self._actions[asset_path]
+        assert isinstance(act, AssetAction)
+        act.usages.append(usage)
+
+        if needs_rewriting:
+            log.info('%s needs rewritten path to %s', bfile_path, usage.asset_path)
+            act.path_action = PathAction.FIND_NEW_LOCATION
+            self._new_location_paths.add(asset_path)
+        else:
+            log.debug('%s can keep using %s', bfile_path, usage.asset_path)
+            asset_pp = self.target / asset_path.relative_to(self.project)
+            act.new_path = asset_pp
+
+    def _find_new_paths(self):
         """Find new locations in the BAT Pack for the given assets."""
 
-        for path in asset_paths:
+        for path in self._new_location_paths:
             act = self._actions[path]
             assert isinstance(act, AssetAction)
             # Like a join, but ignoring the fact that 'path' is absolute.
@@ -198,6 +228,8 @@ class Packer:
             self._rewrite_paths()
         self._copy_files_to_target()
 
+        self._progress_cb.pack_done(self.output_path, self.missing_files)
+
     def _create_file_transferer(self) -> transfer.FileTransferer:
         """Create a FileCopier(), can be overridden in a subclass."""
         return filesystem.FileCopier()
@@ -210,6 +242,7 @@ class Packer:
         log.debug('Executing %d copy actions', len(self._actions))
 
         ft = self._create_file_transferer()
+        ft.progress_cb = self._tscb
         if not self.noop:
             ft.start()
 
@@ -225,6 +258,8 @@ class Packer:
             log.info('File transfer interrupted with Ctrl+C, aborting.')
             ft.abort_and_join()
             raise
+        finally:
+            self._tscb.flush()
 
     def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
@@ -293,6 +328,8 @@ class Packer:
 
             # Make sure we close the file, otherwise changes may not be
             # flushed before it gets copied.
+            if bfile.is_modified:
+                self._progress_cb.rewrite_blendfile(bfile_path)
             bfile.close()
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction,
@@ -336,6 +373,7 @@ class Packer:
         verb = 'move' if may_move else 'copy'
         log.debug('Queueing %s of %s', verb, asset_path)
 
+        self._tscb.flush()
         if may_move:
             ft.queue_move(asset_path, target)
         else:
