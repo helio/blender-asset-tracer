@@ -121,9 +121,6 @@ class Packer:
 
         new_location_paths = set()
         for usage in trace.deps(self.blendfile):
-            # Needing rewriting is not a per-asset thing, but a per-asset-per-
-            # blendfile thing, since different blendfiles can refer to it in
-            # different ways (for example with relative and absolute paths).
             asset_path = usage.abspath
             if any(asset_path.match(glob) for glob in self._exclude_globs):
                 log.info('Excluding file: %s', asset_path)
@@ -136,6 +133,9 @@ class Packer:
 
             bfile_path = usage.block.bfile.filepath.absolute()
 
+            # Needing rewriting is not a per-asset thing, but a per-asset-per-
+            # blendfile thing, since different blendfiles can refer to it in
+            # different ways (for example with relative and absolute paths).
             path_in_project = self._path_in_project(asset_path)
             use_as_is = usage.asset_path.is_blendfile_relative() and path_in_project
             needs_rewriting = not use_as_is
