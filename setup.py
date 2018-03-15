@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 import sys
 
@@ -29,7 +29,7 @@ setup(
         'Topic :: Utilities',
     ],
     platforms='any',
-    packages=['blender_asset_tracer'],
+    packages=find_packages('.'),
     include_package_data=True,
     package_data={
         '': ['*.txt', '*.md'],
