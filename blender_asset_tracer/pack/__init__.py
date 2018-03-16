@@ -4,6 +4,7 @@ import functools
 import logging
 import pathlib
 import tempfile
+import threading
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
@@ -51,6 +52,13 @@ class AssetAction:
         """
 
 
+class Aborted(RuntimeError):
+    """Raised by Packer to abort the packing process.
+
+    See the Packer.abort() function.
+    """
+
+
 class Packer:
     def __init__(self,
                  bfile: pathlib.Path,
@@ -61,6 +69,8 @@ class Packer:
         self.project = project
         self.target = target
         self.noop = noop
+        self._aborted = threading.Event()
+        self._abort_lock = threading.RLock()
 
         # Set this to a custom Callback() subclass instance before calling
         # strategise() to receive progress reports.
@@ -81,6 +91,9 @@ class Packer:
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
         self._new_location_paths = set()  # type: typing.Set[pathlib.Path]
         self._output_path = None  # type: pathlib.Path
+
+        # Filled by execute()
+        self._file_transferer = None  # type: transfer.FileTransferer
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
@@ -113,6 +126,30 @@ class Packer:
         self._progress_cb = new_progress_cb
         self._tscb = progress.ThreadSafeCallback(self._progress_cb)
 
+    def abort(self) -> None:
+        """Aborts the current packing process.
+
+        Can be called from any thread. Aborts as soon as the running strategise
+        or execute function gets control over the execution flow, by raising
+        an Aborted exception.
+        """
+        with self._abort_lock:
+            if self._file_transferer:
+                self._file_transferer.abort()
+            self._aborted.set()
+
+    def _check_aborted(self) -> None:
+        """Raises an Aborted exception when abort() was called."""
+
+        with self._abort_lock:
+            if not self._aborted.is_set():
+                return
+
+            log.warning('Aborting')
+            self._tscb.flush()
+            self._progress_cb.pack_aborted()
+            raise Aborted()
+
     def exclude(self, *globs: str):
         """Register glob-compatible patterns of files that should be ignored."""
         self._exclude_globs.update(globs)
@@ -137,8 +174,10 @@ class Packer:
         act.path_action = PathAction.KEEP_PATH
         act.new_path = bfile_pp
 
+        self._check_aborted()
         self._new_location_paths = set()
         for usage in trace.deps(self.blendfile, self._progress_cb):
+            self._check_aborted()
             asset_path = usage.abspath
             if any(asset_path.match(glob) for glob in self._exclude_globs):
                 log.info('Excluding file: %s', asset_path)
@@ -239,25 +278,32 @@ class Packer:
         """
         log.debug('Executing %d copy actions', len(self._actions))
 
-        ft = self._create_file_transferer()
-        ft.progress_cb = self._tscb
+        self._file_transferer = self._create_file_transferer()
+        self._file_transferer.progress_cb = self._tscb
         if not self.noop:
-            ft.start()
+            self._file_transferer.start()
 
         try:
             for asset_path, action in self._actions.items():
-                self._copy_asset_and_deps(asset_path, action, ft)
+                self._check_aborted()
+                self._copy_asset_and_deps(asset_path, action, self._file_transferer)
 
             if self.noop:
                 log.info('Would copy %d files to %s', self._file_count, self.target)
                 return
-            ft.done_and_join()
+            self._file_transferer.done_and_join()
         except KeyboardInterrupt:
             log.info('File transfer interrupted with Ctrl+C, aborting.')
-            ft.abort_and_join()
+            self._file_transferer.abort_and_join()
             raise
         finally:
             self._tscb.flush()
+            self._check_aborted()
+
+            # Make sure that the file transferer is no longer usable, for
+            # example to avoid it being involved in any following call to
+            # self.abort().
+            self._file_transferer = None
 
     def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
@@ -268,6 +314,7 @@ class Packer:
         for bfile_path, action in self._actions.items():
             if not action.rewrites:
                 continue
+            self._check_aborted()
 
             assert isinstance(bfile_path, pathlib.Path)
             # bfile_pp is the final path of this blend file in the BAT pack.
@@ -292,6 +339,7 @@ class Packer:
             bfile.copy_and_rebind(bfile_tp, mode='rb+')
 
             for usage in action.rewrites:
+                self._check_aborted()
                 assert isinstance(usage, result.BlockUsage)
                 asset_pp = self._actions[usage.abspath].new_path
                 assert isinstance(asset_pp, pathlib.Path)

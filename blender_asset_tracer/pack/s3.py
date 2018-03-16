@@ -123,7 +123,7 @@ class S3Transferrer(transfer.FileTransferer):
         return True
 
     def _upload_callback(self, bytes_uploaded: int):
-        if self.abort.is_set():
+        if self._abort.is_set():
             log.warning('Interrupting ongoing upload')
             raise self.AbortUpload('interrupting ongoing upload')
 

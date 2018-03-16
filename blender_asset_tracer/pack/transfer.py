@@ -50,7 +50,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         # to finish copying a file.
         self.queue = queue.PriorityQueue(maxsize=100)  # type: queue.PriorityQueue[QueueItem]
         self.done = threading.Event()
-        self.abort = threading.Event()
+        self._abort = threading.Event()
 
         # Instantiate a dummy progress callback so that we can call it
         # without checking for None all the time.
@@ -65,14 +65,14 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
     def queue_copy(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a copy action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
-        assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.COPY))
         self.total_queued_bytes += src.stat().st_size
 
     def queue_move(self, src: pathlib.Path, dst: pathlib.Path):
         """Queue a move action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
-        assert not self.abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
         self.queue.put((src, dst, Action.MOVE))
         self.total_queued_bytes += src.stat().st_size
 
@@ -111,10 +111,15 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
             files_remaining.append(src)
         return files_remaining
 
+    def abort(self) -> None:
+        """Abort the file transfer, immediately returns."""
+        log.info('Aborting')
+        self._abort.set()
+
     def abort_and_join(self) -> None:
         """Abort the file transfer, and wait until done."""
 
-        self.abort.set()
+        self.abort()
         self.join()
 
         files_remaining = self._files_remaining()
@@ -127,7 +132,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Generator, yield queued items until the work is done."""
 
         while True:
-            if self.abort.is_set():
+            if self._abort.is_set():
                 return
 
             try:

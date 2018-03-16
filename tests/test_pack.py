@@ -353,3 +353,37 @@ class ProgressTest(AbstractPackTest):
         ]
         cb.missing_file.assert_has_calls(expected_calls, any_order=True)
         self.assertEqual(len(expected_calls), cb.missing_file.call_count)
+
+
+class AbortTest(AbstractPackTest):
+    def test_abort_strategise(self):
+        infile = self.blendfiles / 'subdir/doubly_linked_up.blend'
+        packer = pack.Packer(infile, self.blendfiles, self.tpath)
+
+        class AbortingCallback(progress.Callback):
+            def trace_blendfile(self, filename: pathlib.Path):
+                # Call abort() somewhere during the strategise() call.
+                if filename.name == 'linked_cube.blend':
+                    packer.abort()
+
+        packer.progress_cb = AbortingCallback()
+        with packer, self.assertRaises(pack.Aborted):
+            packer.strategise()
+
+    def test_abort_transfer(self):
+        infile = self.blendfiles / 'subdir/doubly_linked_up.blend'
+        packer = pack.Packer(infile, self.blendfiles, self.tpath)
+
+        first_file_size = infile.stat().st_size
+
+        class AbortingCallback(progress.Callback):
+            def transfer_progress(self, total_bytes: int, transferred_bytes: int):
+                # Call abort() somewhere during the file transfer.
+                if total_bytes > first_file_size * 1.1:
+                    packer.abort()
+
+        packer.progress_cb = AbortingCallback()
+        with packer:
+            packer.strategise()
+            with self.assertRaises(pack.Aborted):
+                packer.execute()

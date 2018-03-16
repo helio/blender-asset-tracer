@@ -23,6 +23,9 @@ class Callback(blender_asset_tracer.trace.progress.Callback):
                   missing_files: typing.Set[pathlib.Path]) -> None:
         """Called when packing is done."""
 
+    def pack_aborted(self):
+        """Called when packing was aborted."""
+
     def trace_blendfile(self, filename: pathlib.Path) -> None:
         """Called for every blendfile opened when tracing dependencies."""
 

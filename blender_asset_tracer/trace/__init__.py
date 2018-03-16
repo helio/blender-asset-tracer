@@ -32,10 +32,7 @@ def deps(bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback
     if progress_cb:
         bi.progress_cb = progress_cb
 
-    ahb = asset_holding_blocks(bi.iter_blocks(bfile))
-    # Sort the asset-holding blocks so that we can iterate over them
-    # in disk order, which is slightly faster than random order.
-    for block in sorted(ahb):
+    for block in asset_holding_blocks(bi.iter_blocks(bfile)):
         yield from blocks2assets.iter_assets(block)
 
 
