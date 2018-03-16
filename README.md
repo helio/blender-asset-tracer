@@ -18,7 +18,8 @@ BAT Pack supports uploading to S3-compatible storage. This requires a credential
     aws_access_key_id = YOUR_ACCESS_KEY_ID
     aws_secret_access_key = YOUR_SECRET
 
-You can then send a BAT Pack to the storage using a target `s3:/endpoint/bucketname/path-in-bucket`, for example:
+You can then send a BAT Pack to the storage using a target `s3:/ENDPOINT/bucketname/path-in-bucket`,
+for example:
 
     bat pack my_blendfile.blend s3:/storage.qarnot.com/jobs/awesome_work
 
