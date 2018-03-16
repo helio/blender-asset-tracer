@@ -44,7 +44,11 @@ def cli_main():
     loggroup.add_argument('-q', '--quiet', dest='loglevel',
                           action='store_const', const=logging.ERROR,
                           help='Log at ERROR level and higher')
-    subparsers = parser.add_subparsers(help='sub-command help')
+    subparsers = parser.add_subparsers(
+        help='Choose a subcommand to actually make BAT do something. '
+             'Global options go before the subcommand, '
+             'whereas subcommand-specific options go after it. '
+             'Use --help after the subcommand to get more info.')
 
     pack.add_parser(subparsers)
     list_deps.add_parser(subparsers)
