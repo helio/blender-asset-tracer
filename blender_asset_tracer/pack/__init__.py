@@ -3,7 +3,6 @@ import enum
 import functools
 import logging
 import pathlib
-import queue
 import tempfile
 import typing
 
@@ -52,14 +51,13 @@ class AssetAction:
         """
 
 
-
 class Packer:
     def __init__(self,
-                 blendfile: pathlib.Path,
+                 bfile: pathlib.Path,
                  project: pathlib.Path,
                  target: pathlib.Path,
                  noop=False) -> None:
-        self.blendfile = blendfile
+        self.blendfile = bfile
         self.project = project
         self.target = target
         self.noop = noop
