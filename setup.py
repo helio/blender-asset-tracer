@@ -32,7 +32,8 @@ setup(
     author='Sybren A. Stüvel',
     author_email='sybren@stuvel.eu',
     description='Blender Asset Tracer',
-    long_description='BAT parses Blend files and produces dependency information.',
+    long_description='BAT parses Blend files and produces dependency information. '
+                     'After installation run `bat --help`.',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
