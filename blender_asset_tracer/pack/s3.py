@@ -30,6 +30,9 @@ from . import Packer, transfer
 log = logging.getLogger(__name__)
 
 
+# TODO(Sybren): compute MD5 sums of queued files in a separate thread, so that
+# we can upload a file to S3 and compute an MD5 of another file simultaneously.
+
 def compute_md5(filepath: pathlib.Path) -> str:
     log.debug('Computing MD5sum of %s', filepath)
     hasher = hashlib.md5()
