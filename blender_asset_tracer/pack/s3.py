@@ -23,7 +23,7 @@ import typing
 import hashlib
 import logging
 import pathlib
-import threading
+import urllib.parse
 
 from . import Packer, transfer
 
@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 
 
 def compute_md5(filepath: pathlib.Path) -> str:
+    log.debug('Computing MD5sum of %s', filepath)
     hasher = hashlib.md5()
     with filepath.open('rb') as infile:
         while True:
@@ -39,6 +40,7 @@ def compute_md5(filepath: pathlib.Path) -> str:
                 break
             hasher.update(block)
     md5 = hasher.hexdigest()
+    log.debug('MD5sum of %s is %s', filepath, md5)
     return md5
 
 
@@ -46,26 +48,33 @@ class S3Packer(Packer):
     """Creates BAT Packs on S3-compatible storage."""
 
     def __init__(self, *args, endpoint, **kwargs) -> None:
+        """Constructor
+
+        :param endpoint: URL of the S3 storage endpoint
+        """
         super().__init__(*args, **kwargs)
         import boto3
 
         # Create a session so that credentials can be read from the [endpoint]
         # section in ~/.aws/credentials.
         # See https://boto3.readthedocs.io/en/latest/guide/configuration.html#guide-configuration
-        self.session = boto3.Session(profile_name=endpoint)
-        self.client = self.session.client('s3', endpoint_url='https://%s' % endpoint)
+        components = urllib.parse.urlparse(endpoint)
+        profile_name = components.netloc
+        endpoint = urllib.parse.urlunparse(components)
+        log.debug('Using Boto3 profile name %r for url %r', profile_name, endpoint)
+        self.session = boto3.Session(profile_name=profile_name)
+
+        self.client = self.session.client('s3', endpoint_url=endpoint)
 
     def set_credentials(self,
                         endpoint: str,
                         access_key_id: str,
                         secret_access_key: str):
         """Set S3 credentials."""
-        import boto3
-
-        self.client = boto3.client('s3',
-                                   endpoint_url=endpoint,
-                                   aws_access_key_id=access_key_id,
-                                   aws_secret_access_key=secret_access_key)
+        self.client = self.session.client('s3',
+                                          endpoint_url=endpoint,
+                                          aws_access_key_id=access_key_id,
+                                          aws_secret_access_key=secret_access_key)
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
         return S3Transferrer(self.client)

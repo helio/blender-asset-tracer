@@ -87,7 +87,7 @@ def create_s3packer(bpath, ppath, tpath) -> pack.Packer:
 
     # Split the target path into 's3:/', hostname, and actual target path
     parts = tpath.parts
-    endpoint = parts[1]
+    endpoint = 'https://%s/' % parts[1]
     tpath = pathlib.Path(*tpath.parts[2:])
     log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
 
