@@ -106,6 +106,7 @@ def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Pat
     if bpath.is_dir():
         log.critical('%s is a directory, should be a blend file')
         sys.exit(3)
+    bpath = bpath.absolute().resolve()
 
     tpath = args.target
     if tpath.exists() and not tpath.is_dir():
@@ -113,22 +114,21 @@ def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Pat
         sys.exit(4)
 
     if args.project is None:
-        ppath = bpath.absolute().parent
+        ppath = bpath.absolute().parent.resolve()
         log.warning('No project path given, using %s', ppath)
     else:
-        ppath = args.project
+        ppath = args.project.absolute().resolve()
 
     if not ppath.exists():
         log.critical('Project directory %s does not exist', ppath)
         sys.exit(5)
 
-    ppath = ppath.absolute().resolve()
     if not ppath.is_dir():
         log.warning('Project path %s is not a directory; using the parent %s', ppath, ppath.parent)
         ppath = ppath.parent
 
     try:
-        bpath.absolute().relative_to(ppath)
+        bpath.relative_to(ppath)
     except ValueError:
         log.critical('Project directory %s does not contain blend file %s',
                      args.project, bpath.absolute())
