@@ -95,10 +95,10 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         self.queue.put((src, dst, Action.MOVE))
         self.total_queued_bytes += src.stat().st_size
 
-    def report_transferred(self, block_size: int):
+    def report_transferred(self, bytes_transferred: int):
         """Report transfer of `block_size` bytes."""
 
-        self.total_transferred_bytes += block_size
+        self.total_transferred_bytes += bytes_transferred
         self.progress_cb.transfer_progress(self.total_queued_bytes, self.total_transferred_bytes)
 
     def done_and_join(self) -> None:

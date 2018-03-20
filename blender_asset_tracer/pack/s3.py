@@ -35,7 +35,7 @@ def compute_md5(filepath: pathlib.Path) -> str:
     hasher = hashlib.md5()
     with filepath.open('rb') as infile:
         while True:
-            block = infile.read(10240)
+            block = infile.read(102400)
             if not block:
                 break
             hasher.update(block)
@@ -137,23 +137,22 @@ class S3Transferrer(transfer.FileTransferer):
                       src, existing_md5)
             return False
 
-        # TODO(Sybren): when queueing files inspect their size, and have a
-        # callback that reports the total progress.
         log.info('Uploading %s', src)
         try:
             self.client.upload_file(str(src),
                                     Bucket=bucket,
                                     Key=key,
-                                    Callback=self._upload_callback,
+                                    Callback=self.report_transferred,
                                     ExtraArgs={'Metadata': {'md5': md5}})
         except self.AbortUpload:
             return False
         return True
 
-    def _upload_callback(self, bytes_uploaded: int):
+    def report_transferred(self, bytes_transferred: int):
         if self._abort.is_set():
             log.warning('Interrupting ongoing upload')
             raise self.AbortUpload('interrupting ongoing upload')
+        super().report_transferred(bytes_transferred)
 
     def delete_file(self, path: pathlib.Path):
         """Deletes a file, only logging a warning if deletion fails."""
@@ -172,6 +171,7 @@ class S3Transferrer(transfer.FileTransferer):
         """
         import botocore.exceptions
 
+        log.debug('Getting metadata of %s/%s', bucket, key)
         try:
             info = self.client.head_object(Bucket=bucket, Key=key)
         except botocore.exceptions.ClientError as ex:
