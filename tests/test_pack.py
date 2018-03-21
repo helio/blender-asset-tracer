@@ -255,6 +255,19 @@ class PackTest(AbstractPackTest):
             packer.output_path
         )
 
+    def test_infofile(self):
+        blendname = 'subdir/doubly_linked_up.blend'
+        infile = self.blendfiles / blendname
+
+        packer = pack.Packer(infile, self.blendfiles, self.tpath)
+        packer.strategise()
+        packer.execute()
+
+        infopath = self.tpath / 'pack-info.txt'
+        self.assertTrue(infopath.exists())
+        info = infopath.open().read().splitlines(keepends=False)
+        self.assertEqual(blendname, info[-1].strip())
+
 
 class ProgressTest(AbstractPackTest):
     def test_strategise(self):
@@ -313,6 +326,7 @@ class ProgressTest(AbstractPackTest):
         extpath = self.outside_project()
         expected_calls = [
             mock.call(mock.ANY, self.tpath / 'doubly_linked_up.blend'),
+            mock.call(mock.ANY, self.tpath / 'pack-info.txt'),
             mock.call(mock.ANY, extpath / 'linked_cube.blend'),
             mock.call(mock.ANY, extpath / 'basic_file.blend'),
             mock.call(mock.ANY, extpath / 'material_textures.blend'),
@@ -341,7 +355,10 @@ class ProgressTest(AbstractPackTest):
         self.assertEqual(1, cb.pack_done.call_count)
 
         cb.rewrite_blendfile.assert_not_called()
-        cb.transfer_file.assert_called_with(infile, self.tpath / 'missing_textures.blend')
+        cb.transfer_file.assert_has_calls([
+            mock.call(infile, self.tpath / 'missing_textures.blend'),
+            mock.call(mock.ANY, self.tpath / 'pack-info.txt'),
+        ], any_order=True)
 
         self.assertEqual(0, cb.transfer_file_skipped.call_count)
         self.assertGreaterEqual(cb.transfer_progress.call_count, 1,

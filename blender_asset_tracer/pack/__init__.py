@@ -282,13 +282,31 @@ class Packer:
 
         if not self.noop:
             self._rewrite_paths()
-        self._copy_files_to_target()
 
+        self._start_file_transferrer()
+        self._perform_file_transfer()
         self._progress_cb.pack_done(self.output_path, self.missing_files)
+
+    def _perform_file_transfer(self):
+        """Use file transferrer to do the actual file transfer.
+
+        This is performed in a separate function, so that subclasses can
+        override this function to queue up copy/move actions first, and
+        then call this function.
+        """
+        self._write_info_file()
+        self._copy_files_to_target()
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
         """Create a FileCopier(), can be overridden in a subclass."""
         return filesystem.FileCopier()
+
+    def _start_file_transferrer(self):
+        """Starts the file transferrer thread."""
+        self._file_transferer = self._create_file_transferer()
+        self._file_transferer.progress_cb = self._tscb
+        if not self.noop:
+            self._file_transferer.start()
 
     def _copy_files_to_target(self) -> None:
         """Copy all assets to the target directoy.
@@ -297,15 +315,10 @@ class Packer:
         """
         log.debug('Executing %d copy actions', len(self._actions))
 
-        self._file_transferer = self._create_file_transferer()
-        self._file_transferer.progress_cb = self._tscb
-        if not self.noop:
-            self._file_transferer.start()
-
         try:
             for asset_path, action in self._actions.items():
                 self._check_aborted()
-                self._copy_asset_and_deps(asset_path, action, self._file_transferer)
+                self._copy_asset_and_deps(asset_path, action)
 
             if self.noop:
                 log.info('Would copy %d files to %s', self._file_count, self.target)
@@ -397,12 +410,11 @@ class Packer:
                 self._progress_cb.rewrite_blendfile(bfile_path)
             bfile.close()
 
-    def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction,
-                             ft: transfer.FileTransferer):
+    def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
         # Copy the asset itself.
         packed_path = action.new_path
         read_path = action.read_from or asset_path
-        self._send_to_target(read_path, packed_path, ft,
+        self._send_to_target(read_path, packed_path,
                              may_move=action.read_from is not None)
 
         # Copy its sequence dependencies.
@@ -420,7 +432,7 @@ class Packer:
             for file_path in usage.files():
                 packed_path = packed_base_dir / file_path.name
                 # Assumption: assets in a sequence are never blend files.
-                self._send_to_target(file_path, packed_path, ft)
+                self._send_to_target(file_path, packed_path)
 
             # Assumption: all data blocks using this asset use it the same way.
             break
@@ -428,7 +440,6 @@ class Packer:
     def _send_to_target(self,
                         asset_path: pathlib.Path,
                         target: pathlib.Path,
-                        ft: transfer.FileTransferer,
                         may_move=False):
         if self.noop:
             print('%s → %s' % (asset_path, target))
@@ -440,6 +451,19 @@ class Packer:
 
         self._tscb.flush()
         if may_move:
-            ft.queue_move(asset_path, target)
+            self._file_transferer.queue_move(asset_path, target)
         else:
-            ft.queue_copy(asset_path, target)
+            self._file_transferer.queue_copy(asset_path, target)
+
+    def _write_info_file(self):
+        """Write a little text file with info at the top of the pack."""
+
+        infoname = 'pack-info.txt'
+        infopath = self._rewrite_in / infoname
+        log.debug('Writing info to %s', infopath)
+        with infopath.open('w') as infofile:
+            print('This is a Blender Asset Tracer pack.', file=infofile)
+            print('Start by opening the following blend file:', file=infofile)
+            print('    %s' % self._output_path.relative_to(self.target), file=infofile)
+
+        self._file_transferer.queue_move(infopath, self.target / infoname)
