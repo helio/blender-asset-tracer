@@ -246,17 +246,7 @@ class Struct:
         if dna_name.is_pointer:
             return field, endian.read_pointer(fileobj, file_header.pointer_size)
         if dna_type.dna_type_id == b'char':
-            if field.size == 1:
-                # Single char, assume it's bitflag or int value, and not a string/bytes data...
-                return field, endian.read_char(fileobj)
-            if null_terminated or (null_terminated is None and as_str):
-                data = endian.read_bytes0(fileobj, dna_name.array_size)
-            else:
-                data = fileobj.read(dna_name.array_size)
-
-            if as_str:
-                return field, data.decode('utf8')
-            return field, data
+            return field, self._field_get_char(file_header, fileobj, field, null_terminated, as_str)
 
         simple_readers = {
             b'int': endian.read_int,
@@ -281,6 +271,28 @@ class Struct:
         if dna_name.array_size > 1:
             return field, [simple_reader(fileobj) for _ in range(dna_name.array_size)]
         return field, simple_reader(fileobj)
+
+    def _field_get_char(self,
+                        file_header: header.BlendFileHeader,
+                        fileobj: typing.IO[bytes],
+                        field: 'Field',
+                        null_terminated: typing.Optional[bool],
+                        as_str: bool) -> typing.Any:
+        dna_name = field.name
+        endian = file_header.endian
+
+        if field.size == 1:
+            # Single char, assume it's bitflag or int value, and not a string/bytes data...
+            return endian.read_char(fileobj)
+
+        if null_terminated or (null_terminated is None and as_str):
+            data = endian.read_bytes0(fileobj, dna_name.array_size)
+        else:
+            data = fileobj.read(dna_name.array_size)
+
+        if as_str:
+            return data.decode('utf8')
+        return data
 
     def field_set(self,
                   file_header: header.BlendFileHeader,
