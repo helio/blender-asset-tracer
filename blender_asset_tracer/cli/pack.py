@@ -69,6 +69,9 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
             raise ValueError('S3 uploader does not support no-op.')
 
         packer = create_s3packer(bpath, ppath, tpath)
+    elif tpath.suffix.lower() == '.zip':
+        from blender_asset_tracer.pack import zipped
+        packer = zipped.ZipPacker(bpath, ppath, tpath, args.noop)
     else:
         packer = pack.Packer(bpath, ppath, tpath, args.noop)
 
@@ -109,9 +112,6 @@ def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Pat
     bpath = bpath.absolute().resolve()
 
     tpath = args.target
-    if tpath.exists() and not tpath.is_dir():
-        log.critical('Target %s exists and is not a directory', tpath)
-        sys.exit(4)
 
     if args.project is None:
         ppath = bpath.absolute().parent.resolve()

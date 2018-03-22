@@ -18,11 +18,10 @@
 #
 # (c) 2018, Blender Foundation - Sybren A. Stüvel
 """Amazon S3-compatible uploader."""
-import typing
-
 import hashlib
 import logging
 import pathlib
+import typing
 import urllib.parse
 
 from . import Packer, transfer
@@ -156,14 +155,6 @@ class S3Transferrer(transfer.FileTransferer):
             log.warning('Interrupting ongoing upload')
             raise self.AbortUpload('interrupting ongoing upload')
         super().report_transferred(bytes_transferred)
-
-    def delete_file(self, path: pathlib.Path):
-        """Deletes a file, only logging a warning if deletion fails."""
-        log.debug('Deleting %s, file has been uploaded', path)
-        try:
-            path.unlink()
-        except IOError as ex:
-            log.warning('Unable to delete %s: %s', path, ex)
 
     def get_metadata(self, bucket: str, key: str) -> typing.Tuple[str, int]:
         """Get MD5 sum and size on S3.

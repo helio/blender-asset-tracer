@@ -181,3 +181,11 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
         # Since Thread.join() neither returns anything nor raises any exception
         # when timing out, we don't even have to call it any more.
+
+    def delete_file(self, path: pathlib.Path):
+        """Deletes a file, only logging a warning if deletion fails."""
+        log.debug('Deleting %s, file has been transferred', path)
+        try:
+            path.unlink()
+        except IOError as ex:
+            log.warning('Unable to delete %s: %s', path, ex)
