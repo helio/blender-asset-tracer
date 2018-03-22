@@ -11,3 +11,5 @@ __pycache__
 
 /tests/blendfiles/cache_ocean/
 /tests/blendfiles/T53562/blendcache_bam_pack_bug/
+
+/docs/_build

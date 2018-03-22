@@ -5,3 +5,8 @@ pytest
 pytest-cov
 radon  # for the 'radon cc' command
 pyprof2calltree  # for converting profiler output to KCacheGrind input
+
+# For documentation
+sphinx
+sphinx-autobuild
+sphinx_rtd_theme
