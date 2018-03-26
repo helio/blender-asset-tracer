@@ -34,6 +34,7 @@ IMA_SRC_SEQUENCE = 2
 IMA_SRC_MOVIE = 3
 
 # DNA_modifier_types.h
+eModifierType_Displace = 14
 eModifierType_ParticleSystem = 19
 eModifierType_Ocean = 39
 eModifierType_MeshCache = 46

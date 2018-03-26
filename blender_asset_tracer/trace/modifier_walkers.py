@@ -62,6 +62,20 @@ def modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
                             block_name=block_name)
 
 
+@mod_handler(cdefs.eModifierType_Displace)
+def modifier_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    tx = modifier.get_pointer(b'texture')
+    if not tx:
+        return
+    ima = tx.get_pointer(b'ima')
+    if not ima:
+        return
+
+    path, field = ima.get(b'name', return_field=True)
+    yield result.BlockUsage(modifier, path, path_full_field=field, block_name=block_name)
+
+
 @mod_handler(cdefs.eModifierType_ParticleSystem)
 def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
