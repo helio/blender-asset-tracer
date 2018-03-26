@@ -19,7 +19,7 @@
 # (c) 2018, Blender Foundation - Sybren A. Stüvel
 """Modifier handling code used in blocks2assets.py
 
-The _modifier_xxx() functions all yield result.BlockUsage objects for external
+The modifier_xxx() functions all yield result.BlockUsage objects for external
 files used by the modifiers.
 """
 import typing
@@ -27,15 +27,31 @@ import typing
 from blender_asset_tracer import blendfile, bpathlib, cdefs
 from . import result
 
+modifier_handlers = {}  # type: typing.Dict[int, typing.Callable]
 
-def _modifier_filepath(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+
+def mod_handler(dna_num: int):
+    """Decorator, marks decorated func as handler for that modifier number."""
+
+    assert isinstance(dna_num, int)
+
+    def decorator(wrapped):
+        modifier_handlers[dna_num] = wrapped
+        return wrapped
+
+    return decorator
+
+
+@mod_handler(cdefs.eModifierType_MeshCache)
+def modifier_filepath(modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     """Just yield the 'filepath' field."""
     path, field = modifier.get(b'filepath', return_field=True)
     yield result.BlockUsage(modifier, path, path_full_field=field, block_name=block_name)
 
 
-def _modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+@mod_handler(cdefs.eModifierType_Ocean)
+def modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     if not modifier[b'cached']:
         return
@@ -46,7 +62,8 @@ def _modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
                             block_name=block_name)
 
 
-def _modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+@mod_handler(cdefs.eModifierType_ParticleSystem)
+def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     psys = modifier.get_pointer(b'psys')
     if psys is None:
@@ -75,10 +92,3 @@ def _modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: by
         bpath = bpathlib.BlendPath(path)
         yield result.BlockUsage(pointcache, bpath, path_full_field=field,
                                 is_sequence=True, block_name=block_name)
-
-
-modifier_handlers = {
-    cdefs.eModifierType_ParticleSystem: _modifier_particle_system,
-    cdefs.eModifierType_Ocean: _modifier_ocean,
-    cdefs.eModifierType_MeshCache: _modifier_filepath,
-}
