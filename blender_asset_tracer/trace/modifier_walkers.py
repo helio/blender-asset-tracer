@@ -62,18 +62,54 @@ def modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
                             block_name=block_name)
 
 
-@mod_handler(cdefs.eModifierType_Displace)
-def modifier_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def _get_texture(prop_name: bytes, dblock: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
-    tx = modifier.get_pointer(b'texture')
-    if not tx:
+    """Yield block usages from a texture propery.
+
+    Assumes dblock[prop_name] is a texture data block.
+    """
+    if dblock is None:
         return
-    ima = tx.get_pointer(b'ima')
+
+    tx = dblock.get_pointer(prop_name)
+    yield from _get_image(b'ima', tx, block_name)
+
+
+def _get_image(prop_name: bytes, dblock: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    """Yield block usages from an image propery.
+
+    Assumes dblock[prop_name] is an image data block.
+    """
+    if not dblock:
+        return
+    ima = dblock.get_pointer(prop_name)
     if not ima:
         return
 
     path, field = ima.get(b'name', return_field=True)
-    yield result.BlockUsage(modifier, path, path_full_field=field, block_name=block_name)
+    yield result.BlockUsage(ima, path, path_full_field=field, block_name=block_name)
+
+
+@mod_handler(cdefs.eModifierType_Displace)
+@mod_handler(cdefs.eModifierType_Wave)
+def modifier_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    return _get_texture(b'texture', modifier, block_name)
+
+
+@mod_handler(cdefs.eModifierType_WeightVGEdit)
+@mod_handler(cdefs.eModifierType_WeightVGMix)
+@mod_handler(cdefs.eModifierType_WeightVGProximity)
+def modifier_mask_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    return _get_texture(b'mask_texture', modifier, block_name)
+
+
+@mod_handler(cdefs.eModifierType_UVProject)
+def modifier_image(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    yield from _get_image(b'image', modifier, block_name)
 
 
 @mod_handler(cdefs.eModifierType_ParticleSystem)
