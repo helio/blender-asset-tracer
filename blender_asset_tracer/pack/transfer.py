@@ -155,7 +155,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
                 return
 
             try:
-                src, dst, action = self.queue.get(timeout=0.1)
+                src, dst, action = self.queue.get(timeout=0.5)
                 self.progress_cb.transfer_file(src, dst)
                 yield src, dst, action
             except queue.Empty:
@@ -177,7 +177,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
                 self.log.warning('Timeout while waiting for transfer to finish')
                 return
 
-            self.progress_cb.flush(timeout=0.1)
+            self.progress_cb.flush(timeout=0.5)
 
         # Since Thread.join() neither returns anything nor raises any exception
         # when timing out, we don't even have to call it any more.
