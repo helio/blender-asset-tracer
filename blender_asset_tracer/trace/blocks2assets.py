@@ -71,6 +71,7 @@ def skip_packed(wrapped):
     @functools.wraps(wrapped)
     def wrapper(block: blendfile.BlendFileBlock, *args, **kwargs):
         if block.get(b'packedfile', default=False):
+            log.debug('Datablock %r is packed; skipping', block.id_name)
             return
 
         yield from wrapped(block, *args, **kwargs)
