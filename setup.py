@@ -25,7 +25,7 @@ if sys.version_info < (3, 5):
 
 setup(
     name='blender-asset-tracer',
-    version='0.2',
+    version='0.3-dev',
     url='https://gitlab.com/dr.sybren/blender-asset-tracer',
     download_url='https://pypi.python.org/pypi/blender-asset-tracer',
     license='GPLv2+',
