@@ -130,7 +130,7 @@ class ThreadSafeCallback(Callback):
     def flush(self, timeout: float = None) -> None:
         """Call the queued calls, call this in the main thread."""
 
-        while not self._reporting_queue.empty():
+        while True:
             try:
                 call = self._reporting_queue.get(block=timeout is not None,
                                                  timeout=timeout)
