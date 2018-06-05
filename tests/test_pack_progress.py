@@ -15,7 +15,7 @@ class ThreadedProgressTest(unittest.TestCase):
 
         # Flushing an empty queue should be fast.
         before = time.time()
-        tscb.flush(timeout=1)
+        tscb.flush()
         duration = time.time() - before
         self.assertLess(duration, 1)
 

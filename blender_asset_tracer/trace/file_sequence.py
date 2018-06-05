@@ -50,7 +50,8 @@ def expand_sequence(path: pathlib.Path) -> typing.Iterator[pathlib.Path]:
         raise DoesNotExist(path)
 
     if path.is_dir():
-        raise TypeError('path is a directory: %s' % path)
+        yield path
+        return
 
     log.debug('expanding file sequence %s', path)
 

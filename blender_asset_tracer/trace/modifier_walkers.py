@@ -22,11 +22,13 @@
 The modifier_xxx() functions all yield result.BlockUsage objects for external
 files used by the modifiers.
 """
+import logging
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib, cdefs
 from . import result
 
+log = logging.getLogger(__name__)
 modifier_handlers = {}  # type: typing.Dict[int, typing.Callable]
 
 
@@ -112,6 +114,28 @@ def modifier_image(modifier: blendfile.BlendFileBlock, block_name: bytes) \
     yield from _get_image(b'image', modifier, block_name)
 
 
+def _walk_point_cache(block_name: bytes,
+                      bfile: blendfile.BlendFile,
+                      pointcache: blendfile.BlendFileBlock):
+    flag = pointcache[b'flag']
+    if flag & cdefs.PTCACHE_DISK_CACHE:
+        # See ptcache_path() in pointcache.c
+        name, field = pointcache.get(b'name', return_field=True)
+        path = b'//%b%b/%b_*%b' % (
+            cdefs.PTCACHE_PATH,
+            bfile.filepath.stem.encode(),
+            name,
+            cdefs.PTCACHE_EXT)
+        bpath = bpathlib.BlendPath(path)
+        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
+                                is_sequence=True, block_name=block_name)
+    if flag & cdefs.PTCACHE_EXTERNAL:
+        path, field = pointcache.get(b'path', return_field=True)
+        bpath = bpathlib.BlendPath(path)
+        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
+                                is_sequence=True, block_name=block_name)
+
+
 @mod_handler(cdefs.eModifierType_ParticleSystem)
 def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
@@ -123,22 +147,31 @@ def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: byt
     if pointcache is None:
         return
 
-    flag = pointcache[b'flag']
+    yield from _walk_point_cache(block_name, modifier.bfile, pointcache)
 
-    if flag & cdefs.PTCACHE_DISK_CACHE:
-        # See ptcache_path() in pointcache.c
-        name, field = pointcache.get(b'name', return_field=True)
-        path = b'//%b%b/%b_*%b' % (
-            cdefs.PTCACHE_PATH,
-            modifier.bfile.filepath.stem.encode(),
-            name,
-            cdefs.PTCACHE_EXT)
-        bpath = bpathlib.BlendPath(path)
-        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
-                                is_sequence=True, block_name=block_name)
 
-    if flag & cdefs.PTCACHE_EXTERNAL:
-        path, field = pointcache.get(b'path', return_field=True)
-        bpath = bpathlib.BlendPath(path)
-        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
-                                is_sequence=True, block_name=block_name)
+@mod_handler(cdefs.eModifierType_Fluidsim)
+def modifier_fluid_sim(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    my_log = log.getChild('modifier_fluid_sim')
+
+    fss = modifier.get_pointer(b'fss')
+    if fss is None:
+        my_log.debug('Modifier %r (%r) has no fss',
+                     modifier[b'modifier', b'name'], block_name)
+        return
+
+    path, field = fss.get(b'surfdataPath', return_field=True)
+
+    # This may match more than is used by Blender, but at least it shouldn't
+    # miss any files.
+    # The 'fluidsurface' prefix is defined in source/blender/makesdna/DNA_object_fluidsim_types.h
+    bpath = bpathlib.BlendPath(path)
+    yield result.BlockUsage(fss, bpath, path_full_field=field,
+                            is_sequence=True, block_name=block_name)
+
+    # TODO(Sybren): check whether this is actually used
+    # (in Blender's source there is a point_cache pointer, but it's NULL in my test)
+    pointcache = modifier.get_pointer(b'point_cache')
+    if pointcache:
+        yield from _walk_point_cache(block_name, modifier.bfile, pointcache)

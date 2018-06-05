@@ -38,6 +38,7 @@ eModifierType_Wave = 7
 eModifierType_Displace = 14
 eModifierType_UVProject = 15
 eModifierType_ParticleSystem = 19
+eModifierType_Fluidsim = 26
 eModifierType_WeightVGEdit = 36
 eModifierType_WeightVGMix = 37
 eModifierType_WeightVGProximity = 38
