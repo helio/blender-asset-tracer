@@ -68,7 +68,8 @@ class FileCopier(transfer.FileTransferer):
                 # the main thread to inspect the queue and see which files were not
                 # copied. The one we just failed (due to this exception) should also
                 # be reported there.
-                self.queue.put((src, dst, act))
+                self.queue.put((src, dst, act), timeout=1.0)
+                self._error.set()
                 break
 
         if files_transferred:

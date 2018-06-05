@@ -175,7 +175,9 @@ class Packer:
         """Raises an Aborted exception when abort() was called."""
 
         with self._abort_lock:
-            if not self._aborted.is_set():
+            if self._file_transferer is not None and self._file_transferer.has_error:
+                log.error('A transfer error occurred')
+            elif not self._aborted.is_set():
                 return
 
             log.warning('Aborting')

@@ -69,7 +69,8 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         # to finish copying a file.
         self.queue = queue.PriorityQueue(maxsize=100)  # type: queue.PriorityQueue[QueueItem]
         self.done = threading.Event()
-        self._abort = threading.Event()
+        self._abort = threading.Event()  # Indicates user-requested abort
+        self._error = threading.Event()  # Indicates abort due to some error
 
         # Instantiate a dummy progress callback so that we can call it
         # without checking for None all the time.
@@ -85,6 +86,8 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Queue a copy action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        if self._error.is_set():
+            return
         self.queue.put((src, dst, Action.COPY))
         self.total_queued_bytes += src.stat().st_size
 
@@ -92,6 +95,8 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Queue a move action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        if self._error.is_set():
+            return
         self.queue.put((src, dst, Action.MOVE))
         self.total_queued_bytes += src.stat().st_size
 
@@ -151,7 +156,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Generator, yield queued items until the work is done."""
 
         while True:
-            if self._abort.is_set():
+            if self._abort.is_set() or self._error.is_set():
                 return
 
             try:
@@ -189,3 +194,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
             path.unlink()
         except IOError as ex:
             log.warning('Unable to delete %s: %s', path, ex)
+
+    @property
+    def has_error(self) -> bool:
+        return self._error.is_set()
