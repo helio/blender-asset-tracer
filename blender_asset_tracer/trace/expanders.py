@@ -70,6 +70,10 @@ def _expand_generic_material(block: blendfile.BlendFileBlock):
 
 
 def _expand_generic_mtex(block: blendfile.BlendFileBlock):
+    if not block.dna_type.has_field(b'mtex'):
+        # mtex was removed in Blender 2.8
+        return
+
     for mtex in block.iter_fixed_array_of_pointers(b'mtex'):
         yield mtex.get_pointer(b'tex')
         yield mtex.get_pointer(b'object')
@@ -137,7 +141,11 @@ def _expand_material(block: blendfile.BlendFileBlock):
     yield from _expand_generic_nodetree_id(block)
     yield from _expand_generic_mtex(block)
 
-    yield block.get_pointer(b'group')
+    try:
+        yield block.get_pointer(b'group')
+    except KeyError:
+        # Groups were removed from Blender 2.8
+        pass
 
 
 @dna_code('MB')

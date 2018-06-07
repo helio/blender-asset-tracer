@@ -148,6 +148,9 @@ class Struct:
         """
         return self._fields
 
+    def has_field(self, field_name: bytes) -> bool:
+        return field_name in self._fields_by_name
+
     def field_from_path(self,
                         pointer_size: int,
                         path: FieldPath) \
