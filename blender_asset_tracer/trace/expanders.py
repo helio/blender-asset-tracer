@@ -123,9 +123,23 @@ def _expand_curve(block: blendfile.BlendFileBlock):
 
 @dna_code('GR')
 def _expand_group(block: blendfile.BlendFileBlock):
+    log.debug('Block: %s', block)
+
     objects = block.get_pointer((b'gobject', b'first'))
     for item in iterators.listbase(objects):
         yield item.get_pointer(b'ob')
+
+    # Recurse through child collections.
+    try:
+        children = block.get_pointer((b'children', b'first'))
+    except KeyError:
+        # 'children' was introduced in Blender 2.8 collections
+        pass
+    else:
+        for child in iterators.listbase(children):
+            subcoll = child.get_pointer(b'collection')
+            log.debug('recursing into child collection %s', subcoll.id_name)
+            yield from _expand_group(subcoll)
 
 
 @dna_code('LA')

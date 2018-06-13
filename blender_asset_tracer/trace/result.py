@@ -153,6 +153,10 @@ class BlockUsage:
                 self._abspath = as_path.resolve()
             except FileNotFoundError:
                 self._abspath = as_path
+            log.info('Resolving %s rel to %s → %s',
+                     self.asset_path, self.block.bfile.filepath, self._abspath)
+        else:
+            log.info('Reusing abspath %s', self._abspath)
         return self._abspath
 
     abspath = property(__fspath__)
