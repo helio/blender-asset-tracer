@@ -103,6 +103,7 @@ class FileCopier(transfer.FileTransferer):
             d_stat = dstpath.stat()
             if d_stat.st_size == s_stat.st_size and d_stat.st_mtime >= s_stat.st_mtime:
                 log.info('SKIP %s; already exists', srcpath)
+                self.progress_cb.transfer_file_skipped(srcpath, dstpath)
                 self.files_skipped += 1
                 return
 
