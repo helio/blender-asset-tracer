@@ -88,7 +88,7 @@ class DepsTest(AbstractTracerTest):
                     # Don't leave empty sets in expects.
                     del expects[dep.block_name]
             else:
-                self.assertEqual(actual, exp, msg='for block %s' % dep.block_name)
+                self.assertEqual(exp, actual, msg='for block %s' % dep.block_name)
                 del expects[dep.block_name]
 
         # All expected uses should have been seen.
