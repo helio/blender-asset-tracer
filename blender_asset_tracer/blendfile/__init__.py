@@ -397,6 +397,10 @@ class BlendFile:
         except KeyError:
             raise exceptions.SegmentationFault('address does not exist', address) from None
 
+    def struct(self, name: bytes) -> dna.Struct:
+        index = self.sdna_index_from_id[name]
+        return self.structs[index]
+
 
 @functools.total_ordering
 class BlendFileBlock:
