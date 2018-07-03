@@ -136,6 +136,7 @@ class Packer:
 
     def close(self) -> None:
         """Clean up any temporary files."""
+        self._tscb.flush()
         self._tmpdir.cleanup()
 
     def __enter__(self) -> 'Packer':
