@@ -82,7 +82,11 @@ class FileCopier(transfer.FileTransferer):
             log.info('Skipped %d files', self.files_skipped)
 
     def move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
+        s_stat = srcpath.stat()
         shutil.move(str(srcpath), str(dstpath))
+
+        self.files_transferred += 1
+        self.report_transferred(s_stat.st_size)
 
     def copyfile(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
         """Copy a file, skipping when it already exists."""
