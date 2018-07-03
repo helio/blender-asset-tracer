@@ -371,6 +371,40 @@ class ProgressTest(AbstractPackTest):
         cb.missing_file.assert_has_calls(expected_calls, any_order=True)
         self.assertEqual(len(expected_calls), cb.missing_file.call_count)
 
+    def test_particle_cache(self):
+        # The particle cache uses a glob to indicate which files to pack.
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'T55539-particles/particle.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.strategise()
+            packer.execute()
+
+        # We should have all the *.bphys files now.
+        count = len(list((self.tpath / 'T55539-particles/blendcache_particle').glob('*.bphys')))
+        self.assertEqual(27, count)
+
+        # Physics files + particle.blend + pack_info.txt
+        self.assertGreaterEqual(cb.transfer_progress.call_count, 29,
+                                'transfer_progress() should be called at least once per asset')
+
+    def test_particle_cache_with_ignore_glob(self):
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'T55539-particles/particle.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.exclude('*.bphys')
+            packer.strategise()
+            packer.execute()
+
+        # We should have none of the *.bphys files now.
+        count = len(list((self.tpath / 'T55539-particles/blendcache_particle').glob('*.bphys')))
+        self.assertEqual(0, count)
+
+        # Just particle.blend + pack_info.txt
+        self.assertGreaterEqual(cb.transfer_progress.call_count, 2,
+                                'transfer_progress() should be called at least once per asset')
+
 
 class AbortTest(AbstractPackTest):
     def test_abort_strategise(self):

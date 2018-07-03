@@ -27,7 +27,7 @@ import threading
 import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
-from blender_asset_tracer.trace import result
+from blender_asset_tracer.trace import file_sequence, result
 from . import filesystem, transfer, progress
 
 log = logging.getLogger(__name__)
@@ -187,7 +187,13 @@ class Packer:
             raise Aborted()
 
     def exclude(self, *globs: str):
-        """Register glob-compatible patterns of files that should be ignored."""
+        """Register glob-compatible patterns of files that should be ignored.
+
+        Must be called before calling strategise().
+        """
+        if self._actions:
+            raise RuntimeError('%s.exclude() must be called before strategise()' %
+                               self.__class__.__qualname__)
         self._exclude_globs.update(globs)
 
     def strategise(self) -> None:
@@ -196,6 +202,10 @@ class Packer:
         Places an asset into one of these categories:
             - Can be copied as-is, nothing smart required.
             - Blend files referring to this asset need to be rewritten.
+
+        This function does *not* expand globs. Globs are seen as single
+        assets, and are only evaluated when performing the actual transfer
+        in the execute() function.
         """
 
         # The blendfile that we pack is generally not its own dependency, so
@@ -219,16 +229,29 @@ class Packer:
                 log.info('Excluding file: %s', asset_path)
                 continue
 
-            if not asset_path.exists():
-                log.warning('Missing file: %s', asset_path)
-                self.missing_files.add(asset_path)
-                self._progress_cb.missing_file(asset_path)
-                continue
-
-            self._visit_asset(asset_path, usage)
+            if usage.is_sequence:
+                self._visit_sequence(asset_path, usage)
+            else:
+                self._visit_asset(asset_path, usage)
 
         self._find_new_paths()
         self._group_rewrites()
+
+    def _visit_sequence(self, asset_path: pathlib.Path, usage: result.BlockUsage):
+        assert usage.is_sequence
+
+        for first_path in file_sequence.expand_sequence(asset_path):
+            if first_path.exists():
+                break
+        else:
+            # At least the first file of a sequence must exist.
+            log.warning('Missing file: %s', asset_path)
+            self.missing_files.add(asset_path)
+            self._progress_cb.missing_file(asset_path)
+            return
+
+        # Handle this sequence as an asset.
+        self._visit_asset(asset_path, usage)
 
     def _visit_asset(self, asset_path: pathlib.Path, usage: result.BlockUsage):
         """Determine what to do with this asset.
@@ -236,13 +259,25 @@ class Packer:
         Determines where this asset will be packed, whether it needs rewriting,
         and records the blend file data block referring to it.
         """
+
+        # Sequences are allowed to not exist at this point.
+        if not usage.is_sequence and not asset_path.exists():
+            log.warning('Missing file: %s', asset_path)
+            self.missing_files.add(asset_path)
+            self._progress_cb.missing_file(asset_path)
+            return
+
         bfile_path = usage.block.bfile.filepath.absolute()
         self._progress_cb.trace_asset(asset_path)
 
         # Needing rewriting is not a per-asset thing, but a per-asset-per-
         # blendfile thing, since different blendfiles can refer to it in
         # different ways (for example with relative and absolute paths).
-        path_in_project = self._path_in_project(asset_path)
+        if usage.is_sequence:
+            first_path = next(file_sequence.expand_sequence(asset_path))
+        else:
+            first_path = asset_path
+        path_in_project = self._path_in_project(first_path)
         use_as_is = usage.asset_path.is_blendfile_relative() and path_in_project
         needs_rewriting = not use_as_is
 
@@ -428,11 +463,13 @@ class Packer:
             bfile.close()
 
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
-        # Copy the asset itself.
-        packed_path = action.new_path
-        read_path = action.read_from or asset_path
-        self._send_to_target(read_path, packed_path,
-                             may_move=action.read_from is not None)
+        # Copy the asset itself, but only if it's not a sequence (sequences are
+        # handled below in the for-loop).
+        if '*' not in str(asset_path):
+            packed_path = action.new_path
+            read_path = action.read_from or asset_path
+            self._send_to_target(read_path, packed_path,
+                                 may_move=action.read_from is not None)
 
         # Copy its sequence dependencies.
         for usage in action.usages:
