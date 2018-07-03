@@ -136,6 +136,8 @@ def movie_clip(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockU
 @dna_code('OB')
 def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Object data blocks."""
+    ctx = modifier_walkers.ModifierContext(owner=block)
+
     # 'ob->modifiers[...].filepath'
     mods = block.get_pointer((b'modifiers', b'first'))
     for mod_idx, block_mod in enumerate(iterators.listbase(mods, next_path=(b'modifier', b'next'))):
@@ -147,7 +149,7 @@ def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bloc
             mod_handler = modifier_walkers.modifier_handlers[mod_type]
         except KeyError:
             continue
-        yield from mod_handler(block_mod, block_name)
+        yield from mod_handler(ctx, block_mod, block_name)
 
 
 @dna_code('SC')

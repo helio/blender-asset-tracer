@@ -32,6 +32,16 @@ log = logging.getLogger(__name__)
 modifier_handlers = {}  # type: typing.Dict[int, typing.Callable]
 
 
+class ModifierContext:
+    """Meta-info for modifier expansion.
+
+    Currently just contains the object on which the modifier is defined.
+    """
+    def __init__(self, owner: blendfile.BlendFileBlock) -> None:
+        assert owner.dna_type_name == 'Object'
+        self.owner = owner
+
+
 def mod_handler(dna_num: int):
     """Decorator, marks decorated func as handler for that modifier number."""
 
@@ -45,7 +55,7 @@ def mod_handler(dna_num: int):
 
 
 @mod_handler(cdefs.eModifierType_MeshCache)
-def modifier_filepath(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_filepath(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     """Just yield the 'filepath' field."""
     path, field = modifier.get(b'filepath', return_field=True)
@@ -53,7 +63,7 @@ def modifier_filepath(modifier: blendfile.BlendFileBlock, block_name: bytes) \
 
 
 @mod_handler(cdefs.eModifierType_Ocean)
-def modifier_ocean(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_ocean(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     if not modifier[b'cached']:
         return
@@ -95,7 +105,7 @@ def _get_image(prop_name: bytes, dblock: blendfile.BlendFileBlock, block_name: b
 
 @mod_handler(cdefs.eModifierType_Displace)
 @mod_handler(cdefs.eModifierType_Wave)
-def modifier_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_texture(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     return _get_texture(b'texture', modifier, block_name)
 
@@ -103,24 +113,29 @@ def modifier_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
 @mod_handler(cdefs.eModifierType_WeightVGEdit)
 @mod_handler(cdefs.eModifierType_WeightVGMix)
 @mod_handler(cdefs.eModifierType_WeightVGProximity)
-def modifier_mask_texture(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_mask_texture(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     return _get_texture(b'mask_texture', modifier, block_name)
 
 
 @mod_handler(cdefs.eModifierType_UVProject)
-def modifier_image(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_image(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     yield from _get_image(b'image', modifier, block_name)
 
 
-def _walk_point_cache(block_name: bytes,
+def _walk_point_cache(ctx: ModifierContext,
+                      block_name: bytes,
                       bfile: blendfile.BlendFile,
                       pointcache: blendfile.BlendFileBlock):
     flag = pointcache[b'flag']
     if flag & cdefs.PTCACHE_DISK_CACHE:
         # See ptcache_path() in pointcache.c
         name, field = pointcache.get(b'name', return_field=True)
+        if not name:
+            # See ptcache_filename() in pointcache.c
+            idname = ctx.owner[b'id', b'name']
+            name = idname[2:].hex().encode()
         path = b'//%b%b/%b_*%b' % (
             cdefs.PTCACHE_PATH,
             bfile.filepath.stem.encode(),
@@ -137,7 +152,7 @@ def _walk_point_cache(block_name: bytes,
 
 
 @mod_handler(cdefs.eModifierType_ParticleSystem)
-def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_particle_system(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     psys = modifier.get_pointer(b'psys')
     if psys is None:
@@ -147,11 +162,11 @@ def modifier_particle_system(modifier: blendfile.BlendFileBlock, block_name: byt
     if pointcache is None:
         return
 
-    yield from _walk_point_cache(block_name, modifier.bfile, pointcache)
+    yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache)
 
 
 @mod_handler(cdefs.eModifierType_Fluidsim)
-def modifier_fluid_sim(modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_fluid_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     my_log = log.getChild('modifier_fluid_sim')
 
@@ -174,4 +189,4 @@ def modifier_fluid_sim(modifier: blendfile.BlendFileBlock, block_name: bytes) \
     # (in Blender's source there is a point_cache pointer, but it's NULL in my test)
     pointcache = modifier.get_pointer(b'point_cache')
     if pointcache:
-        yield from _walk_point_cache(block_name, modifier.bfile, pointcache)
+        yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache)

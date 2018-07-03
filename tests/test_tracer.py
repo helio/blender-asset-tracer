@@ -168,6 +168,14 @@ class DepsTest(AbstractTracerTest):
                                             b'//cache_ocean', True),
         })
 
+    def test_particles(self):
+        # This file has an empty name for the cache, which should result in some hex magic
+        # to create a name. See ptcache_filename() in pointcache.c.
+        self.assert_deps('T55539-particles/particle.blend', {
+            b'OBCube.modifiers[0]': Expect('PointCache', 'name[64]', None, None,
+                                           b'//blendcache_particle/43756265_*.bphys', True),
+        })
+
     def test_mesh_cache(self):
         self.assert_deps('meshcache-user.blend', {
             b'OBPlane.modifiers[0]': Expect('MeshCacheModifierData', 'filepath[1024]', None, None,
