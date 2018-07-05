@@ -135,7 +135,7 @@ def _walk_point_cache(ctx: ModifierContext,
         if not name:
             # See ptcache_filename() in pointcache.c
             idname = ctx.owner[b'id', b'name']
-            name = idname[2:].hex().encode()
+            name = idname[2:].hex().upper().encode()
         path = b'//%b%b/%b_*%b' % (
             cdefs.PTCACHE_PATH,
             bfile.filepath.stem.encode(),
