@@ -127,7 +127,8 @@ def modifier_image(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, blo
 def _walk_point_cache(ctx: ModifierContext,
                       block_name: bytes,
                       bfile: blendfile.BlendFile,
-                      pointcache: blendfile.BlendFileBlock):
+                      pointcache: blendfile.BlendFileBlock,
+                      extension: bytes):
     flag = pointcache[b'flag']
     if flag & cdefs.PTCACHE_DISK_CACHE:
         # See ptcache_path() in pointcache.c
@@ -140,7 +141,7 @@ def _walk_point_cache(ctx: ModifierContext,
             cdefs.PTCACHE_PATH,
             bfile.filepath.stem.encode(),
             name,
-            cdefs.PTCACHE_EXT)
+            extension)
         bpath = bpathlib.BlendPath(path)
         yield result.BlockUsage(pointcache, bpath, path_full_field=field,
                                 is_sequence=True, block_name=block_name)
@@ -162,7 +163,7 @@ def modifier_particle_system(ctx: ModifierContext, modifier: blendfile.BlendFile
     if pointcache is None:
         return
 
-    yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache)
+    yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, cdefs.PTCACHE_EXT)
 
 
 @mod_handler(cdefs.eModifierType_Fluidsim)
@@ -189,4 +190,27 @@ def modifier_fluid_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
     # (in Blender's source there is a point_cache pointer, but it's NULL in my test)
     pointcache = modifier.get_pointer(b'point_cache')
     if pointcache:
-        yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache)
+        yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, cdefs.PTCACHE_EXT)
+
+
+@mod_handler(cdefs.eModifierType_Smokesim)
+def modifier_smoke_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    my_log = log.getChild('modifier_smoke_sim')
+
+    domain = modifier.get_pointer(b'domain')
+    if domain is None:
+        my_log.debug('Modifier %r (%r) has no domain',
+                     modifier[b'modifier', b'name'], block_name)
+        return
+
+    pointcache = domain.get_pointer(b'point_cache')
+    if pointcache is None:
+        return
+
+    format = domain.get(b'cache_file_format')
+    extensions = {
+      cdefs.PTCACHE_FILE_PTCACHE: cdefs.PTCACHE_EXT,
+      cdefs.PTCACHE_FILE_OPENVDB: cdefs.PTCACHE_EXT_VDB
+    }
+    yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, extensions[format])

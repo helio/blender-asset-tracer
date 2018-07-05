@@ -405,6 +405,23 @@ class ProgressTest(AbstractPackTest):
         self.assertGreaterEqual(cb.transfer_progress.call_count, 2,
                                 'transfer_progress() should be called at least once per asset')
 
+    def test_smoke_cache(self):
+        # The smoke cache uses a glob to indicate which files to pack.
+        cb = mock.Mock(progress.Callback)
+        infile = self.blendfiles / 'T55542-smoke/smoke_cache.blend'
+        with pack.Packer(infile, self.blendfiles, self.tpath) as packer:
+            packer.progress_cb = cb
+            packer.strategise()
+            packer.execute()
+
+        # We should have all the *.bphys files now.
+        count = len(list((self.tpath / 'T55542-smoke/blendcache_smoke_cache').glob('*.bphys')))
+        self.assertEqual(10, count)
+
+        # Physics files + smoke_cache.blend + pack_info.txt
+        self.assertGreaterEqual(cb.transfer_progress.call_count, 12,
+                                'transfer_progress() should be called at least once per asset')
+
 
 class AbortTest(AbstractPackTest):
     def test_abort_strategise(self):

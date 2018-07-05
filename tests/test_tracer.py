@@ -176,6 +176,18 @@ class DepsTest(AbstractTracerTest):
                                            b'//blendcache_particle/43756265_*.bphys', True),
         })
 
+    def test_smoke(self):
+        # This file has an empty name for the cache, which should result in some hex magic
+        # to create a name. See ptcache_filename() in pointcache.c.
+        self.assert_deps('T55542-smoke/smoke_cache.blend', {
+            b'OBSmoke Domain.modifiers[0]': Expect('PointCache', 'name[64]', None, None,
+                                           b'//blendcache_smoke_cache/536D6F6B6520446F6D61696E_*.bphys', True),
+        })
+        self.assert_deps('T55542-smoke/smoke_cache_vdb.blend', {
+            b'OBSmoke Domain.modifiers[0]': Expect('PointCache', 'name[64]', None, None,
+                                           b'//blendcache_smoke_cache_vdb/536D6F6B6520446F6D61696E_*.vdb', True),
+        })
+
     def test_mesh_cache(self):
         self.assert_deps('meshcache-user.blend', {
             b'OBPlane.modifiers[0]': Expect('MeshCacheModifierData', 'filepath[1024]', None, None,

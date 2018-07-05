@@ -39,6 +39,7 @@ eModifierType_Displace = 14
 eModifierType_UVProject = 15
 eModifierType_ParticleSystem = 19
 eModifierType_Fluidsim = 26
+eModifierType_Smokesim = 31
 eModifierType_WeightVGEdit = 36
 eModifierType_WeightVGMix = 37
 eModifierType_WeightVGProximity = 38
@@ -58,7 +59,10 @@ PTCACHE_DISK_CACHE = 64
 PTCACHE_EXTERNAL = 512
 
 # BKE_pointcache.h
+PTCACHE_FILE_PTCACHE = 0
+PTCACHE_FILE_OPENVDB = 1
 PTCACHE_EXT = b'.bphys'
+PTCACHE_EXT_VDB = b'.vdb'
 PTCACHE_PATH = b'blendcache_'
 
 # BKE_node.h
