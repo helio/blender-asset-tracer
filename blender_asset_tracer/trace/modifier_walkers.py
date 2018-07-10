@@ -97,7 +97,14 @@ def _get_image(prop_name: bytes,
     """
     if not dblock:
         return
-    ima = dblock.get_pointer(prop_name)
+
+    try:
+        ima = dblock.get_pointer(prop_name)
+    except KeyError as ex:
+        # No such property, just return.
+        log.debug('_get_image() called with non-existing property name: %s', ex)
+        return
+
     if not ima:
         return
 
