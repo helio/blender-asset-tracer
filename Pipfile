@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+blender-asset-tracer = {editable = true, path = "."}
+mypy = "*"
+pytest = "*"
+pytest-cov = "*"
+
+# for the 'radon cc' command
+radon = "*"
+
+# for converting profiler output to KCacheGrind input
+"pyprof2calltree" = "*"
+
+# For building documentation
+sphinx = "*"
+sphinx-autobuild = "*"
+sphinx-rtd-theme = "*"
+
+[requires]
+python_version = "3.5"
