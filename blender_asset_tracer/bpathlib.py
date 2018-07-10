@@ -118,7 +118,7 @@ class BlendPath(bytes):
 
         return False
 
-    def absolute(self, root: bytes = None) -> 'BlendPath':
+    def absolute(self, root: bytes = b'') -> 'BlendPath':
         """Determine absolute path.
 
         :param root: root directory to compute paths relative to.

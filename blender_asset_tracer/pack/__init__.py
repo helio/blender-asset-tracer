@@ -50,7 +50,7 @@ class AssetAction:
         (if the asset is a blend file) or in another blend file.
         """
 
-        self.new_path = None  # type: pathlib.Path
+        self.new_path = None  # type: typing.Optional[pathlib.Path]
         """Absolute path to the asset in the BAT Pack.
 
         This path may not exist on the local file system at all, for example
@@ -123,10 +123,10 @@ class Packer:
             # type: typing.DefaultDict[pathlib.Path, AssetAction]
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
         self._new_location_paths = set()  # type: typing.Set[pathlib.Path]
-        self._output_path = None  # type: pathlib.Path
+        self._output_path = None  # type: typing.Optional[pathlib.Path]
 
         # Filled by execute()
-        self._file_transferer = None  # type: transfer.FileTransferer
+        self._file_transferer = None  # type: typing.Optional[transfer.FileTransferer]
 
         # Number of files we would copy, if not for --noop
         self._file_count = 0
@@ -148,6 +148,7 @@ class Packer:
     @property
     def output_path(self) -> pathlib.Path:
         """The path of the packed blend file in the target directory."""
+        assert self._output_path is not None
         return self._output_path
 
     @property
@@ -367,6 +368,8 @@ class Packer:
         """
         log.debug('Executing %d copy actions', len(self._actions))
 
+        assert self._file_transferer is not None
+
         try:
             for asset_path, action in self._actions.items():
                 self._check_aborted()
@@ -406,6 +409,7 @@ class Packer:
             # It is *not* used for any disk I/O, since the file may not even
             # exist on the local filesystem.
             bfile_pp = self._actions[bfile_path].new_path
+            assert bfile_pp is not None
 
             # Use tempfile to create a unique name in our temporary directoy.
             # The file should be deleted when self.close() is called, and not
@@ -439,10 +443,13 @@ class Packer:
                 # Find the same block in the newly copied file.
                 block = bfile.dereference_pointer(usage.block.addr_old)
                 if usage.path_full_field is None:
+                    dir_field = usage.path_dir_field
+                    assert dir_field is not None
                     log.debug('   - updating field %s of block %s',
-                              usage.path_dir_field.name.name_only, block)
+                              dir_field.name.name_only,
+                              block)
                     reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
-                    written = block.set(usage.path_dir_field.name.name_only, reldir)
+                    written = block.set(dir_field.name.name_only, reldir)
                     log.debug('   - written %d bytes', written)
 
                     # BIG FAT ASSUMPTION that the filename (e.g. basename
@@ -467,6 +474,7 @@ class Packer:
         # handled below in the for-loop).
         if '*' not in str(asset_path):
             packed_path = action.new_path
+            assert packed_path is not None
             read_path = action.read_from or asset_path
             self._send_to_target(read_path, packed_path,
                                  may_move=action.read_from is not None)
@@ -477,6 +485,7 @@ class Packer:
                 continue
 
             first_pp = self._actions[usage.abspath].new_path
+            assert first_pp is not None
 
             # In case of globbing, we only support globbing by filename,
             # and not by directory.
@@ -504,6 +513,8 @@ class Packer:
         log.debug('Queueing %s of %s', verb, asset_path)
 
         self._tscb.flush()
+
+        assert self._file_transferer is not None
         if may_move:
             self._file_transferer.queue_move(asset_path, target)
         else:

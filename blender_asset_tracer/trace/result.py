@@ -90,7 +90,7 @@ class BlockUsage:
         self.path_base_field = path_base_field
 
         # cached by __fspath__()
-        self._abspath = None  # type: pathlib.Path
+        self._abspath = None  # type: typing.Optional[pathlib.Path]
 
     @staticmethod
     def guess_block_name(block: blendfile.BlendFileBlock) -> bytes:

@@ -116,9 +116,7 @@ class BlendFile:
         self.filepath = path
         self.raw_filepath = path
         self._is_modified = False
-        self.fileobj = None  # type: typing.IO[bytes]
-
-        self._open_file(path, mode)
+        self.fileobj = self._open_file(path, mode)
 
         self.blocks = []  # type: BFBList
         """BlendFileBlocks of this file, in disk order."""
@@ -132,7 +130,7 @@ class BlendFile:
         self.block_header_struct = self.header.create_block_header_struct()
         self._load_blocks()
 
-    def _open_file(self, path: pathlib.Path, mode: str):
+    def _open_file(self, path: pathlib.Path, mode: str) -> typing.IO[bytes]:
         """Open a blend file, decompressing if necessary.
 
         This does not parse the blend file yet, just makes sure that
@@ -155,9 +153,9 @@ class BlendFile:
         if magic == BLENDFILE_MAGIC:
             self.is_compressed = False
             self.raw_filepath = path
-            self.fileobj = fileobj
+            return fileobj
 
-        elif magic[:2] == GZIP_MAGIC:
+        if magic[:2] == GZIP_MAGIC:
             self.is_compressed = True
 
             log.debug("compressed blendfile detected: %s", path)
@@ -177,11 +175,10 @@ class BlendFile:
             # Further interaction should be done with the uncompressed file.
             self.raw_filepath = pathlib.Path(tmpfile.name)
             fileobj.close()
-            self.fileobj = tmpfile
+            return tmpfile
 
-        elif magic != BLENDFILE_MAGIC:
-            fileobj.close()
-            raise exceptions.BlendFileError("File is not a blend file", path)
+        fileobj.close()
+        raise exceptions.BlendFileError("File is not a blend file", path)
 
     def _load_blocks(self) -> None:
         """Read the blend file to load its DNA structure to memory."""
@@ -233,7 +230,7 @@ class BlendFile:
         # TODO(Sybren): remove str() calls when targeting Python 3.6+
         shutil.copy(str(self.filepath), str(path))
 
-        self._open_file(path, mode=mode)
+        self.fileobj = self._open_file(path, mode=mode)
         _cache(path, self)
 
     @property
@@ -658,7 +655,7 @@ class BlendFileBlock:
     def get_pointer(
             self, path: dna.FieldPath,
             default=...,
-    ) -> typing.Union[None, 'BlendFileBlock', typing.Any]:
+    ) -> typing.Union[None, 'BlendFileBlock']:
         """Same as get() but dereferences a pointer.
 
         :raises exceptions.SegmentationFault: when there is no datablock with
@@ -696,6 +693,7 @@ class BlendFileBlock:
             return
 
         array = self.get_pointer(path)
+        assert array is not None
         assert array.code == b'DATA', \
             'Array data block should have code DATA, is %r' % array.code.decode()
         file_offset = array.file_offset

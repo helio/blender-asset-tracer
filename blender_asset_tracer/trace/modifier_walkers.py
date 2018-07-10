@@ -87,7 +87,9 @@ def _get_texture(prop_name: bytes, dblock: blendfile.BlendFileBlock, block_name:
     yield from _get_image(b'ima', tx, block_name)
 
 
-def _get_image(prop_name: bytes, dblock: blendfile.BlendFileBlock, block_name: bytes) \
+def _get_image(prop_name: bytes,
+               dblock: typing.Optional[blendfile.BlendFileBlock],
+               block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     """Yield block usages from an image propery.
 

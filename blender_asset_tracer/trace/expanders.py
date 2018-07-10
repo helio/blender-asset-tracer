@@ -138,6 +138,8 @@ def _expand_group(block: blendfile.BlendFileBlock):
     else:
         for child in iterators.listbase(children):
             subcoll = child.get_pointer(b'collection')
+            if subcoll is None:
+                continue
             log.debug('recursing into child collection %s', subcoll.id_name)
             yield from _expand_group(subcoll)
 

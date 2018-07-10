@@ -26,7 +26,7 @@ from . import BlendFileBlock
 from .dna import FieldPath
 
 
-def listbase(block: BlendFileBlock, next_path: FieldPath = b'next') \
+def listbase(block: typing.Optional[BlendFileBlock], next_path: FieldPath = b'next') \
         -> typing.Iterator[BlendFileBlock]:
     """Generator, yields all blocks in the ListBase linked list."""
     while block:
