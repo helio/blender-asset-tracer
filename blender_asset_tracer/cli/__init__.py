@@ -28,7 +28,8 @@ from . import common, pack, list_deps
 
 
 def cli_main():
-    parser = argparse.ArgumentParser(description='BAT: Blender Asset Tracer')
+    from blender_asset_tracer import __version__
+    parser = argparse.ArgumentParser(description='BAT: Blender Asset Tracer v%s' % __version__)
     common.add_flag(parser, 'profile', help='Run the profiler, write to bam.prof')
 
     # func is set by subparsers to indicate which function to run.
