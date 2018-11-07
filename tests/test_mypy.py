@@ -9,7 +9,7 @@ import blender_asset_tracer
 class MypyRunnerTest(unittest.TestCase):
     def test_run_mypy(self):
         path = pathlib.Path(blender_asset_tracer.__file__).parent
-        result = mypy.api.run(['--incremental', str(path)])
+        result = mypy.api.run(['--incremental', '--ignore-missing-imports', str(path)])
 
         stdout, stderr, status = result
 
