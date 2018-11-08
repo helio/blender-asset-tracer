@@ -223,3 +223,13 @@ def modifier_smoke_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
       cdefs.PTCACHE_FILE_OPENVDB: cdefs.PTCACHE_EXT_VDB
     }
     yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, extensions[format])
+
+
+@mod_handler(cdefs.eModifierType_Cloth)
+def modifier_cloth(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
+        -> typing.Iterator[result.BlockUsage]:
+    pointcache = modifier.get_pointer(b'point_cache')
+    if pointcache is None:
+        return
+
+    yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, cdefs.PTCACHE_EXT)
