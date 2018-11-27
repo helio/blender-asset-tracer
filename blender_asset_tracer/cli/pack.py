@@ -34,8 +34,13 @@ def add_parser(subparsers):
 
     parser = subparsers.add_parser('pack', help=__doc__)
     parser.set_defaults(func=cli_pack)
-    parser.add_argument('blendfile', type=pathlib.Path)
-    parser.add_argument('target', type=pathlib.Path)
+    parser.add_argument('blendfile', type=pathlib.Path,
+                        help='The Blend file to pack.')
+    parser.add_argument('target', type=pathlib.Path,
+                        help='The target can be a directory, a ZIP file (does not have to exist '
+                             "yet, just use 'something.zip' as target), or a URL of S3 storage "
+                             '(s3://endpoint/path).')
+
     parser.add_argument('-p', '--project', type=pathlib.Path,
                         help='Root directory of your project. Paths to below this directory are '
                              'kept in the BAT Pack as well, whereas references to assets from '
@@ -46,9 +51,13 @@ def add_parser(subparsers):
     parser.add_argument('-n', '--noop', default=False, action='store_true',
                         help="Don't copy files, just show what would be done.")
     parser.add_argument('-e', '--exclude', nargs='*', default='',
-                        help="Space-separated list of glob patterns (like '*.abc') to exclude.")
+                        help="Space-separated list of glob patterns (like '*.abc *.vbo') to "
+                             "exclude.")
     parser.add_argument('-c', '--compress', default=False, action='store_true',
-                        help='Compress blend files while copying')
+                        help='Compress blend files while copying. This option is only valid when '
+                             'packing into a directory (contrary to ZIP file or S3 upload). '
+                             'Note that files will NOT be compressed when the destination file '
+                             'already exists and has the same size as the original file.')
 
 
 def cli_pack(args):
