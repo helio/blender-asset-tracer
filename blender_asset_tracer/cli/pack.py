@@ -47,6 +47,8 @@ def add_parser(subparsers):
                         help="Don't copy files, just show what would be done.")
     parser.add_argument('-e', '--exclude', nargs='*', default='',
                         help="Space-separated list of glob patterns (like '*.abc') to exclude.")
+    parser.add_argument('-c', '--compress', default=False, action='store_true',
+                        help='Compress blend files while copying')
 
 
 def cli_pack(args):
@@ -68,12 +70,19 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         if args.noop:
             raise ValueError('S3 uploader does not support no-op.')
 
+        if args.compress:
+            raise ValueError('S3 uploader does not support on-the-fly compression')
+
         packer = create_s3packer(bpath, ppath, tpath)
     elif tpath.suffix.lower() == '.zip':
         from blender_asset_tracer.pack import zipped
-        packer = zipped.ZipPacker(bpath, ppath, tpath, args.noop)
+
+        if args.compress:
+            raise ValueError('ZIP packer does not support on-the-fly compression')
+
+        packer = zipped.ZipPacker(bpath, ppath, tpath, noop=args.noop)
     else:
-        packer = pack.Packer(bpath, ppath, tpath, args.noop)
+        packer = pack.Packer(bpath, ppath, tpath, noop=args.noop, compress=args.compress)
 
     if args.exclude:
         # args.exclude is a list, due to nargs='*', so we have to split and flatten.

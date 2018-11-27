@@ -253,7 +253,7 @@ class DepsTest(AbstractTracerTest):
 
         reclim = sys.getrecursionlimit()
         try:
-            sys.setrecursionlimit(80)
+            sys.setrecursionlimit(100)
             # This should finish without hitting the recursion limit.
             for _ in trace.deps(infinite_bfile):
                 pass

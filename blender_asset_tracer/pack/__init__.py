@@ -97,11 +97,14 @@ class Packer:
                  bfile: pathlib.Path,
                  project: pathlib.Path,
                  target: pathlib.Path,
-                 noop=False) -> None:
+                 *,
+                 noop=False,
+                 compress=False) -> None:
         self.blendfile = bfile
         self.project = project
         self.target = target
         self.noop = noop
+        self.compress = compress
         self._aborted = threading.Event()
         self._abort_lock = threading.RLock()
 
@@ -352,6 +355,9 @@ class Packer:
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
         """Create a FileCopier(), can be overridden in a subclass."""
+
+        if self.compress:
+            return filesystem.CompressedFileCopier()
         return filesystem.FileCopier()
 
     def _start_file_transferrer(self):

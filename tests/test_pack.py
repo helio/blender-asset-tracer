@@ -14,6 +14,7 @@ class AbstractPackTest(AbstractBlendFileTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        logging.getLogger('blender_asset_tracer.compressor').setLevel(logging.DEBUG)
         logging.getLogger('blender_asset_tracer.pack').setLevel(logging.DEBUG)
         logging.getLogger('blender_asset_tracer.blendfile.open_cached').setLevel(logging.DEBUG)
         logging.getLogger('blender_asset_tracer.blendfile.open_cached').setLevel(logging.DEBUG)
@@ -23,8 +24,6 @@ class AbstractPackTest(AbstractBlendFileTest):
         super().setUp()
         self.tdir = tempfile.TemporaryDirectory(suffix='-packtest')
         self.tpath = pathlib.Path(self.tdir.name)
-        # self.tpath = pathlib.Path('/tmp/tempdir-packtest')
-        # self.tpath.mkdir(parents=True, exist_ok=True)
 
     def tearDown(self):
         self.tdir.cleanup()
@@ -267,6 +266,38 @@ class PackTest(AbstractPackTest):
         self.assertTrue(infopath.exists())
         info = infopath.open().read().splitlines(keepends=False)
         self.assertEqual(blendname, info[-1].strip())
+
+    def test_compression(self):
+        blendname = 'subdir/doubly_linked_up.blend'
+        imgfile = self.blendfiles / blendname
+
+        packer = pack.Packer(imgfile, self.blendfiles, self.tpath, compress=True)
+        packer.strategise()
+        packer.execute()
+
+        dest = self.tpath / blendname
+        self.assertTrue(dest.exists())
+        self.assertTrue(blendfile.open_cached(dest).is_compressed)
+
+        for bpath in self.tpath.rglob('*.blend'):
+            if bpath == dest:
+                # Only test files that were bundled as dependency; the main
+                # file was tested above already.
+                continue
+            self.assertTrue(blendfile.open_cached(bpath).is_compressed,
+                            'Expected %s to be compressed' % bpath)
+            break
+        else:
+            self.fail('Expected to have Blend files in the BAT pack.')
+
+        for imgpath in self.tpath.rglob('*.jpg'):
+            with imgpath.open('rb') as imgfile:
+                magic = imgfile.read(3)
+            self.assertEqual(b'\xFF\xD8\xFF', magic,
+                             'Expected %s to NOT be compressed' % imgpath)
+            break
+        else:
+            self.fail('Expected to have JPEG files in the BAT pack.')
 
 
 class ProgressTest(AbstractPackTest):

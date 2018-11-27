@@ -22,6 +22,7 @@ import pathlib
 import shutil
 import typing
 
+from .. import compressor
 from . import transfer
 
 log = logging.getLogger(__name__)
@@ -81,9 +82,17 @@ class FileCopier(transfer.FileTransferer):
         if self.files_skipped:
             log.info('Skipped %d files', self.files_skipped)
 
+    def _move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
+        """Low-level file move"""
+        shutil.move(str(srcpath), str(dstpath))
+
+    def _copy(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
+        """Low-level file copy"""
+        shutil.copy2(str(srcpath), str(dstpath))
+
     def move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
         s_stat = srcpath.stat()
-        shutil.move(str(srcpath), str(dstpath))
+        self._move(srcpath, dstpath)
 
         self.files_transferred += 1
         self.report_transferred(s_stat.st_size)
@@ -108,7 +117,7 @@ class FileCopier(transfer.FileTransferer):
                 return
 
         log.debug('Copying %s → %s', srcpath, dstpath)
-        shutil.copy2(str(srcpath), str(dstpath))
+        self._copy(srcpath, dstpath)
 
         self.already_copied.add((srcpath, dstpath))
         self.files_transferred += 1
@@ -176,3 +185,11 @@ class FileCopier(transfer.FileTransferer):
         self.already_copied.add((src, dst))
 
         return dst
+
+
+class CompressedFileCopier(FileCopier):
+    def _move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
+        compressor.move(srcpath, dstpath)
+
+    def _copy(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
+        compressor.copy(srcpath, dstpath)
