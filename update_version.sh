@@ -18,4 +18,4 @@ echo git tag -a v$1 -m \'Tagged version $1\'
 echo
 echo "Build the package & upload to PyPi using:"
 echo "pipenv run ./setup.py sdist bdist_wheel"
-echo "pipenv run twine upload dist/blender*asset*tracer*${VERSION}*"
+echo "pipenv run twine upload dist/blender*asset*tracer*$1*"
