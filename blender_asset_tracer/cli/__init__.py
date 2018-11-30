@@ -24,7 +24,7 @@ import datetime
 import logging
 import time
 
-from . import common, pack, list_deps
+from . import blocks, common, pack, list_deps
 
 
 def cli_main():
@@ -51,6 +51,7 @@ def cli_main():
              'whereas subcommand-specific options go after it. '
              'Use --help after the subcommand to get more info.')
 
+    blocks.add_parser(subparsers)
     pack.add_parser(subparsers)
     list_deps.add_parser(subparsers)
 
