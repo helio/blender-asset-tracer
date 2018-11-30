@@ -45,6 +45,8 @@ def add_parser(subparsers):
     parser.add_argument('blendfile', type=pathlib.Path)
     parser.add_argument('-d', '--dump', default=False, action='store_true',
                         help='Hex-dump the biggest block')
+    parser.add_argument('-l', '--limit', default=10, type=int,
+                        help='Limit the number of DNA types shown, default is 10')
 
 
 def by_total_bytes(info: BlockTypeInfo) -> int:
@@ -83,7 +85,7 @@ def cli_blocks(args):
     print(fmt % ('Block type', 'Total Size', 'Num blocks', 'Avg Size', 'Median'))
     print(fmt % (35 * '-', 10 * '-', 10 * '-', 10 * '-', 10 * '-'))
     infos = sorted(per_blocktype.values(), key=by_total_bytes, reverse=True)
-    for info in infos[:10]:
+    for info in infos[:args.limit]:
         median_size = sorted(info.sizes)[len(info.sizes) // 2]
         print(fmt % (info.name,
                      common.humanize_bytes(info.total_bytes),
