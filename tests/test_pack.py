@@ -63,6 +63,7 @@ class PackTest(AbstractPackTest):
             self.assertEqual(self.tpath / pf, act.new_path, 'for %s' % pf)
 
         self.assertEqual({}, self.rewrites(packer))
+        self.assertEqual(len(packed_files), len(packer._actions))
 
     def test_strategise_rewrite(self):
         ppath = self.blendfiles / 'subdir'
@@ -122,6 +123,29 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'//../linked_cube.blend', rw_dbllink[0].asset_path)
         self.assertEqual(b'LILib.002', rw_dbllink[1].block_name)
         self.assertEqual(b'//../material_textures.blend', rw_dbllink[1].asset_path)
+
+    def test_strategise_relative_only(self):
+        infile = self.blendfiles / 'absolute_path.blend'
+
+        packer = pack.Packer(infile, self.blendfiles, self.tpath,
+                             relative_only=True)
+        packer.strategise()
+
+        packed_files = (
+            'absolute_path.blend',
+            # Linked with a relative path:
+            'textures/Bricks/brick_dotted_04-color.jpg',
+            # This file links to textures/Textures/Buildings/buildings_roof_04-color.png,
+            # but using an absolute path, so that file should be skipped.
+        )
+        for pf in packed_files:
+            path = self.blendfiles / pf
+            act = packer._actions[path]
+            self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for %s' % pf)
+            self.assertEqual(self.tpath / pf, act.new_path, 'for %s' % pf)
+
+        self.assertEqual(len(packed_files), len(packer._actions))
+        self.assertEqual({}, self.rewrites(packer))
 
     def test_execute_rewrite_no_touch_origs(self):
         infile, _ = self._pack_with_rewrite()

@@ -58,6 +58,9 @@ def add_parser(subparsers):
                              'packing into a directory (contrary to ZIP file or S3 upload). '
                              'Note that files will NOT be compressed when the destination file '
                              'already exists and has the same size as the original file.')
+    parser.add_argument('-r', '--relative-only', default=False, action='store_true',
+                        help='Only pack assets that are referred to with a relative path (e.g. '
+                             'starting with `//`.')
 
 
 def cli_pack(args):
@@ -82,6 +85,9 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         if args.compress:
             raise ValueError('S3 uploader does not support on-the-fly compression')
 
+        if args.relative_only:
+            raise ValueError('S3 uploader does not support the --relative-only option')
+
         packer = create_s3packer(bpath, ppath, tpath)
     elif tpath.suffix.lower() == '.zip':
         from blender_asset_tracer.pack import zipped
@@ -89,9 +95,11 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         if args.compress:
             raise ValueError('ZIP packer does not support on-the-fly compression')
 
-        packer = zipped.ZipPacker(bpath, ppath, tpath, noop=args.noop)
+        packer = zipped.ZipPacker(bpath, ppath, tpath, noop=args.noop,
+                                  relative_only=args.relative_only)
     else:
-        packer = pack.Packer(bpath, ppath, tpath, noop=args.noop, compress=args.compress)
+        packer = pack.Packer(bpath, ppath, tpath, noop=args.noop, compress=args.compress,
+                             relative_only=args.relative_only)
 
     if args.exclude:
         # args.exclude is a list, due to nargs='*', so we have to split and flatten.

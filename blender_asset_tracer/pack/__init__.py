@@ -99,12 +99,14 @@ class Packer:
                  target: pathlib.Path,
                  *,
                  noop=False,
-                 compress=False) -> None:
+                 compress=False,
+                 relative_only=False) -> None:
         self.blendfile = bfile
         self.project = project
         self.target = target
         self.noop = noop
         self.compress = compress
+        self.relative_only = relative_only
         self._aborted = threading.Event()
         self._abort_lock = threading.RLock()
 
@@ -231,6 +233,10 @@ class Packer:
             asset_path = usage.abspath
             if any(asset_path.match(glob) for glob in self._exclude_globs):
                 log.info('Excluding file: %s', asset_path)
+                continue
+
+            if self.relative_only and not usage.asset_path.startswith(b'//'):
+                log.info('Skipping absolute path: %s', usage.asset_path)
                 continue
 
             if usage.is_sequence:
