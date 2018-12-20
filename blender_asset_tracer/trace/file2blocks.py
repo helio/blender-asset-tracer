@@ -110,7 +110,7 @@ class BlockIterator:
         # We've gone through all the blocks in this file, now open the libraries
         # and iterate over the blocks referred there.
         for lib_bpath, idblocks in blocks_per_lib.items():
-            lib_path = lib_bpath.to_path()
+            lib_path = pathlib.Path(lib_bpath.to_path())
             try:
                 lib_path = lib_path.resolve()
             except FileNotFoundError:

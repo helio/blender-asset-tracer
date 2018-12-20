@@ -87,17 +87,19 @@ class BlendPath(bytes):
     def to_path(self) -> pathlib.PurePath:
         """Convert this path to a pathlib.PurePath.
 
+        This path MUST NOT be a blendfile-relative path (e.g. it may not start
+        with `//`). For such paths, first use `.absolute()` to resolve the path.
+
         Interprets the path as UTF-8, and if that fails falls back to the local
         filesystem encoding.
-
-        Note that this does not handle blend-file-relative paths specially, so
-        the returned Path may still start with '//'.
         """
         # TODO(Sybren): once we target Python 3.6, implement __fspath__().
         try:
             decoded = self.decode('utf8')
         except UnicodeDecodeError:
             decoded = self.decode(sys.getfilesystemencoding())
+        if self.is_blendfile_relative():
+            raise ValueError('to_path() cannot be used on blendfile-relative paths')
         return pathlib.PurePath(decoded)
 
     def is_blendfile_relative(self) -> bool:
