@@ -33,12 +33,12 @@ class BlendPath(bytes):
     """A path within Blender is always stored as bytes."""
 
     def __new__(cls, path):
-        if isinstance(path, pathlib.Path):
+        if isinstance(path, pathlib.PurePath):
             path = str(path).encode('utf-8')
         if not isinstance(path, bytes):
             raise TypeError('path must be bytes or pathlib.Path, but is %r' % path)
 
-        return super().__new__(cls, path)
+        return super().__new__(cls, path.replace(b'\\', b'/'))
 
     @classmethod
     def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.Path) -> 'BlendPath':
@@ -57,7 +57,7 @@ class BlendPath(bytes):
             bdir_parts.popleft()
             asset_parts.popleft()
 
-        rel_asset = pathlib.Path(*asset_parts)
+        rel_asset = pathlib.PurePath(*asset_parts)
         # TODO(Sybren): should we use sys.getfilesystemencoding() instead?
         rel_bytes = str(rel_asset).encode('utf-8')
         as_bytes = b'//' + len(bdir_parts) * b'../' + rel_bytes
@@ -84,8 +84,8 @@ class BlendPath(bytes):
             raise ValueError("'a / b' only works when 'b' is a relative path")
         return BlendPath(os.path.join(parentpath, self))
 
-    def to_path(self) -> pathlib.Path:
-        """Convert this path to a pathlib.Path.
+    def to_path(self) -> pathlib.PurePath:
+        """Convert this path to a pathlib.PurePath.
 
         Interprets the path as UTF-8, and if that fails falls back to the local
         filesystem encoding.
@@ -98,7 +98,7 @@ class BlendPath(bytes):
             decoded = self.decode('utf8')
         except UnicodeDecodeError:
             decoded = self.decode(sys.getfilesystemencoding())
-        return pathlib.Path(decoded)
+        return pathlib.PurePath(decoded)
 
     def is_blendfile_relative(self) -> bool:
         return self[:2] == b'//'

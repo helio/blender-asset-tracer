@@ -148,7 +148,7 @@ class BlockUsage:
         """
         if self._abspath is None:
             bpath = self.block.bfile.abspath(self.asset_path)
-            as_path = bpath.to_path()
+            as_path = pathlib.Path(bpath.to_path())
             try:
                 self._abspath = as_path.resolve()
             except FileNotFoundError:

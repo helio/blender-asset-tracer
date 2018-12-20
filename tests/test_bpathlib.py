@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import unittest
 
 from blender_asset_tracer.bpathlib import BlendPath
@@ -6,11 +6,12 @@ from blender_asset_tracer.bpathlib import BlendPath
 
 class BlendPathTest(unittest.TestCase):
     def test_string_path(self):
-        p = BlendPath(Path('//some/file.blend'))
+        p = BlendPath(PurePosixPath('//some/file.blend'))
+        self.assertEqual('//some/file.blend', str(PurePosixPath('//some/file.blend')))
         self.assertEqual(b'//some/file.blend', p)
 
         p = BlendPath(Path(r'C:\some\file.blend'))
-        self.assertEqual(b'C:\\some\\file.blend', p)
+        self.assertEqual(b'C:/some/file.blend', p)
 
     def test_is_absolute(self):
         self.assertFalse(BlendPath(b'//some/file.blend').is_absolute())

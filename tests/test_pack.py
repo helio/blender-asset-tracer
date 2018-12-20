@@ -162,7 +162,7 @@ class PackTest(AbstractPackTest):
     def test_execute_rewrite(self):
         infile, _ = self._pack_with_rewrite()
 
-        extpath = pathlib.Path('//_outside_project', *self.blendfiles.parts[1:])
+        extpath = pathlib.PurePosixPath('//_outside_project', *self.blendfiles.parts[1:])
         extbpath = bpathlib.BlendPath(extpath)
 
         # Those libraries should be properly rewritten.
@@ -209,8 +209,9 @@ class PackTest(AbstractPackTest):
         seq = ed.get_pointer((b'seqbase', b'first'))
         seq_strip = seq.get_pointer(b'strip')
 
-        as_bytes = str((self.blendfiles / 'imgseq').absolute()).encode()
-        relpath = b'//_outside_project%b' % as_bytes
+        imgseq_path = (self.blendfiles / 'imgseq').absolute()
+        as_bytes = str(imgseq_path.relative_to(imgseq_path.anchor)).encode()
+        relpath = bpathlib.BlendPath(b'//_outside_project') / as_bytes
 
         # The image sequence base path should be rewritten.
         self.assertEqual(b'SQ000210.png', seq[b'name'])
