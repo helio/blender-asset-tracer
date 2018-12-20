@@ -17,5 +17,7 @@ class AbstractBlendFileTest(unittest.TestCase):
         self.bf = None
 
     def tearDown(self):
+        if self.bf is not None:
+            self.bf.close()
         self.bf = None
         blendfile.close_all_cached()

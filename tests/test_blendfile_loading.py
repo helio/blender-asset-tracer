@@ -293,6 +293,7 @@ class BlendFileCacheTest(AbstractBlendFileTest):
         self.tpath = pathlib.Path(self.tdir.name)
 
     def tearDown(self):
+        super().tearDown()
         self.tdir.cleanup()
 
     def test_open_cached(self):
