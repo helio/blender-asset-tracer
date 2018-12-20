@@ -177,7 +177,7 @@ class Struct:
                 index = 0
         else:
             name = path
-            name_tail = None
+            name_tail = ()
             index = 0
 
         if not isinstance(name, bytes):
