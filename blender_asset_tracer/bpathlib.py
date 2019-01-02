@@ -71,6 +71,9 @@ class BlendPath(bytes):
         """
         return self.decode('utf8', errors='replace')
 
+    def __repr__(self) -> str:
+        return 'BlendPath(%s)' % super().__repr__()
+
     def __truediv__(self, subpath: bytes):
         """Slash notation like pathlib.Path."""
         sub = BlendPath(subpath)
