@@ -45,6 +45,11 @@ class BlendPathTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             b'/root/and' / BlendPath(b'/parent.blend')
 
+        # On Windows+Python 3.5.4 this resulted in b'//root//parent.blend',
+        # but only if the root is a single term (so not b'//root/and/').
+        self.assertEqual(BlendPath(b'//root/parent.blend'),
+                         BlendPath(b'//root/') / b'parent.blend')
+
     def test_mkrelative(self):
         self.assertEqual(b'//asset.png', BlendPath.mkrelative(
             Path('/path/to/asset.png'),

@@ -79,13 +79,13 @@ class BlendPath(bytes):
         sub = BlendPath(subpath)
         if sub.is_absolute():
             raise ValueError("'a / b' only works when 'b' is a relative path")
-        return BlendPath(os.path.join(self, sub))
+        return BlendPath(self.rstrip(b'/') + b'/' + sub)
 
     def __rtruediv__(self, parentpath: bytes):
         """Slash notation like pathlib.Path."""
         if self.is_absolute():
             raise ValueError("'a / b' only works when 'b' is a relative path")
-        return BlendPath(os.path.join(parentpath, self))
+        return BlendPath(parentpath.rstrip(b'/') + b'/' + self)
 
     def to_path(self) -> pathlib.PurePath:
         """Convert this path to a pathlib.PurePath.
