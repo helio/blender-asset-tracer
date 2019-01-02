@@ -26,6 +26,7 @@ class AbstractPackTest(AbstractBlendFileTest):
         self.tpath = pathlib.Path(self.tdir.name)
 
     def tearDown(self):
+        super().tearDown()
         self.tdir.cleanup()
 
     @staticmethod

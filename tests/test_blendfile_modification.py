@@ -17,6 +17,7 @@ class ModifyUncompressedTest(AbstractBlendFileTest):
         self.assertFalse(self.bf.is_compressed)
 
     def tearDown(self):
+        super().tearDown()
         if self.to_modify.exists():
             self.to_modify.unlink()
 
