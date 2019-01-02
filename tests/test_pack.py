@@ -68,7 +68,7 @@ class PackTest(AbstractPackTest):
 
     def test_strategise_rewrite(self):
         ppath = self.blendfiles / 'subdir'
-        infile = ppath / 'doubly_linked_up.blend'
+        infile = ppath / 'doubly_linked_up-windows.blend'
 
         packer = pack.Packer(infile, ppath, self.tpath)
         packer.strategise()
