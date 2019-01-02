@@ -149,10 +149,17 @@ class BlockUsage:
         if self._abspath is None:
             bpath = self.block.bfile.abspath(self.asset_path)
             as_path = pathlib.Path(bpath.to_path())
+
+            # Windows cannot resolve() a path that has a glob pattern in it.
+            # Since globs are generally only on the filename part, we take that off,
+            # resolve() the parent directory, then put the filename back.
             try:
-                self._abspath = as_path.resolve()
+                abs_parent = as_path.parent.resolve()
             except FileNotFoundError:
                 self._abspath = as_path
+            else:
+                self._abspath = abs_parent / as_path.name
+
             log.info('Resolving %s rel to %s -> %s',
                      self.asset_path, self.block.bfile.filepath, self._abspath)
         else:
