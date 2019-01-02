@@ -82,10 +82,9 @@ class PackTest(AbstractPackTest):
         )
         extpath = self.outside_project()
 
-        act = packer._actions[ppath / 'doubly_linked_up.blend']
-        self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for doubly_linked_up.blend')
-        self.assertEqual(self.tpath / 'doubly_linked_up.blend', act.new_path,
-                         'for doubly_linked_up.blend')
+        act = packer._actions[infile]
+        self.assertEqual(pack.PathAction.KEEP_PATH, act.path_action, 'for %s' % infile.name)
+        self.assertEqual(self.tpath / infile.name, act.new_path, 'for %s' % infile.name)
         for fn in external_files:
             path = self.blendfiles / fn
             act = packer._actions[path]
@@ -95,7 +94,7 @@ class PackTest(AbstractPackTest):
         to_rewrite = (
             'linked_cube.blend',
             'material_textures.blend',
-            'subdir/doubly_linked_up.blend',
+            str(infile.relative_to(self.blendfiles)),
         )
         rewrites = self.rewrites(packer)
         self.assertEqual([self.blendfiles / fn for fn in to_rewrite],
@@ -117,7 +116,7 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b'//textures/Bricks/brick_dotted_04-color.jpg', rw_mattex[1].asset_path)
 
         # Library links from doubly_linked_up.blend to the above to blend files should be rewritten.
-        rw_dbllink = rewrites[self.blendfiles / 'subdir/doubly_linked_up.blend']
+        rw_dbllink = rewrites[infile]
         self.assertEqual(2, len(rw_dbllink))
         rw_dbllink.sort()  # for repeatable tests
         self.assertEqual(b'LILib', rw_dbllink[0].block_name)
