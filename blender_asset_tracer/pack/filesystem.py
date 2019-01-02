@@ -139,7 +139,7 @@ class FileCopier(transfer.FileTransferer):
             if self._error.is_set() or self._abort.is_set():
                 raise AbortTransfer()
 
-            log.info('%s %s → %s', act.name, src, dst)
+            log.info('%s %s -> %s', act.name, src, dst)
             tfunc(src, dst)
         except AbortTransfer:
             # either self._error or self._abort is already set. We just have to
@@ -210,7 +210,7 @@ class FileCopier(transfer.FileTransferer):
                 self.files_skipped += 1
                 return
 
-        log.debug('Copying %s → %s', srcpath, dstpath)
+        log.debug('Copying %s -> %s', srcpath, dstpath)
         self._copy(srcpath, dstpath)
 
         self.already_copied.add((srcpath, dstpath))

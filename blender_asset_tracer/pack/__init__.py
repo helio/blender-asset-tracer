@@ -517,7 +517,7 @@ class Packer:
                         target: pathlib.Path,
                         may_move=False):
         if self.noop:
-            print('%s → %s' % (asset_path, target))
+            print('%s -> %s' % (asset_path, target))
             self._file_count += 1
             return
 
@@ -541,6 +541,6 @@ class Packer:
         with infopath.open('w') as infofile:
             print('This is a Blender Asset Tracer pack.', file=infofile)
             print('Start by opening the following blend file:', file=infofile)
-            print('    %s' % self._output_path.relative_to(self.target), file=infofile)
+            print('    %s' % self._output_path.relative_to(self.target).as_posix(), file=infofile)
 
         self._file_transferer.queue_move(infopath, self.target / infoname)
