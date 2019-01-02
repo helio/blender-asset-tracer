@@ -538,7 +538,7 @@ class Packer:
         infoname = 'pack-info.txt'
         infopath = self._rewrite_in / infoname
         log.debug('Writing info to %s', infopath)
-        with infopath.open('w') as infofile:
+        with infopath.open('wt', encoding='utf8') as infofile:
             print('This is a Blender Asset Tracer pack.', file=infofile)
             print('Start by opening the following blend file:', file=infofile)
             print('    %s' % self._output_path.relative_to(self.target).as_posix(), file=infofile)
