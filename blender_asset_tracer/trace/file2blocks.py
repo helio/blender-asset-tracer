@@ -27,6 +27,7 @@ blend files.
 import collections
 import logging
 import pathlib
+import queue
 import typing
 
 from blender_asset_tracer import blendfile, bpathlib
@@ -34,6 +35,18 @@ from . import expanders, progress
 
 _funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 log = logging.getLogger(__name__)
+
+
+# noinspection PyProtectedMember
+class BlockQueue(queue.PriorityQueue):
+    """PriorityQueue that sorts by filepath and file offset"""
+
+    def _put(self, item: blendfile.BlendFileBlock):
+        super()._put((item.bfile.filepath, item.file_offset, item))
+
+    def _get(self) -> blendfile.BlendFileBlock:
+        _, _, item = super()._get()
+        return item
 
 
 class BlockIterator:
@@ -48,7 +61,7 @@ class BlockIterator:
         self.blocks_yielded = set()  # type: typing.Set[typing.Tuple[pathlib.Path, int]]
 
         # Queue of blocks to visit
-        self.to_visit = collections.deque()  # type: typing.Deque[blendfile.BlendFileBlock]
+        self.to_visit = BlockQueue()
 
         self.progress_cb = progress.Callback()
 
@@ -75,8 +88,8 @@ class BlockIterator:
         # Mapping from library path to data blocks to expand.
         blocks_per_lib = collections.defaultdict(set)
 
-        while self.to_visit:
-            block = self.to_visit.popleft()
+        while not self.to_visit.empty():
+            block = self.to_visit.get()
             assert isinstance(block, blendfile.BlendFileBlock)
             if (bpath, block.addr_old) in self.blocks_yielded:
                 continue
@@ -93,7 +106,7 @@ class BlockIterator:
 
                 # The library block itself should also be reported, because it
                 # represents a blend file that is a dependency as well.
-                self.to_visit.append(lib)
+                self.to_visit.put(lib)
                 continue
 
             if limit_to:
@@ -123,11 +136,12 @@ class BlockIterator:
 
     def _queue_all_blocks(self, bfile: blendfile.BlendFile):
         log.debug('Queueing all blocks from file %s', bfile.filepath)
-        # Don't bother visiting DATA blocks, as we won't know what
-        # to do with them anyway.
-        self.to_visit.extend(block for block in bfile.blocks
-                             if block.code != b'DATA')
-        self._sort_queue()
+        for block in bfile.blocks:
+            # Don't bother visiting DATA blocks, as we won't know what
+            # to do with them anyway.
+            if block.code == b'DATA':
+                continue
+            self.to_visit.put(block)
 
     def _queue_named_blocks(self,
                             bfile: blendfile.BlendFile,
@@ -149,23 +163,11 @@ class BlockIterator:
             for block in same_code:
                 if block.id_name == name_to_find:
                     log.debug('Queueing %r from file %s', block, bfile.filepath)
-                    self.to_visit.append(block)
-        self._sort_queue()
+                    self.to_visit.put(block)
 
     def _queue_dependencies(self, block: blendfile.BlendFileBlock):
-        self.to_visit.extend(expanders.expand_block(block))
-        self._sort_queue()
-
-    def _sort_queue(self):
-        """Sort the queued blocks by file and by offset.
-
-        This allows us to go through the blend files sequentially.
-        """
-
-        def sort_key(block: blendfile.BlendFileBlock):
-            return block.bfile.filepath, block.file_offset
-
-        self.to_visit = collections.deque(sorted(self.to_visit, key=sort_key))
+        for block in expanders.expand_block(block):
+            self.to_visit.put(block)
 
 
 def iter_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:
