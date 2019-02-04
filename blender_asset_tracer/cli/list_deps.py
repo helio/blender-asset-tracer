@@ -19,10 +19,13 @@
 # (c) 2018, Blender Foundation - Sybren A. Stüvel
 """List dependencies of a blend file."""
 import functools
+import hashlib
 import json
 import logging
 import pathlib
 import sys
+import time
+import typing
 
 from blender_asset_tracer import trace
 from . import common
@@ -37,6 +40,10 @@ def add_parser(subparsers):
     parser.set_defaults(func=cli_list)
     parser.add_argument('blendfile', type=pathlib.Path)
     common.add_flag(parser, 'json', help='Output as JSON instead of human-readable text')
+    common.add_flag(parser, 'sha256',
+                    help='Include SHA256sums in the output. Note that those may differ from the '
+                         'SHA256sums in a BAT-pack when paths are rewritten.')
+    common.add_flag(parser, 'timing', help='Include timing information in the output')
 
 
 def cli_list(args):
@@ -46,20 +53,56 @@ def cli_list(args):
         return 3
 
     if args.json:
+        if args.sha256:
+            log.fatal('--sha256 can currently not be used in combination with --json')
+        if args.timing:
+            log.fatal('--timing can currently not be used in combination with --json')
         report_json(bpath)
     else:
-        report_text(bpath)
+        report_text(bpath, include_sha256=args.sha256, show_timing=args.timing)
 
 
-def report_text(bpath):
-    reported_assets = set()
+def calc_sha_sum(filepath: pathlib.Path) -> typing.Tuple[str, float]:
+    start = time.time()
+
+    if filepath.is_dir():
+        for subfile in filepath.rglob('*'):
+            calc_sha_sum(subfile)
+        duration = time.time() - start
+        return '-multiple-', duration
+
+    summer = hashlib.sha256()
+    with filepath.open('rb') as infile:
+        while True:
+            block = infile.read(32 * 1024)
+            if not block:
+                break
+            summer.update(block)
+
+    digest = summer.hexdigest()
+    duration = time.time() - start
+
+    return digest, duration
+
+
+def report_text(bpath, *, include_sha256: bool, show_timing: bool):
+    reported_assets = set()  # type: typing.Set[pathlib.Path]
     last_reported_bfile = None
     shorten = functools.partial(common.shorten, pathlib.Path.cwd())
+
+    time_spent_on_shasums = 0.0
+    start_time = time.time()
 
     for usage in trace.deps(bpath):
         filepath = usage.block.bfile.filepath.absolute()
         if filepath != last_reported_bfile:
-            print(shorten(filepath))
+            if include_sha256:
+                shasum, time_spent = calc_sha_sum(filepath)
+                time_spent_on_shasums += time_spent
+                print(shorten(filepath), shasum)
+            else:
+                print(shorten(filepath))
+
         last_reported_bfile = filepath
 
         for assetpath in usage.files():
@@ -68,8 +111,21 @@ def report_text(bpath):
                 log.debug('Already reported %s', assetpath)
                 continue
 
-            print('   ', shorten(assetpath))
+            if include_sha256:
+                shasum, time_spent = calc_sha_sum(assetpath)
+                time_spent_on_shasums += time_spent
+                print('   ', shorten(assetpath), shasum)
+            else:
+                print('   ', shorten(assetpath))
             reported_assets.add(assetpath)
+
+    if show_timing:
+        duration = time.time() - start_time
+        print('Spent %.2f seconds on producing this listing' % duration)
+        if include_sha256:
+            print('Spent %.2f seconds on calculating SHA sums' % time_spent_on_shasums)
+            percentage = time_spent_on_shasums / duration * 100
+            print('  (that is %d%% of the total time' % percentage)
 
 
 class JSONSerialiser(json.JSONEncoder):
