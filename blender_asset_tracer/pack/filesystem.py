@@ -31,35 +31,6 @@ from . import transfer
 log = logging.getLogger(__name__)
 
 
-class FileCopierPool(multiprocessing.pool.ThreadPool):
-    """Thread pool that doesn't immediately queue all items.
-
-    The default (Thread)Pool class will always have a non-blocking
-    apply_async() function. This means that while we're looping over
-    the queue of files to copy, they are all popped off that queue
-    and turned into async tasks. That means that when there is an
-    error, the queue is empty and we don't have a reliable
-    "these files were not transferred" list.
-
-    This class will block when all threads are in use.
-    """
-    def __init__(self, processes=None, initializer=None, initargs=()):
-        if processes is None:
-            processes = os.cpu_count() or 1
-        if processes < 1:
-            raise ValueError("Number of processes must be at least 1")
-        self._processes = processes
-
-        super().__init__(processes, initializer, initargs)
-        self._taskqueue = queue.Queue(maxsize=processes)
-
-    def _setup_queues(self):
-        self._inqueue = queue.Queue(maxsize=self._processes)
-        self._outqueue = queue.Queue(maxsize=self._processes)
-        self._quick_put = self._inqueue.put
-        self._quick_get = self._outqueue.get
-
-
 class AbortTransfer(Exception):
     """Raised when an error was detected and file transfer should be aborted."""
 
