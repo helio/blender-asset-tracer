@@ -86,10 +86,10 @@ class Packer:
         - strategise() finds all the dependencies and determines what to do
           with them.
         - execute() performs the actual packing operation, by rewriting blend
-          files to ensure the paths to moved files are correct, and
+          files to ensure the paths to moved files are correct and
           transferring the files.
 
-    The file transfer is performed in a separate thread, by a FileTransferer
+    The file transfer is performed in a separate thread by a FileTransferer
     instance.
     """
 
