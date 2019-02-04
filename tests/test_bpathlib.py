@@ -1,5 +1,6 @@
 from pathlib import Path, PurePosixPath
 import unittest
+from unittest import mock
 
 from blender_asset_tracer.bpathlib import BlendPath
 
@@ -12,6 +13,39 @@ class BlendPathTest(unittest.TestCase):
 
         p = BlendPath(Path(r'C:\some\file.blend'))
         self.assertEqual(b'C:/some/file.blend', p)
+
+    def test_invalid_type(self):
+        with self.assertRaises(TypeError):
+            BlendPath('//some/file.blend')
+        with self.assertRaises(TypeError):
+            BlendPath(47)
+        with self.assertRaises(TypeError):
+            BlendPath(None)
+
+    def test_repr(self):
+        p = BlendPath(b'//some/file.blend')
+        self.assertEqual("BlendPath(b'//some/file.blend')", repr(p))
+        p = BlendPath(PurePosixPath('//some/file.blend'))
+        self.assertEqual("BlendPath(b'//some/file.blend')", repr(p))
+
+    def test_to_path(self):
+        self.assertEqual(PurePosixPath('/some/file.blend'),
+                         BlendPath(b'/some/file.blend').to_path())
+        self.assertEqual(PurePosixPath('C:/some/file.blend'),
+                         BlendPath(b'C:/some/file.blend').to_path())
+        self.assertEqual(PurePosixPath('C:/some/file.blend'),
+                         BlendPath(br'C:\some\file.blend').to_path())
+
+        with mock.patch('sys.getfilesystemencoding') as mock_getfse:
+            mock_getfse.return_value = 'latin1'
+
+            # \xe9 is Latin-1 for é, and BlendPath should revert to using the
+            # (mocked) filesystem encoding when decoding as UTF-8 fails.
+            self.assertEqual(PurePosixPath('C:/some/filé.blend'),
+                             BlendPath(b'C:\\some\\fil\xe9.blend').to_path())
+
+        with self.assertRaises(ValueError):
+            BlendPath(b'//relative/path.jpg').to_path()
 
     def test_is_absolute(self):
         self.assertFalse(BlendPath(b'//some/file.blend').is_absolute())
