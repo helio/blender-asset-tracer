@@ -142,8 +142,11 @@ def _expand_group(block: blendfile.BlendFileBlock):
                 continue
 
             if subcoll.dna_type_id == b'ID':
-                # No idea when this happens, but it happened in the Chimes
-                # set of the Spring project. This fixed it.
+                # This issue happened while recursing a linked-in 'Hidden'
+                # collection in the Chimes set of the Spring project. Such
+                # collections named 'Hidden' were apparently created while
+                # converting files from Blender 2.79 to 2.80. This error
+                # isn't reproducible with just Blender 2.80.
                 yield subcoll
                 continue
 
