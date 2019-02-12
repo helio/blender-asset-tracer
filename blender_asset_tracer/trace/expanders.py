@@ -123,7 +123,7 @@ def _expand_curve(block: blendfile.BlendFileBlock):
 
 @dna_code('GR')
 def _expand_group(block: blendfile.BlendFileBlock):
-    log.debug('Block: %s', block)
+    log.debug('Collection/group Block: %s (name=%s)', block, block.id_name)
 
     objects = block.get_pointer((b'gobject', b'first'))
     for item in iterators.listbase(objects):
@@ -140,7 +140,15 @@ def _expand_group(block: blendfile.BlendFileBlock):
             subcoll = child.get_pointer(b'collection')
             if subcoll is None:
                 continue
-            log.debug('recursing into child collection %s', subcoll.id_name)
+
+            if subcoll.dna_type_id == b'ID':
+                # No idea when this happens, but it happened in the Chimes
+                # set of the Spring project. This fixed it.
+                yield subcoll
+                continue
+
+            log.debug('recursing into child collection %s (name=%r, type=%r)',
+                      subcoll, subcoll.id_name, subcoll.dna_type_name)
             yield from _expand_group(subcoll)
 
 

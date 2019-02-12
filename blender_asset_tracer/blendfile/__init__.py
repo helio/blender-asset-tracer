@@ -499,8 +499,12 @@ class BlendFileBlock:
         return self.bfile.structs[self.sdna_index]
 
     @property
+    def dna_type_id(self) -> bytes:
+        return self.dna_type.dna_type_id
+
+    @property
     def dna_type_name(self) -> str:
-        return self.dna_type.dna_type_id.decode('ascii')
+        return self.dna_type_id.decode('ascii')
 
     @property
     def id_name(self) -> typing.Optional[bytes]:
