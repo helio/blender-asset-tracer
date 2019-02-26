@@ -37,9 +37,10 @@ def add_parser(subparsers):
     parser.add_argument('blendfile', type=pathlib.Path,
                         help='The Blend file to pack.')
     parser.add_argument('target', type=str,
-                        help='The target can be a directory, a ZIP file (does not have to exist '
-                             "yet, just use 'something.zip' as target), or a URL of S3 storage "
-                             '(s3://endpoint/path).')
+                        help="The target can be a directory, a ZIP file (does not have to exist "
+                             "yet, just use 'something.zip' as target), "
+                             "or a URL of S3 storage (s3://endpoint/path) "
+                             "or Shaman storage (shaman://endpoint/#checkoutID).")
 
     parser.add_argument('-p', '--project', type=pathlib.Path,
                         help='Root directory of your project. Paths to below this directory are '
@@ -88,6 +89,20 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path, target: str) -
             raise ValueError('S3 uploader does not support the --relative-only option')
 
         packer = create_s3packer(bpath, ppath, pathlib.PurePosixPath(target))
+
+    elif target.startswith('shaman+http:/') or target.startswith('shaman+https:/') \
+            or target.startswith('shaman:/'):
+        if args.noop:
+            raise ValueError('Shaman uploader does not support no-op.')
+
+        if args.compress:
+            raise ValueError('Shaman uploader does not support on-the-fly compression')
+
+        if args.relative_only:
+            raise ValueError('Shaman uploader does not support the --relative-only option')
+
+        packer = create_shamanpacker(bpath, ppath, target)
+
     elif target.lower().endswith('.zip'):
         from blender_asset_tracer.pack import zipped
 
@@ -120,6 +135,39 @@ def create_s3packer(bpath, ppath, tpath) -> pack.Packer:
     log.info('Uploading to S3-compatible storage %s at %s', endpoint, tpath)
 
     return s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)
+
+
+def create_shamanpacker(bpath: pathlib.Path, ppath: pathlib.Path, tpath: str) -> pack.Packer:
+    """Creates a package for sending files to a Shaman server.
+
+    URLs should have the form:
+        shaman://hostname/base/url#jobID
+    This uses HTTPS to connect to the server. To connect using HTTP, use:
+        shaman+http://hostname/base-url#jobID
+    """
+
+    import urllib.parse
+    from blender_asset_tracer.pack import shaman
+
+    urlparts = urllib.parse.urlparse(str(tpath))
+
+    if urlparts.scheme in {'shaman', 'shaman+https'}:
+        scheme = 'https'
+    elif urlparts.scheme == 'shaman+http':
+        scheme = 'http'
+    else:
+        raise SystemExit('Invalid scheme %r, choose shaman:// or shaman+http://', urlparts.scheme)
+
+    checkout_id = urlparts.fragment
+    if not checkout_id:
+        log.warning('No checkout ID given on the URL. Going to send BAT pack to Shaman, '
+                    'but NOT creating a checkout')
+
+    new_urlparts = (scheme, *urlparts[1:-1], '')
+    endpoint = urllib.parse.urlunparse(new_urlparts)
+
+    log.info('Uploading to Shaman server %s with job %s', endpoint, checkout_id)
+    return shaman.ShamanPacker(bpath, ppath, tpath, endpoint=endpoint, checkout_id=checkout_id)
 
 
 def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, str]:

@@ -17,27 +17,12 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
-import logging
-import pathlib
-import unittest
+import requests
 
-from blender_asset_tracer import blendfile
-
-logging.basicConfig(
-    format='%(asctime)-15s %(levelname)8s %(name)s %(message)s',
-    level=logging.INFO)
+token = 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiIxMjM0NSIsImV4cCI6MTU1MDI0NDUxMiwiaWF0IjoxNTUwMTU4MTEyLCJzdWIiOiJ1c2VyLUlEIn0.oahZHIVBmULFz0JhOjv4-AEN8vdURjGBiIDdZbvW9A2FQWdi0RyrW2KpcHHpKS8KiG81p9pn2bVytMrRJ8Cjmw'
 
 
-class AbstractBlendFileTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.blendfiles = pathlib.Path(__file__).with_name('blendfiles')
-
-    def setUp(self):
-        self.bf = None
-
-    def tearDown(self):
-        if self.bf is not None:
-            self.bf.close()
-        self.bf = None
-        blendfile.close_all_cached()
+def session():
+    sess = requests.session()
+    sess.headers['Authorization'] = 'Bearer ' + token
+    return sess
