@@ -136,7 +136,7 @@ class Packer:
         # Number of files we would copy, if not for --noop
         self._file_count = 0
 
-        self._tmpdir = tempfile.TemporaryDirectory(suffix='-batpack')
+        self._tmpdir = tempfile.TemporaryDirectory(prefix='bat-', suffix='-batpack')
         self._rewrite_in = pathlib.Path(self._tmpdir.name)
 
     def close(self) -> None:
@@ -427,6 +427,7 @@ class Packer:
             # The file should be deleted when self.close() is called, and not
             # when the bfile_tp object is GC'd.
             bfile_tmp = tempfile.NamedTemporaryFile(dir=str(self._rewrite_in),
+                                                    prefix='bat-',
                                                     suffix='-' + bfile_path.name,
                                                     delete=False)
             bfile_tp = pathlib.Path(bfile_tmp.name)
