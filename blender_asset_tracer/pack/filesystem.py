@@ -58,13 +58,14 @@ class FileCopier(transfer.FileTransferer):
     def run(self) -> None:
 
         pool = multiprocessing.pool.ThreadPool(processes=self.transfer_threads)
-
+        dst = pathlib.Path()
         for src, pure_dst, act in self.iter_queue():
             try:
-                if self._error.is_set() or self._abort.is_set():
+                dst = pathlib.Path(pure_dst)
+
+                if self.has_error or self._abort.is_set():
                     raise AbortTransfer()
 
-                dst = pathlib.Path(pure_dst)
                 if self._skip_file(src, dst, act):
                     continue
 
@@ -82,8 +83,9 @@ class FileCopier(transfer.FileTransferer):
                 if self._abort.is_set():
                     log.debug('Error transferring %s to %s: %s', src, dst, ex)
                 else:
-                    log.exception('Error transferring %s to %s', src, dst)
-                    self._error.set()
+                    msg = 'Error transferring %s to %s' % (src, dst)
+                    log.exception(msg)
+                    self.error_set(msg)
                 # Put the files to copy back into the queue, and abort. This allows
                 # the main thread to inspect the queue and see which files were not
                 # copied. The one we just failed (due to this exception) should also
@@ -106,7 +108,7 @@ class FileCopier(transfer.FileTransferer):
         try:
             tfunc = self.transfer_funcs[src.is_dir(), act]
 
-            if self._error.is_set() or self._abort.is_set():
+            if self.has_error or self._abort.is_set():
                 raise AbortTransfer()
 
             log.info('%s %s -> %s', act.name, src, dst)
@@ -121,8 +123,9 @@ class FileCopier(transfer.FileTransferer):
             if self._abort.is_set():
                 log.debug('Error transferring %s to %s: %s', src, dst, ex)
             else:
-                log.exception('Error transferring %s to %s', src, dst)
-                self._error.set()
+                msg = 'Error transferring %s to %s' % (src, dst)
+                log.exception(msg)
+                self.error_set(msg)
             # Put the files to copy back into the queue, and abort. This allows
             # the main thread to inspect the queue and see which files were not
             # copied. The one we just failed (due to this exception) should also
@@ -164,7 +167,7 @@ class FileCopier(transfer.FileTransferer):
     def copyfile(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
         """Copy a file, skipping when it already exists."""
 
-        if self._abort.is_set() or self._error.is_set():
+        if self._abort.is_set() or self.has_error:
             return
 
         if (srcpath, dstpath) in self.already_copied:
@@ -204,13 +207,13 @@ class FileCopier(transfer.FileTransferer):
             log.debug('SKIP %s; already copied', src)
             return
 
-        if self._error.is_set() or self._abort.is_set():
+        if self.has_error or self._abort.is_set():
             raise AbortTransfer()
 
         dst.mkdir(parents=True, exist_ok=True)
         errors = []  # type: typing.List[typing.Tuple[pathlib.Path, pathlib.Path, str]]
         for srcpath in src.iterdir():
-            if self._error.is_set() or self._abort.is_set():
+            if self.has_error or self._abort.is_set():
                 raise AbortTransfer()
 
             dstpath = dst / srcpath.name

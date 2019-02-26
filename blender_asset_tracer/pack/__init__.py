@@ -192,15 +192,17 @@ class Packer:
         """Raises an Aborted exception when abort() was called."""
 
         with self._abort_lock:
+            reason = ''
             if self._file_transferer is not None and self._file_transferer.has_error:
                 log.error('A transfer error occurred')
+                reason = self._file_transferer.error_message()
             elif not self._aborted.is_set():
                 return
 
             log.warning('Aborting')
             self._tscb.flush()
             self._progress_cb.pack_aborted()
-            raise Aborted()
+            raise Aborted(reason)
 
     def exclude(self, *globs: str):
         """Register glob-compatible patterns of files that should be ignored.
