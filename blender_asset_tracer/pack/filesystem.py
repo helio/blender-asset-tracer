@@ -19,9 +19,7 @@
 # (c) 2018, Blender Foundation - Sybren A. Stüvel
 import logging
 import multiprocessing.pool
-import os
 import pathlib
-import queue
 import shutil
 import typing
 
