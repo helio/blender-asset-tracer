@@ -120,7 +120,7 @@ class S3Transferrer(transfer.FileTransferer):
         if files_skipped:
             log.info('Skipped %d files', files_skipped)
 
-    def upload_file(self, src: pathlib.Path, dst: pathlib.Path) -> bool:
+    def upload_file(self, src: pathlib.Path, dst: pathlib.PurePath) -> bool:
         """Upload a file to an S3 bucket.
 
         The first part of 'dst' is used as the bucket name, the remained as the

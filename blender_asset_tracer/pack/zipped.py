@@ -37,7 +37,8 @@ class ZipPacker(Packer):
     """Creates a zipped BAT Pack instead of a directory."""
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
-        return ZipTransferrer(self.target.absolute())
+        target_path = pathlib.Path(self._target_path)
+        return ZipTransferrer(target_path.absolute())
 
 
 class ZipTransferrer(transfer.FileTransferer):
@@ -61,7 +62,7 @@ class ZipTransferrer(transfer.FileTransferer):
             for src, dst, act in self.iter_queue():
                 assert src.is_absolute(), 'expecting only absolute paths, not %r' % src
 
-                dst = dst.absolute()
+                dst = pathlib.Path(dst).absolute()
                 try:
                     relpath = dst.relative_to(zippath)
 

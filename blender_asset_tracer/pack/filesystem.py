@@ -59,11 +59,12 @@ class FileCopier(transfer.FileTransferer):
 
         pool = multiprocessing.pool.ThreadPool(processes=self.transfer_threads)
 
-        for src, dst, act in self.iter_queue():
+        for src, pure_dst, act in self.iter_queue():
             try:
                 if self._error.is_set() or self._abort.is_set():
                     raise AbortTransfer()
 
+                dst = pathlib.Path(pure_dst)
                 if self._skip_file(src, dst, act):
                     continue
 

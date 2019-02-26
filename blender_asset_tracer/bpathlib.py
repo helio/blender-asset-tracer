@@ -41,11 +41,17 @@ class BlendPath(bytes):
         return super().__new__(cls, path.replace(b'\\', b'/'))
 
     @classmethod
-    def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.Path) -> 'BlendPath':
-        """Construct a BlendPath to the asset relative to the blend file."""
+    def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.PurePath) -> 'BlendPath':
+        """Construct a BlendPath to the asset relative to the blend file.
+
+        Assumes that bfile_path is absolute.
+        """
         from collections import deque
 
-        bdir_parts = deque(bfile_path.absolute().parent.parts)
+        assert bfile_path.is_absolute(), \
+            'BlendPath().mkrelative(bfile_path=%r) should get absolute bfile_path' % bfile_path
+
+        bdir_parts = deque(bfile_path.parent.parts)
         asset_parts = deque(asset_path.absolute().parts)
 
         # Remove matching initial parts. What is left in bdir_parts represents

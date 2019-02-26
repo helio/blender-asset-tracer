@@ -50,7 +50,7 @@ class AssetAction:
         (if the asset is a blend file) or in another blend file.
         """
 
-        self.new_path = None  # type: typing.Optional[pathlib.Path]
+        self.new_path = None  # type: typing.Optional[pathlib.PurePath]
         """Absolute path to the asset in the BAT Pack.
 
         This path may not exist on the local file system at all, for example
@@ -96,7 +96,7 @@ class Packer:
     def __init__(self,
                  bfile: pathlib.Path,
                  project: pathlib.Path,
-                 target: pathlib.Path,
+                 target: str,
                  *,
                  noop=False,
                  compress=False,
@@ -104,6 +104,7 @@ class Packer:
         self.blendfile = bfile
         self.project = project
         self.target = target
+        self._target_path = self._make_target_path(target)
         self.noop = noop
         self.compress = compress
         self.relative_only = relative_only
@@ -128,7 +129,7 @@ class Packer:
             # type: typing.DefaultDict[pathlib.Path, AssetAction]
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
         self._new_location_paths = set()  # type: typing.Set[pathlib.Path]
-        self._output_path = None  # type: typing.Optional[pathlib.Path]
+        self._output_path = None  # type: typing.Optional[pathlib.PurePath]
 
         # Filled by execute()
         self._file_transferer = None  # type: typing.Optional[transfer.FileTransferer]
@@ -138,6 +139,15 @@ class Packer:
 
         self._tmpdir = tempfile.TemporaryDirectory(prefix='bat-', suffix='-batpack')
         self._rewrite_in = pathlib.Path(self._tmpdir.name)
+
+    def _make_target_path(self, target: str) -> pathlib.PurePath:
+        """Return a Path for the given target.
+
+        This can be the target directory itself, but can also be a non-existent
+        directory if the target doesn't support direct file access. It should
+        only be used to perform path operations, and never for file operations.
+        """
+        return pathlib.Path(target).absolute()
 
     def close(self) -> None:
         """Clean up any temporary files."""
@@ -151,7 +161,7 @@ class Packer:
         self.close()
 
     @property
-    def output_path(self) -> pathlib.Path:
+    def output_path(self) -> pathlib.PurePath:
         """The path of the packed blend file in the target directory."""
         assert self._output_path is not None
         return self._output_path
@@ -217,7 +227,7 @@ class Packer:
         # The blendfile that we pack is generally not its own dependency, so
         # we have to explicitly add it to the _packed_paths.
         bfile_path = self.blendfile.absolute()
-        bfile_pp = self.target / bfile_path.relative_to(self.project)
+        bfile_pp = self._target_path / bfile_path.relative_to(self.project)
         self._output_path = bfile_pp
 
         self._progress_cb.pack_start()
@@ -301,7 +311,7 @@ class Packer:
             self._new_location_paths.add(asset_path)
         else:
             log.debug('%s can keep using %s', bfile_path, usage.asset_path)
-            asset_pp = self.target / asset_path.relative_to(self.project)
+            asset_pp = self._target_path / asset_path.relative_to(self.project)
             act.new_path = asset_pp
 
     def _find_new_paths(self):
@@ -311,7 +321,7 @@ class Packer:
             act = self._actions[path]
             assert isinstance(act, AssetAction)
             # Like a join, but ignoring the fact that 'path' is absolute.
-            act.new_path = pathlib.Path(self.target, '_outside_project', *path.parts[1:])
+            act.new_path = pathlib.Path(self._target_path, '_outside_project', *path.parts[1:])
 
     def _group_rewrites(self) -> None:
         """For each blend file, collect which fields need rewriting.
@@ -515,7 +525,7 @@ class Packer:
 
     def _send_to_target(self,
                         asset_path: pathlib.Path,
-                        target: pathlib.Path,
+                        target: pathlib.PurePath,
                         may_move=False):
         if self.noop:
             print('%s -> %s' % (asset_path, target))
@@ -542,6 +552,7 @@ class Packer:
         with infopath.open('wt', encoding='utf8') as infofile:
             print('This is a Blender Asset Tracer pack.', file=infofile)
             print('Start by opening the following blend file:', file=infofile)
-            print('    %s' % self._output_path.relative_to(self.target).as_posix(), file=infofile)
+            print('    %s' % self._output_path.relative_to(self._target_path).as_posix(),
+                  file=infofile)
 
-        self._file_transferer.queue_move(infopath, self.target / infoname)
+        self._file_transferer.queue_move(infopath, self._target_path / infoname)

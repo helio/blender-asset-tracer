@@ -38,7 +38,7 @@ class Callback(blender_asset_tracer.trace.progress.Callback):
         """Called when packing starts."""
 
     def pack_done(self,
-                  output_blendfile: pathlib.Path,
+                  output_blendfile: pathlib.PurePath,
                   missing_files: typing.Set[pathlib.Path]) -> None:
         """Called when packing is done."""
 
@@ -57,10 +57,10 @@ class Callback(blender_asset_tracer.trace.progress.Callback):
     def rewrite_blendfile(self, orig_filename: pathlib.Path) -> None:
         """Called for every rewritten blendfile."""
 
-    def transfer_file(self, src: pathlib.Path, dst: pathlib.Path) -> None:
+    def transfer_file(self, src: pathlib.Path, dst: pathlib.PurePath) -> None:
         """Called when a file transfer starts."""
 
-    def transfer_file_skipped(self, src: pathlib.Path, dst: pathlib.Path) -> None:
+    def transfer_file_skipped(self, src: pathlib.Path, dst: pathlib.PurePath) -> None:
         """Called when a file is skipped because it already exists."""
 
     def transfer_progress(self, total_bytes: int, transferred_bytes: int) -> None:
@@ -105,7 +105,7 @@ class ThreadSafeCallback(Callback):
         self._queue(self.wrapped.pack_start)
 
     def pack_done(self,
-                  output_blendfile: pathlib.Path,
+                  output_blendfile: pathlib.PurePath,
                   missing_files: typing.Set[pathlib.Path]) -> None:
         self._queue(self.wrapped.pack_done, output_blendfile, missing_files)
 
@@ -115,10 +115,10 @@ class ThreadSafeCallback(Callback):
     def trace_asset(self, filename: pathlib.Path) -> None:
         self._queue(self.wrapped.trace_asset, filename)
 
-    def transfer_file(self, src: pathlib.Path, dst: pathlib.Path) -> None:
+    def transfer_file(self, src: pathlib.Path, dst: pathlib.PurePath) -> None:
         self._queue(self.wrapped.transfer_file, src, dst)
 
-    def transfer_file_skipped(self, src: pathlib.Path, dst: pathlib.Path) -> None:
+    def transfer_file_skipped(self, src: pathlib.Path, dst: pathlib.PurePath) -> None:
         self._queue(self.wrapped.transfer_file_skipped, src, dst)
 
     def transfer_progress(self, total_bytes: int, transferred_bytes: int) -> None:

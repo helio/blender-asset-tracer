@@ -36,7 +36,7 @@ def add_parser(subparsers):
     parser.set_defaults(func=cli_pack)
     parser.add_argument('blendfile', type=pathlib.Path,
                         help='The Blend file to pack.')
-    parser.add_argument('target', type=pathlib.Path,
+    parser.add_argument('target', type=str,
                         help='The target can be a directory, a ZIP file (does not have to exist '
                              "yet, just use 'something.zip' as target), or a URL of S3 storage "
                              '(s3://endpoint/path).')
@@ -76,9 +76,8 @@ def cli_pack(args):
             raise SystemExit(1)
 
 
-def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
-                  tpath: pathlib.Path) -> pack.Packer:
-    if str(tpath).startswith('s3:/'):
+def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path, target: str) -> pack.Packer:
+    if target.startswith('s3:/'):
         if args.noop:
             raise ValueError('S3 uploader does not support no-op.')
 
@@ -88,18 +87,18 @@ def create_packer(args, bpath: pathlib.Path, ppath: pathlib.Path,
         if args.relative_only:
             raise ValueError('S3 uploader does not support the --relative-only option')
 
-        packer = create_s3packer(bpath, ppath, tpath)
-    elif tpath.suffix.lower() == '.zip':
+        packer = create_s3packer(bpath, ppath, pathlib.PurePosixPath(target))
+    elif target.lower().endswith('.zip'):
         from blender_asset_tracer.pack import zipped
 
         if args.compress:
             raise ValueError('ZIP packer does not support on-the-fly compression')
 
-        packer = zipped.ZipPacker(bpath, ppath, tpath, noop=args.noop,
+        packer = zipped.ZipPacker(bpath, ppath, target, noop=args.noop,
                                   relative_only=args.relative_only)
     else:
-        packer = pack.Packer(bpath, ppath, tpath, noop=args.noop, compress=args.compress,
-                             relative_only=args.relative_only)
+        packer = pack.Packer(bpath, ppath, target, noop=args.noop,
+                             compress=args.compress, relative_only=args.relative_only)
 
     if args.exclude:
         # args.exclude is a list, due to nargs='*', so we have to split and flatten.
@@ -123,7 +122,7 @@ def create_s3packer(bpath, ppath, tpath) -> pack.Packer:
     return s3.S3Packer(bpath, ppath, tpath, endpoint=endpoint)
 
 
-def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, str]:
     """Return paths to blendfile, project, and pack target.
 
     Calls sys.exit() if anything is wrong.

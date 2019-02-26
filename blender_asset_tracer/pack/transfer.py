@@ -44,7 +44,7 @@ class Action(enum.Enum):
     MOVE = 2
 
 
-QueueItem = typing.Tuple[pathlib.Path, pathlib.Path, Action]
+QueueItem = typing.Tuple[pathlib.Path, pathlib.PurePath, Action]
 
 
 class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
@@ -82,7 +82,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
     def run(self):
         """Perform actual file transfer in a thread."""
 
-    def queue_copy(self, src: pathlib.Path, dst: pathlib.Path):
+    def queue_copy(self, src: pathlib.Path, dst: pathlib.PurePath):
         """Queue a copy action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
@@ -91,7 +91,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         self.queue.put((src, dst, Action.COPY))
         self.total_queued_bytes += src.stat().st_size
 
-    def queue_move(self, src: pathlib.Path, dst: pathlib.Path):
+    def queue_move(self, src: pathlib.Path, dst: pathlib.PurePath):
         """Queue a move action from 'src' to 'dst'."""
         assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
         assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
