@@ -61,9 +61,15 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
         # at).
         self._checkout_location = ''
 
+        self.uploaded_files = 0
+        self.uploaded_bytes = 0
+
     # noinspection PyBroadException
     def run(self) -> None:
         try:
+            self.uploaded_files = 0
+            self.uploaded_bytes = 0
+
             # Construct the Shaman Checkout Definition file.
             # This blocks until we know the entire list of files to transfer.
             definition_file, allowed_relpaths, delete_when_done = self._create_checkout_definition()
@@ -85,8 +91,11 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                     # An error has already been logged.
                     return
 
+                if not to_upload:
+                    break
+
                 # Send the files that still need to be sent.
-                self.log.info('Upload attempt %d', try_index+1)
+                self.log.info('Upload attempt %d', try_index + 1)
                 failed_paths = self._upload_files(to_upload)
                 if not failed_paths:
                     break
@@ -239,8 +248,6 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             return failed_paths
 
         self.log.info('Going to upload %d of %d files', len(to_upload), len(self._file_info))
-        uploaded_files = 0
-        uploaded_bytes = 0
         while to_upload:
             # After too many failures, just retry to get a fresh set of files to upload.
             if len(failed_paths) > MAX_FAILED_PATHS:
@@ -295,16 +302,17 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 return failed_paths
 
             failed_paths.discard(path)
-            uploaded_files += 1
+            self.uploaded_files += 1
             file_size = fileinfo.abspath.stat().st_size
-            uploaded_bytes += file_size
+            self.uploaded_bytes += file_size
             self.report_transferred(file_size)
 
-        self.log.info('Uploaded %d bytes in %d files (%d files were already there)',
-                      uploaded_bytes, uploaded_files, len(to_upload) - uploaded_files)
-
         if not failed_paths:
-            self.log.info('Done uploading files')
+            self.log.info('Done uploading %d bytes in %d files',
+                          self.uploaded_bytes, self.uploaded_files)
+        else:
+            self.log.info('Uploaded %d bytes in %d files so far',
+                          self.uploaded_bytes, self.uploaded_files)
 
         return failed_paths
 
