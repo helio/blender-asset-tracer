@@ -17,9 +17,7 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
-import json
 import pathlib
-from unittest import mock
 
 import responses
 

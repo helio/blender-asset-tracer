@@ -26,6 +26,7 @@ import requests
 
 import blender_asset_tracer.pack as bat_pack
 import blender_asset_tracer.pack.transfer as bat_transfer
+from blender_asset_tracer.pack.shaman.transfer import ShamanTransferrer
 
 log = logging.getLogger(__name__)
 
@@ -42,11 +43,13 @@ class ShamanPacker(bat_pack.Packer):
                  **kwargs) -> None:
         """Constructor
 
+        :param target: mock target '/' to construct project-relative paths.
         :param endpoint: URL of the Shaman endpoint.
         """
         super().__init__(bfile, project, target, **kwargs)
         self.checkout_id = checkout_id
         self.shaman_endpoint = endpoint
+        self._checkout_location = ''
 
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
@@ -55,13 +58,30 @@ class ShamanPacker(bat_pack.Packer):
         return resp.text
 
     def _create_file_transferer(self) -> bat_transfer.FileTransferer:
-        from . import transfer
-
         # TODO: pass self._get_auth_token itself, so that the Transferer will be able to
         # decide when to get this token (and how many times).
         auth_token = self._get_auth_token()
-        return transfer.ShamanTransferrer(auth_token, self.project, self.shaman_endpoint,
-                                          self.checkout_id)
+        return ShamanTransferrer(auth_token, self.project, self.shaman_endpoint, self.checkout_id)
 
     def _make_target_path(self, target: str) -> pathlib.PurePath:
         return pathlib.PurePosixPath('/')
+
+    def _on_file_transfer_finished(self, *, file_transfer_completed: bool):
+        super()._on_file_transfer_finished(file_transfer_completed=file_transfer_completed)
+
+        assert isinstance(self._file_transferer, ShamanTransferrer)
+        self._checkout_location = self._file_transferer.checkout_location
+
+    @property
+    def checkout_location(self) -> str:
+        """Return the checkout location of the packed blend file."""
+        return self._checkout_location
+
+    @property
+    def output_path(self) -> pathlib.PurePath:
+        """The path of the packed blend file in the target directory."""
+        assert self._output_path is not None
+
+        checkout_location = pathlib.PurePosixPath(self._checkout_location)
+        rel_output = self._output_path.relative_to(self._target_path)
+        return checkout_location / rel_output

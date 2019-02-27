@@ -17,21 +17,36 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
-import zipfile
+import pathlib
+
+import responses
+
 from test_pack import AbstractPackTest
+from blender_asset_tracer.pack import shaman
 
-from blender_asset_tracer.pack import zipped
+httpmock = responses.RequestsMock()
 
 
-class ZippedPackTest(AbstractPackTest):
-    def test_basic_file(self):
+class ShamanPackTest(AbstractPackTest):
+    @httpmock.activate
+    def test_all_files_already_uploaded(self):
         infile = self.blendfiles / 'basic_file_ñønæščii.blend'
-        zippath = self.tpath / 'target.zip'
-        with zipped.ZipPacker(infile, infile.parent, zippath) as packer:
+
+        packer = shaman.ShamanPacker(infile, infile.parent, '/',
+                                     endpoint='http://shaman.local',
+                                     checkout_id='DA-JOBBY-ID')
+
+        # Temporary hack
+        httpmock.add('GET', 'http://shaman.local/get-token', body='AUTH-TOKEN')
+
+        # Just fake that everything is already available on the server.
+        httpmock.add('POST', 'http://shaman.local/checkout/requirements', body='')
+        httpmock.add('POST', 'http://shaman.local/checkout/create/DA-JOBBY-ID',
+                     body='DA/-JOBBY-ID')
+
+        with packer:
             packer.strategise()
             packer.execute()
 
-        self.assertTrue(zippath.exists())
-        with zipfile.ZipFile(str(zippath)) as inzip:
-            inzip.testzip()
-            self.assertEqual({'pack-info.txt', 'basic_file_ñønæščii.blend'}, set(inzip.namelist()))
+        self.assertEqual(pathlib.PurePosixPath('DA/-JOBBY-ID/basic_file_ñønæščii.blend'),
+                         packer.output_path)

@@ -403,9 +403,11 @@ class Packer:
                 log.info('Would copy %d files to %s', self._file_count, self.target)
                 return
             self._file_transferer.done_and_join()
+            self._on_file_transfer_finished(file_transfer_completed=True)
         except KeyboardInterrupt:
             log.info('File transfer interrupted with Ctrl+C, aborting.')
             self._file_transferer.abort_and_join()
+            self._on_file_transfer_finished(file_transfer_completed=False)
             raise
         finally:
             self._tscb.flush()
@@ -415,6 +417,13 @@ class Packer:
             # example to avoid it being involved in any following call to
             # self.abort().
             self._file_transferer = None
+
+    def _on_file_transfer_finished(self, *, file_transfer_completed: bool) -> None:
+        """Called when the file transfer is finished.
+
+        This can be used in subclasses to perform cleanup on the file transferer,
+        or to obtain information from it before we destroy it.
+        """
 
     def _rewrite_paths(self) -> None:
         """Rewrite paths to the new location of the assets.
