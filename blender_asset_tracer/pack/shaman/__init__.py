@@ -20,6 +20,7 @@
 """Shaman Client interface."""
 import logging
 import pathlib
+import typing
 import urllib.parse
 
 import requests
@@ -93,3 +94,24 @@ class ShamanPacker(bat_pack.Packer):
             log.exception('Error communicating with Shaman')
             self.abort(str(ex))
             self._check_aborted()
+
+
+def parse_endpoint(shaman_url: str) -> typing.Tuple[str, str]:
+    """Convert shaman://hostname/path#checkoutID into endpoint URL + checkout ID."""
+
+    urlparts = urllib.parse.urlparse(str(shaman_url))
+
+    if urlparts.scheme in {'shaman', 'shaman+https'}:
+        scheme = 'https'
+    elif urlparts.scheme == 'shaman+http':
+        scheme = 'http'
+    else:
+        raise ValueError('Invalid scheme %r, choose shaman:// or shaman+http://', urlparts.scheme)
+
+    checkout_id = urllib.parse.unquote(urlparts.fragment)
+
+    path = urlparts.path or '/'
+    new_urlparts = (scheme, urlparts.netloc, path, *urlparts[3:-1], '')
+    endpoint = urllib.parse.urlunparse(new_urlparts)
+
+    return endpoint, checkout_id

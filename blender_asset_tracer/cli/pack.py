@@ -145,29 +145,15 @@ def create_shamanpacker(bpath: pathlib.Path, ppath: pathlib.Path, tpath: str) ->
     This uses HTTPS to connect to the server. To connect using HTTP, use:
         shaman+http://hostname/base-url#jobID
     """
-
-    import urllib.parse
     from blender_asset_tracer.pack import shaman
 
-    urlparts = urllib.parse.urlparse(str(tpath))
-
-    if urlparts.scheme in {'shaman', 'shaman+https'}:
-        scheme = 'https'
-    elif urlparts.scheme == 'shaman+http':
-        scheme = 'http'
-    else:
-        raise SystemExit('Invalid scheme %r, choose shaman:// or shaman+http://', urlparts.scheme)
-
-    checkout_id = urlparts.fragment
+    endpoint, checkout_id = shaman.parse_endpoint(tpath)
     if not checkout_id:
         log.warning('No checkout ID given on the URL. Going to send BAT pack to Shaman, '
                     'but NOT creating a checkout')
 
-    new_urlparts = (scheme, *urlparts[1:-1], '')
-    endpoint = urllib.parse.urlunparse(new_urlparts)
-
     log.info('Uploading to Shaman server %s with job %s', endpoint, checkout_id)
-    return shaman.ShamanPacker(bpath, ppath, tpath, endpoint=endpoint, checkout_id=checkout_id)
+    return shaman.ShamanPacker(bpath, ppath, '/', endpoint=endpoint, checkout_id=checkout_id)
 
 
 def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, str]:
