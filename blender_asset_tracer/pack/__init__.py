@@ -110,6 +110,7 @@ class Packer:
         self.relative_only = relative_only
         self._aborted = threading.Event()
         self._abort_lock = threading.RLock()
+        self._abort_reason = ''
 
         # Set this to a custom Callback() subclass instance before calling
         # strategise() to receive progress reports.
@@ -176,7 +177,7 @@ class Packer:
         self._progress_cb = new_progress_cb
         self._tscb = progress.ThreadSafeCallback(self._progress_cb)
 
-    def abort(self) -> None:
+    def abort(self, reason='') -> None:
         """Aborts the current packing process.
 
         Can be called from any thread. Aborts as soon as the running strategise
@@ -184,6 +185,7 @@ class Packer:
         an Aborted exception.
         """
         with self._abort_lock:
+            self._abort_reason = reason
             if self._file_transferer:
                 self._file_transferer.abort()
             self._aborted.set()
@@ -192,7 +194,7 @@ class Packer:
         """Raises an Aborted exception when abort() was called."""
 
         with self._abort_lock:
-            reason = ''
+            reason = self._abort_reason
             if self._file_transferer is not None and self._file_transferer.has_error:
                 log.error('A transfer error occurred')
                 reason = self._file_transferer.error_message()
@@ -201,7 +203,7 @@ class Packer:
 
             log.warning('Aborting')
             self._tscb.flush()
-            self._progress_cb.pack_aborted()
+            self._progress_cb.pack_aborted(reason)
             raise Aborted(reason)
 
     def exclude(self, *globs: str):

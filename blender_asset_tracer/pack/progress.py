@@ -42,7 +42,7 @@ class Callback(blender_asset_tracer.trace.progress.Callback):
                   missing_files: typing.Set[pathlib.Path]) -> None:
         """Called when packing is done."""
 
-    def pack_aborted(self):
+    def pack_aborted(self, reason: str):
         """Called when packing was aborted."""
 
     def trace_blendfile(self, filename: pathlib.Path) -> None:
@@ -108,6 +108,9 @@ class ThreadSafeCallback(Callback):
                   output_blendfile: pathlib.PurePath,
                   missing_files: typing.Set[pathlib.Path]) -> None:
         self._queue(self.wrapped.pack_done, output_blendfile, missing_files)
+
+    def pack_aborted(self, reason: str):
+        self._queue(self.wrapped.pack_aborted, reason)
 
     def trace_blendfile(self, filename: pathlib.Path) -> None:
         self._queue(self.wrapped.trace_blendfile, filename)

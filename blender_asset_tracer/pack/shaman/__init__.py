@@ -85,3 +85,11 @@ class ShamanPacker(bat_pack.Packer):
         checkout_location = pathlib.PurePosixPath(self._checkout_location)
         rel_output = self._output_path.relative_to(self._target_path)
         return checkout_location / rel_output
+
+    def execute(self):
+        try:
+            super().execute()
+        except requests.exceptions.ConnectionError as ex:
+            log.exception('Error communicating with Shaman')
+            self.abort(str(ex))
+            self._check_aborted()
