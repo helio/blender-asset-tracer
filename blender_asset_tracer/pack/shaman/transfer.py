@@ -30,6 +30,9 @@ import blender_asset_tracer.pack.transfer as bat_transfer
 MAX_DEFERRED_PATHS = 8
 MAX_FAILED_PATHS = 8
 
+response_file_unknown = "file-unknown"
+response_already_uploading = "already-uploading"
+
 
 class FileInfo:
     def __init__(self, checksum: str, filesize: int, abspath: pathlib.Path):
@@ -204,9 +207,9 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 self.error_set(msg)
                 return None
 
-            if response == 'does-not-exist':
+            if response == response_file_unknown:
                 to_upload.appendleft(path)
-            elif response == 'already-uploading':
+            elif response == response_already_uploading:
                 to_upload.append(path)
             elif response == 'ERROR':
                 msg = 'Error from Shaman: %s' % path

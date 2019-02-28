@@ -65,7 +65,7 @@ class AbstractChecksumTest(AbstractBlendFileTest):
             self.assertEqual('text/plain', request.headers['Content-Type'])
             self.assertValidCheckoutDef(request.body)
 
-            body = 'does-not-exist path/in/pack/test1.blend\n'
+            body = 'file-unknown path/in/pack/test1.blend\n'
             return 200, {'Content-Type': 'text/plain'}, body
 
         def mock_checkout_create(request):
@@ -87,5 +87,5 @@ class AbstractChecksumTest(AbstractBlendFileTest):
         trans.queue_copy(self.test_file2, pathlib.Path('/') / self.packed_names[self.test_file2])
         trans.done_and_join()
 
-        self.assertFalse(trans.has_error)
+        self.assertFalse(trans.has_error, trans.error_message())
         self.assertEqual('DA/-JOB-ID', trans.checkout_location)
