@@ -182,7 +182,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
 
     def _send_checkout_def_to_shaman(self, definition_file: bytes,
                                      allowed_relpaths: typing.Set[str]) \
-            -> typing.Optional[typing.Deque[str]]:
+            -> typing.Optional[collections.deque]:
         """Send the checkout definition file to the Shaman.
 
         :return: An iterable of paths (relative to the project root) that still
@@ -196,7 +196,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             self.error_set(msg)
             return None
 
-        to_upload = collections.deque()  # type: typing.Deque[str]
+        to_upload = collections.deque()  # type: collections.deque
         for line in resp.iter_lines():
             response, path = line.decode().split(' ', 1)
             self.log.debug('   %s: %s', response, path)
@@ -224,7 +224,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
 
         return to_upload
 
-    def _upload_files(self, to_upload: typing.Deque[str]) -> typing.Set[str]:
+    def _upload_files(self, to_upload: collections.deque) -> typing.Set[str]:
         """Actually upload the files to Shaman.
 
         Returns the set of files that we did not upload.
