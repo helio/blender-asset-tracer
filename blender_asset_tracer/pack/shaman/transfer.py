@@ -262,8 +262,10 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             fileinfo = self._file_info[path]
             self.log.info('   %s', path)
 
+            headers = {
+                'X-Shaman-Original-Filename': path,
+            }
             # Let the Shaman know whether we can defer uploading this file or not.
-            headers = {}
             can_defer = (len(deferred_paths) < MAX_DEFERRED_PATHS
                          and path not in deferred_paths
                          and len(to_upload))
