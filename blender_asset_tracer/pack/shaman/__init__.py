@@ -55,7 +55,9 @@ class ShamanPacker(bat_pack.Packer):
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
         log.warning('Using temporary hack to get auth token from Shaman')
-        resp = requests.get(urllib.parse.urljoin(self.shaman_endpoint, 'get-token'))
+        resp = requests.get(urllib.parse.urljoin(self.shaman_endpoint, 'get-token'),
+                            timeout=10)
+        resp.raise_for_status()
         return resp.text
 
     def _create_file_transferer(self) -> bat_transfer.FileTransferer:

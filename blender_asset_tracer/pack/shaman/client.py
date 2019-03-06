@@ -37,6 +37,7 @@ class ShamanClient:
         self._session.headers['Authorization'] = 'Bearer ' + auth_token
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
+        kwargs.setdefault('timeout', 300)
         full_url = urllib.parse.urljoin(self._base_url, url)
         return self._session.request(method, full_url, **kwargs)
 

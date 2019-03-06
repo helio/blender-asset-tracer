@@ -189,7 +189,8 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             need to be uploaded, or None if there was an error.
         """
         resp = self.client.post('checkout/requirements', data=definition_file, stream=True,
-                                headers={'Content-Type': 'text/plain'})
+                                headers={'Content-Type': 'text/plain'},
+                                timeout=15)
         if resp.status_code >= 300:
             msg = 'Error from Shaman, code %d: %s' % (resp.status_code, resp.text)
             self.log.error(msg)
