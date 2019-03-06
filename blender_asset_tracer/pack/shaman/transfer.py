@@ -348,6 +348,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
 
     @property
     def checkout_location(self) -> str:
+        """Returns the checkout location, or '' if no checkout was made."""
         if not self._checkout_location:
-            raise ValueError('No checkout was created yet.')
+            return ''
         return self._checkout_location

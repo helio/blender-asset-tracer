@@ -75,7 +75,10 @@ class ShamanPacker(bat_pack.Packer):
 
     @property
     def checkout_location(self) -> str:
-        """Return the checkout location of the packed blend file."""
+        """Return the checkout location of the packed blend file.
+
+        :return: the checkout location, or '' if no checkout was made.
+        """
         return self._checkout_location
 
     @property
