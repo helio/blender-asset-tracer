@@ -20,6 +20,7 @@
 
 import urllib.parse
 
+import urllib3.util.retry
 import requests.adapters
 
 
@@ -30,11 +31,17 @@ class ShamanClient:
         self._auth_token = auth_token
         self._base_url = base_url
 
-        http_adapter = requests.adapters.HTTPAdapter(max_retries=5)
+        retries = urllib3.util.retry.Retry(
+            total=10,
+            backoff_factor=0.05,
+        )
+        http_adapter = requests.adapters.HTTPAdapter(max_retries=retries)
         self._session = requests.session()
         self._session.mount('https://', http_adapter)
         self._session.mount('http://', http_adapter)
-        self._session.headers['Authorization'] = 'Bearer ' + auth_token
+
+        if auth_token:
+            self._session.headers['Authorization'] = 'Bearer ' + auth_token
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
         kwargs.setdefault('timeout', 300)

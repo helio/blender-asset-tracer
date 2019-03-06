@@ -27,7 +27,9 @@ import requests
 
 import blender_asset_tracer.pack as bat_pack
 import blender_asset_tracer.pack.transfer as bat_transfer
-from blender_asset_tracer.pack.shaman.transfer import ShamanTransferrer
+
+from .transfer import ShamanTransferrer
+from .client import ShamanClient
 
 log = logging.getLogger(__name__)
 
@@ -55,8 +57,8 @@ class ShamanPacker(bat_pack.Packer):
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
         log.warning('Using temporary hack to get auth token from Shaman')
-        resp = requests.get(urllib.parse.urljoin(self.shaman_endpoint, 'get-token'),
-                            timeout=10)
+        unauth_shaman = ShamanClient('', self.shaman_endpoint)
+        resp = unauth_shaman.get('get-token', timeout=10)
         resp.raise_for_status()
         return resp.text
 
