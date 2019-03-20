@@ -46,6 +46,7 @@ eModifierType_WeightVGMix = 37
 eModifierType_WeightVGProximity = 38
 eModifierType_Ocean = 39
 eModifierType_MeshCache = 46
+eModifierType_MeshSequenceCache = 52
 
 # DNA_particle_types.h
 PART_DRAW_OB = 7

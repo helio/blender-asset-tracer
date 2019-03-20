@@ -62,6 +62,17 @@ def modifier_filepath(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, 
     yield result.BlockUsage(modifier, path, path_full_field=field, block_name=block_name)
 
 
+@mod_handler(cdefs.eModifierType_MeshSequenceCache)
+def modifier_mesh_sequence_cache(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
+                                 block_name: bytes) -> typing.Iterator[result.BlockUsage]:
+    """Yield the Alembic file(s) used by this modifier"""
+    cache_file = modifier.get_pointer(b'cache_file')
+    path, field = cache_file.get(b'filepath', return_field=True)
+
+    yield result.BlockUsage(cache_file, path, path_full_field=field,
+                            block_name=b'%s.cache_file' % block_name)
+
+
 @mod_handler(cdefs.eModifierType_Ocean)
 def modifier_ocean(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
