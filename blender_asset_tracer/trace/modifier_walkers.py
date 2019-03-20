@@ -122,7 +122,8 @@ def modifier_texture(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, b
 @mod_handler(cdefs.eModifierType_WeightVGEdit)
 @mod_handler(cdefs.eModifierType_WeightVGMix)
 @mod_handler(cdefs.eModifierType_WeightVGProximity)
-def modifier_mask_texture(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_mask_texture(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
+                          block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     return _get_texture(b'mask_texture', modifier, block_name)
 
@@ -162,7 +163,8 @@ def _walk_point_cache(ctx: ModifierContext,
 
 
 @mod_handler(cdefs.eModifierType_ParticleSystem)
-def modifier_particle_system(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
+def modifier_particle_system(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
+                             block_name: bytes) \
         -> typing.Iterator[result.BlockUsage]:
     psys = modifier.get_pointer(b'psys')
     if psys is None:
@@ -219,8 +221,8 @@ def modifier_smoke_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
 
     format = domain.get(b'cache_file_format')
     extensions = {
-      cdefs.PTCACHE_FILE_PTCACHE: cdefs.PTCACHE_EXT,
-      cdefs.PTCACHE_FILE_OPENVDB: cdefs.PTCACHE_EXT_VDB
+        cdefs.PTCACHE_FILE_PTCACHE: cdefs.PTCACHE_EXT,
+        cdefs.PTCACHE_FILE_OPENVDB: cdefs.PTCACHE_EXT_VDB
     }
     yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, extensions[format])
 
