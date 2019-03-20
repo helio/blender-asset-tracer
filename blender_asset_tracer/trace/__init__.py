@@ -51,8 +51,17 @@ def deps(bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback
     if progress_cb:
         bi.progress_cb = progress_cb
 
+    # Remember which block usages we've reported already, without keeping the
+    # blocks themselves in memory.
+    seen_hashes = set()  # type: typing.Set[int]
+
     for block in asset_holding_blocks(bi.iter_blocks(bfile)):
-        yield from blocks2assets.iter_assets(block)
+        for block_usage in blocks2assets.iter_assets(block):
+            usage_hash = hash(block_usage)
+            if usage_hash in seen_hashes:
+                continue
+            seen_hashes.add(usage_hash)
+            yield block_usage
 
 
 def asset_holding_blocks(blocks: typing.Iterable[blendfile.BlendFileBlock]) \

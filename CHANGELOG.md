@@ -7,6 +7,7 @@ changed functionality, fixed bugs).
 ## Version 1.1 (in development)
 
 - Add support for Shaman (https://gitlab.com/blender-institute/shaman)
+- Add support for Alembic files referenced in linked-in libraries.
 
 
 ## Version 1.0 (2019-03-01)

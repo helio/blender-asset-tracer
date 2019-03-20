@@ -87,6 +87,9 @@ class DepsTest(AbstractTracerTest):
                 if not exp:
                     # Don't leave empty sets in expects.
                     del expects[dep.block_name]
+            elif exp is None:
+                self.assertIsNone(actual, msg='unexpected dependency of block %s' % dep.block_name)
+                del expects[dep.block_name]
             else:
                 self.assertEqual(exp, actual, msg='for block %s' % dep.block_name)
                 del expects[dep.block_name]
@@ -150,6 +153,25 @@ class DepsTest(AbstractTracerTest):
             b'CFclothsim.abc': Expect('CacheFile', 'filepath[1024]', None, None,
                                       b'//clothsim.abc', False),
         })
+
+    def test_alembic_sequence(self):
+        self.assert_deps('alembic-sequence-user.blend', {
+            b'CFclothsim_alembic':
+                Expect('CacheFile', 'filepath[1024]', None, None, b'//clothsim.030.abc', True),
+        })
+
+        # Test the filename expansion.
+        expected = [self.blendfiles / ('clothsim.%03d.abc' % num)
+                    for num in range(30, 36)]
+        performed_test = False
+        for dep in trace.deps(self.blendfiles / 'alembic-sequence-user.blend'):
+            if dep.block_name != b'CFclothsim_alembic':
+                continue
+
+            actual = list(dep.files())
+            self.assertEqual(actual, expected)
+            performed_test = True
+        self.assertTrue(performed_test)
 
     def test_block_mc(self):
         self.assert_deps('movieclip.blend', {
