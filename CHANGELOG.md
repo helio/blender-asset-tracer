@@ -6,7 +6,7 @@ changed functionality, fixed bugs).
 
 ## Version 1.1 (in development)
 
-- Add support for Shaman (https://gitlab.com/blender-institute/shaman)
+- Add support for Shaman (https://www.flamenco.io/docs/user_manual/shaman/)
 - Add support for Alembic files referenced in linked-in libraries.
 
 
