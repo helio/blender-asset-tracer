@@ -20,7 +20,7 @@
 
 import urllib.parse
 
-import urllib3.util.retry
+import requests.packages.urllib3.util.retry
 import requests.adapters
 
 
@@ -31,7 +31,7 @@ class ShamanClient:
         self._auth_token = auth_token
         self._base_url = base_url
 
-        retries = urllib3.util.retry.Retry(
+        retries = requests.packages.urllib3.util.retry.Retry(
             total=10,
             backoff_factor=0.05,
         )
