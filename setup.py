@@ -58,6 +58,9 @@ setup(
             'bat = blender_asset_tracer.cli:cli_main',
         ],
     },
+    install_requires=[
+        'requests>=2.21.0',
+    ],
     extras_require={
         's3': ['boto3'],
     },
