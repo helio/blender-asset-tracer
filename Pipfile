@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 
 [dev-packages]
-blender-asset-tracer = {editable = true,path = "."}
+blender-asset-tracer = {path = ".",editable = true}
 mypy = "*"
 pytest = "*"
 pytest-cov = "*"
@@ -21,6 +21,7 @@ sphinx-rtd-theme = "*"
 twine = "*"
 responses = "*"
 pathlib2 = {version = "*",markers = "python_version < '3.6'"}
+tox = "*"
 
 [requires]
 python_version = "3.5"
