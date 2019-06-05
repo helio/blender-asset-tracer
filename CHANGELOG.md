@@ -4,6 +4,11 @@ This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
 
+## Version 1.1.1 (2019-04-18)
+
+- Blender 2.79 / Python 3.5 compatibility fix.
+
+
 ## Version 1.1 (2019-03-25)
 
 - Add support for Shaman (https://www.flamenco.io/docs/user_manual/shaman/)
