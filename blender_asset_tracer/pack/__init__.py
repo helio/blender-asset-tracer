@@ -339,14 +339,24 @@ class Packer:
         only once.
         """
 
-        for action in self._actions.values():
+        # Take a copy so we can modify self._actions in the loop.
+        actions = set(self._actions.values())
+
+        while actions:
+            action = actions.pop()
+
             if action.path_action != PathAction.FIND_NEW_LOCATION:
                 # This asset doesn't require a new location, so no rewriting necessary.
                 continue
 
             for usage in action.usages:
                 bfile_path = usage.block.bfile.filepath.absolute().resolve()
+                insert_new_action = bfile_path not in self._actions
+
                 self._actions[bfile_path].rewrites.append(usage)
+
+                if insert_new_action:
+                    actions.add(self._actions[bfile_path])
 
     def _path_in_project(self, path: pathlib.Path) -> bool:
         try:
