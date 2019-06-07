@@ -231,7 +231,12 @@ class Packer:
         # The blendfile that we pack is generally not its own dependency, so
         # we have to explicitly add it to the _packed_paths.
         bfile_path = self.blendfile.absolute()
-        bfile_pp = self._target_path / bfile_path.relative_to(self.project)
+
+        # Both paths have to be resolved first, because this also translates
+        # network shares mapped to Windows drive letters back to their UNC
+        # notation. Only resolving one but not the other (which can happen
+        # with the abosolute() call above) can cause errors.
+        bfile_pp = self._target_path / bfile_path.resolve().relative_to(self.project.resolve())
         self._output_path = bfile_pp
 
         self._progress_cb.pack_start()
