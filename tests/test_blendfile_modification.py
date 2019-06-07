@@ -3,7 +3,7 @@ from shutil import copyfile
 import os
 
 from blender_asset_tracer import blendfile
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 
 class ModifyUncompressedTest(AbstractBlendFileTest):

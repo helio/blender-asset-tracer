@@ -7,7 +7,7 @@ from unittest import mock
 
 from blender_asset_tracer import blendfile, pack, bpathlib
 from blender_asset_tracer.pack import progress
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 
 class AbstractPackTest(AbstractBlendFileTest):

@@ -1,4 +1,4 @@
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 from blender_asset_tracer.trace import file_sequence
 

@@ -21,7 +21,7 @@ import pathlib
 
 import responses
 
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 from blender_asset_tracer.pack.shaman import transfer
 
 httpmock = responses.RequestsMock()

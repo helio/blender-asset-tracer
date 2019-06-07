@@ -18,7 +18,7 @@
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
 import zipfile
-from test_pack import AbstractPackTest
+from tests.test_pack import AbstractPackTest
 
 from blender_asset_tracer.pack import zipped
 

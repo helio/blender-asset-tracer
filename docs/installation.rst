@@ -3,13 +3,13 @@ Installation
 
 BAT🦇 can be installed with `pip`::
 
-    pip install blender-asset-tracer
+    pip3 install blender-asset-tracer
 
 
 Requirements and Dependencies
 -----------------------------
 
-In order to run BAT you need Python 3.5; BAT always targets the Python version
+In order to run BAT you need Python 3.5 or newer; BAT always targets the Python version
 used in the `latest Blender release`_.
 
 .. _`latest Blender release`: https://www.blender.org/download
@@ -23,13 +23,11 @@ S3-compatible storage requires the `boto3` library.
 Development dependencies
 ------------------------
 
-In order to start developing on BAT you need a bit more. First use Git_ to get a
-copy of the source::
+In order to start developing on BAT you need a bit more. Dependencies are managed by Poetry_::
 
     git clone https://gitlab.com/dr.sybren/blender-asset-tracer.git
-    virtualenv -p /path/to/python3 bat-venv
-    . ./bat-venv/bin/activate
     cd blender-asset-tracer
-    pip3 install -U -r requirements-dev.txt
+    pip3 install poetry
+    poetry install
 
-.. _Git: https://git-scm.com/
+.. _Poetry: https://poetry.eustace.io/

@@ -5,7 +5,7 @@ import typing
 
 from blender_asset_tracer import trace, blendfile
 from blender_asset_tracer.blendfile import dna
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 # Mimicks a BlockUsage, but without having to set the block to an expected value.
 Expect = collections.namedtuple(

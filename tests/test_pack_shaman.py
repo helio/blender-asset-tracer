@@ -21,7 +21,7 @@ import pathlib
 
 import responses
 
-from test_pack import AbstractPackTest
+from tests.test_pack import AbstractPackTest
 from blender_asset_tracer.pack import shaman
 
 httpmock = responses.RequestsMock()

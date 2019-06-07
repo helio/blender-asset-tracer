@@ -3,7 +3,7 @@ import tempfile
 import shutil
 
 from blender_asset_tracer import blendfile
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 from blender_asset_tracer import compressor
 

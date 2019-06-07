@@ -21,7 +21,7 @@ import json
 import pathlib
 from unittest import mock
 
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 from blender_asset_tracer.pack.shaman import cache
 
 

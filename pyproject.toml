@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "blender-asset-tracer"
+version = "1.1.1"
+homepage = 'https://developer.blender.org/project/profile/79/'
+
+description = "BAT parses Blend files and produces dependency information. After installation run `bat --help`"
+authors = [
+    "Sybren A. Stüvel <sybren@stuvel.eu>",
+    "Campbell Barton",
+    "At Mind B.V. - Jeroen Bakker",
+    ]
+license = "GPL-2.0+"
+classifiers = [
+    'Environment :: Console',
+    'Intended Audience :: Developers',
+    'Operating System :: OS Independent',
+    'Topic :: Utilities',
+]
+
+[tool.poetry.extras]
+s3 = ["boto3"]
+
+[tool.poetry.dependencies]
+python = "^3.5"
+requests = "^2.11"
+
+# For S3 storage support:
+boto3 = { version = "^1.9", optional = true }
+
+[tool.poetry.dev-dependencies]
+mypy = ">=0.701"
+pytest = "^4.6"
+pytest-cov = "^2.7"
+# for the 'radon cc' command
+radon = "^3.0"
+# for converting profiler output to KCacheGrind input
+"pyprof2calltree" = "*"
+# For building documentation
+sphinx = "^2.1"
+sphinx-autobuild = "^0.7"
+sphinx-rtd-theme = "^0.4"
+responses = "^0.10"
+pathlib2 = {version = "^2.3", python = "<3.6"}
+tox = "^3.12"
+
+[tool.poetry.scripts]
+bat = 'blender_asset_tracer.cli:cli_main'
+
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.2 (in development)
+
+- Migrated from Pipenv to Poetry for managing Python package dependencies.
+
 
 ## Version 1.1.1 (2019-04-18)
 

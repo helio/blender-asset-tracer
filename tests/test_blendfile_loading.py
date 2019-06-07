@@ -4,7 +4,7 @@ import tempfile
 
 from blender_asset_tracer import blendfile
 from blender_asset_tracer.blendfile import iterators, exceptions
-from abstract_test import AbstractBlendFileTest
+from tests.abstract_test import AbstractBlendFileTest
 
 
 class BlendFileBlockTest(AbstractBlendFileTest):
