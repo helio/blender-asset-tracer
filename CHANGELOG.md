@@ -6,6 +6,7 @@ changed functionality, fixed bugs).
 ## Version 1.2 (in development)
 
 - Migrated from Pipenv to Poetry for managing Python package dependencies.
+- Windows compatibility fix when using mapped network storage.
 
 
 ## Version 1.1.1 (2019-04-18)
