@@ -7,6 +7,7 @@ changed functionality, fixed bugs).
 
 - Migrated from Pipenv to Poetry for managing Python package dependencies.
 - Windows compatibility fix when using mapped network storage.
+- Windows compatibility fix when using different assets with the same path but on different drives.
 
 
 ## Version 1.1.1 (2019-04-18)

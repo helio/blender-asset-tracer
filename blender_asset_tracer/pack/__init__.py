@@ -329,8 +329,16 @@ class Packer:
         for path in self._new_location_paths:
             act = self._actions[path]
             assert isinstance(act, AssetAction)
-            # Like a join, but ignoring the fact that 'path' is absolute.
-            act.new_path = pathlib.Path(self._target_path, '_outside_project', *path.parts[1:])
+
+            # Remove the base of the path, effectively removing the 'absoluteness'.
+            # On POSIX this turns '/path/file.txt' into 'path/file.txt'.
+            # On Windows this turns 'X:/path/file.txt' into 'X/path/file.txt'.
+            if path.drive:
+                path_parts = (path.drive[0], *path.parts[1:])
+            else:
+                path_parts = path.parts[1:]
+
+            act.new_path = pathlib.Path(self._target_path, '_outside_project', *path_parts)
 
     def _group_rewrites(self) -> None:
         """For each blend file, collect which fields need rewriting.
