@@ -19,6 +19,7 @@
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
 """Shaman Client interface."""
 import logging
+import os
 import pathlib
 import typing
 import urllib.parse
@@ -56,7 +57,12 @@ class ShamanPacker(bat_pack.Packer):
 
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
-        log.warning('Using temporary hack to get auth token from Shaman')
+        token_from_env = os.environ.get('SHAMAN_JWT_TOKEN')
+        if token_from_env:
+            return token_from_env
+
+        log.warning('Using temporary hack to get auth token from Shaman, '
+                    'set SHAMAN_JTW_TOKEN to prevent')
         unauth_shaman = ShamanClient('', self.shaman_endpoint)
         resp = unauth_shaman.get('get-token', timeout=10)
         resp.raise_for_status()

@@ -8,6 +8,7 @@ changed functionality, fixed bugs).
 - Migrated from Pipenv to Poetry for managing Python package dependencies.
 - Windows compatibility fix when using mapped network storage.
 - Windows compatibility fix when using different assets with the same path but on different drives.
+- Allow setting the Shaman JWT authentication token in the `SHAMAN_JWT_TOKEN` environment variable.
 
 
 ## Version 1.1.1 (2019-04-18)
