@@ -99,3 +99,8 @@ open Blender itself. Here is an example showing how to determine the render engi
 
     json.dump(render_info, sys.stdout, indent=4, sort_keys=True)
     print()
+
+To understand the naming of the properties, look at Blender's `DNA_xxxx.h` files with struct
+definitions. It is those names that are accessed via `blender_asset_tracer.blendfile`. The
+mapping to the names accessible in Blender's Python interface can be found in the `rna_yyyy.c`
+files.
