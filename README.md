@@ -57,6 +57,7 @@ BAT can be used as a Python library to inspect the contents of blend files, with
 open Blender itself. Here is an example showing how to determine the render engine used:
 
     #!/usr/bin/env python3.7
+    import json
     import sys
     from pathlib import Path
 
@@ -70,13 +71,31 @@ open Blender itself. Here is an example showing how to determine the render engi
     bf_path = Path(sys.argv[1])
     bf = blendfile.open_cached(bf_path)
 
+    # Get the first window manager (there is probably exactly one).
     window_managers = bf.find_blocks_from_code(b'WM')
     assert window_managers, 'The Blend file has no window manager'
     window_manager = window_managers[0]
-    windows = window_manager.get_pointer((b'windows', b'first'))
 
+    # Get the scene from the first window.
+    windows = window_manager.get_pointer((b'windows', b'first'))
     for window in iterators.listbase(windows):
         scene = window.get_pointer(b'scene')
         break
 
-    print(scene[b'r', b'engine'].decode('utf8'))
+    # BAT can only return simple values, so it can't return the embedded
+    # struct 'r'. 'r.engine' is a simple string, though.
+    engine = scene[b'r', b'engine'].decode('utf8')
+    xsch = scene[b'r', b'xsch']
+    ysch = scene[b'r', b'ysch']
+    size = scene[b'r', b'size'] / 100.0
+
+    render_info = {
+        'engine': engine,
+        'frame_pixels': {
+            'x': int(xsch * size),
+            'y': int(ysch * size),
+        },
+    }
+
+    json.dump(render_info, sys.stdout, indent=4, sort_keys=True)
+    print()
