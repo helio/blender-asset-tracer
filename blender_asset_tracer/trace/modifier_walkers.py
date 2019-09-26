@@ -215,12 +215,6 @@ def modifier_fluid_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock,
     yield result.BlockUsage(fss, bpath, path_full_field=field,
                             is_sequence=True, block_name=block_name)
 
-    # TODO(Sybren): check whether this is actually used
-    # (in Blender's source there is a point_cache pointer, but it's NULL in my test)
-    pointcache = modifier.get_pointer(b'point_cache')
-    if pointcache:
-        yield from _walk_point_cache(ctx, block_name, modifier.bfile, pointcache, cdefs.PTCACHE_EXT)
-
 
 @mod_handler(cdefs.eModifierType_Smokesim)
 def modifier_smoke_sim(ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes) \
