@@ -466,7 +466,7 @@ class Packer:
             # It is used to determine relative paths to other blend files.
             # It is *not* used for any disk I/O, since the file may not even
             # exist on the local filesystem.
-            bfile_pp = self._actions[bfile_path].new_path
+            bfile_pp = action.new_path
             assert bfile_pp is not None
 
             # Use tempfile to create a unique name in our temporary directoy.
