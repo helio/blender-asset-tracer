@@ -158,7 +158,13 @@ def _walk_point_cache(ctx: ModifierContext,
                       pointcache: blendfile.BlendFileBlock,
                       extension: bytes):
     flag = pointcache[b'flag']
-    if flag & cdefs.PTCACHE_DISK_CACHE:
+    if flag & cdefs.PTCACHE_EXTERNAL:
+        path, field = pointcache.get(b'path', return_field=True)
+        log.info('    external cache at %s', path)
+        bpath = bpathlib.BlendPath(path)
+        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
+                                is_sequence=True, block_name=block_name)
+    elif flag & cdefs.PTCACHE_DISK_CACHE:
         # See ptcache_path() in pointcache.c
         name, field = pointcache.get(b'name', return_field=True)
         if not name:
@@ -170,11 +176,7 @@ def _walk_point_cache(ctx: ModifierContext,
             bfile.filepath.stem.encode(),
             name,
             extension)
-        bpath = bpathlib.BlendPath(path)
-        yield result.BlockUsage(pointcache, bpath, path_full_field=field,
-                                is_sequence=True, block_name=block_name)
-    if flag & cdefs.PTCACHE_EXTERNAL:
-        path, field = pointcache.get(b'path', return_field=True)
+        log.info('   disk cache at %s', path)
         bpath = bpathlib.BlendPath(path)
         yield result.BlockUsage(pointcache, bpath, path_full_field=field,
                                 is_sequence=True, block_name=block_name)
