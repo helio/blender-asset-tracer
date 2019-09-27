@@ -9,7 +9,7 @@ changed functionality, fixed bugs).
 - Windows compatibility fix when using mapped network storage.
 - Windows compatibility fix when using different assets with the same path but on different drives.
 - Allow setting the Shaman JWT authentication token in the `SHAMAN_JWT_TOKEN` environment variable.
-- Blender 2.81 compatibility fix.
+- Blender 2.81 compatibility fix (T69976).
 - Fix for external smoke caches not being packed.
 
 
