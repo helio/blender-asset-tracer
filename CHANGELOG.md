@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-## Version 1.2 (in development)
+## Version 1.2 (2019-10-09)
 
 - Migrated from Pipenv to Poetry for managing Python package dependencies.
 - Windows compatibility fix when using mapped network storage.
@@ -11,6 +11,7 @@ changed functionality, fixed bugs).
 - Allow setting the Shaman JWT authentication token in the `SHAMAN_JWT_TOKEN` environment variable.
 - Blender 2.81 compatibility fix (T69976).
 - Fix for external smoke caches not being packed.
+- Versions 1.2.1 and 1.2.2 are functionally identical to 1.2
 
 
 ## Version 1.1.1 (2019-04-18)
