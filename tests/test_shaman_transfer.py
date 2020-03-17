@@ -18,6 +18,7 @@
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
 import pathlib
+import platform
 
 import responses
 
@@ -27,7 +28,7 @@ from blender_asset_tracer.pack.shaman import transfer
 httpmock = responses.RequestsMock()
 
 
-class AbstractChecksumTest(AbstractBlendFileTest):
+class ShamanTransferTest(AbstractBlendFileTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -42,8 +43,8 @@ class AbstractChecksumTest(AbstractBlendFileTest):
             cls.test_file2: cls.test_file2.stat().st_size,
         }
         cls.packed_names = {
-            cls.test_file1: pathlib.Path('path/in/pack/test1.blend'),
-            cls.test_file2: pathlib.Path('path/in/pack/test2.blend'),
+            cls.test_file1: pathlib.PurePosixPath('path/in/pack/test1.blend'),
+            cls.test_file2: pathlib.PurePosixPath('path/in/pack/test2.blend'),
         }
 
     def assertValidCheckoutDef(self, definition_file: bytes):
@@ -82,9 +83,10 @@ class AbstractChecksumTest(AbstractBlendFileTest):
 
         trans = transfer.ShamanTransferrer('auth-token', self.blendfiles,
                                            'http://unittest.local:1234/', 'DA-JOB-ID')
+
         trans.start()
-        trans.queue_copy(self.test_file1, pathlib.Path('/') / self.packed_names[self.test_file1])
-        trans.queue_copy(self.test_file2, pathlib.Path('/') / self.packed_names[self.test_file2])
+        trans.queue_copy(self.test_file1, self.packed_names[self.test_file1])
+        trans.queue_copy(self.test_file2, self.packed_names[self.test_file2])
         trans.done_and_join()
 
         self.assertFalse(trans.has_error, trans.error_message())
