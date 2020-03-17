@@ -28,5 +28,5 @@ class MypyRunnerTest(unittest.TestCase):
             messages.append(stdout)
         if status:
             messages.append('Mypy failed with status %d' % status)
-        if messages:
+        if messages and not all(msg.startswith('Success: ') for msg in messages):
             self.fail('\n'.join(['Mypy errors:'] + messages))
