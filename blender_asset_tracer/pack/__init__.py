@@ -230,13 +230,13 @@ class Packer:
 
         # The blendfile that we pack is generally not its own dependency, so
         # we have to explicitly add it to the _packed_paths.
-        bfile_path = self.blendfile.absolute()
+        bfile_path = bpathlib.make_absolute(self.blendfile)
 
         # Both paths have to be resolved first, because this also translates
         # network shares mapped to Windows drive letters back to their UNC
         # notation. Only resolving one but not the other (which can happen
         # with the abosolute() call above) can cause errors.
-        bfile_pp = self._target_path / bfile_path.resolve().relative_to(self.project.resolve())
+        bfile_pp = self._target_path / bfile_path.relative_to(bpathlib.make_absolute(self.project))
         self._output_path = bfile_pp
 
         self._progress_cb.pack_start()
@@ -330,15 +330,8 @@ class Packer:
             act = self._actions[path]
             assert isinstance(act, AssetAction)
 
-            # Remove the base of the path, effectively removing the 'absoluteness'.
-            # On POSIX this turns '/path/file.txt' into 'path/file.txt'.
-            # On Windows this turns 'X:/path/file.txt' into 'X/path/file.txt'.
-            if path.drive:
-                path_parts = (path.drive[0], *path.parts[1:])
-            else:
-                path_parts = path.parts[1:]
-
-            act.new_path = pathlib.Path(self._target_path, '_outside_project', *path_parts)
+            relpath = bpathlib.strip_root(path)
+            act.new_path = pathlib.Path(self._target_path, '_outside_project', relpath)
 
     def _group_rewrites(self) -> None:
         """For each blend file, collect which fields need rewriting.
@@ -358,7 +351,7 @@ class Packer:
                 continue
 
             for usage in action.usages:
-                bfile_path = usage.block.bfile.filepath.absolute().resolve()
+                bfile_path = bpathlib.make_absolute(usage.block.bfile.filepath)
                 insert_new_action = bfile_path not in self._actions
 
                 self._actions[bfile_path].rewrites.append(usage)
@@ -367,10 +360,10 @@ class Packer:
                     actions.add(self._actions[bfile_path])
 
     def _path_in_project(self, path: pathlib.Path) -> bool:
+        abs_path = bpathlib.make_absolute(path)
+        abs_project = bpathlib.make_absolute(self.project)
         try:
-            # MUST use resolve(), otherwise /path/to/proj/../../asset.png
-            # will return True (relative_to will return ../../asset.png).
-            path.resolve().relative_to(self.project)
+            abs_path.relative_to(abs_project)
         except ValueError:
             return False
         return True

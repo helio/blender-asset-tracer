@@ -107,8 +107,8 @@ class BlockUsage:
     def __repr__(self):
         if self.path_full_field is None:
             field_name = self.path_dir_field.name.name_full.decode() + \
-                         '/' + \
-                         self.path_base_field.name.name_full.decode()
+                '/' + \
+                self.path_base_field.name.name_full.decode()
         else:
             field_name = self.path_full_field.name.name_full.decode()
         return '<BlockUsage name=%r type=%r field=%r asset=%r%s>' % (
@@ -141,20 +141,19 @@ class BlockUsage:
             log.warning('Path %s does not exist for %s', path, self)
 
     def __fspath__(self) -> pathlib.Path:
-        """Determine the absolute path of the asset on the filesystem.
-
-        The path is resolved (see pathlib.Path.resolve()) if it exists on the
-        filesystem.
-        """
+        """Determine the absolute path of the asset on the filesystem."""
         if self._abspath is None:
             bpath = self.block.bfile.abspath(self.asset_path)
+            log.info('Resolved %s rel to %s -> %s',
+                     self.asset_path, self.block.bfile.filepath, bpath)
+
             as_path = pathlib.Path(bpath.to_path())
 
-            # Windows cannot resolve() a path that has a glob pattern in it.
+            # Windows cannot make a path that has a glob pattern in it absolute.
             # Since globs are generally only on the filename part, we take that off,
-            # resolve() the parent directory, then put the filename back.
+            # make the parent directory absolute, then put the filename back.
             try:
-                abs_parent = as_path.parent.resolve()
+                abs_parent = bpathlib.make_absolute(as_path.parent)
             except FileNotFoundError:
                 self._abspath = as_path
             else:

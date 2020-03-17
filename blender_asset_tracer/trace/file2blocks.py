@@ -82,7 +82,7 @@ class BlockIterator:
         yield from self._visit_linked_blocks(blocks_per_lib)
 
     def _visit_blocks(self, bfile, limit_to):
-        bpath = bfile.filepath.absolute().resolve()
+        bpath = bpathlib.make_absolute(bfile.filepath)
         root_dir = bpathlib.BlendPath(bpath.parent)
 
         # Mapping from library path to data blocks to expand.
@@ -123,10 +123,10 @@ class BlockIterator:
         # We've gone through all the blocks in this file, now open the libraries
         # and iterate over the blocks referred there.
         for lib_bpath, idblocks in blocks_per_lib.items():
-            lib_path = pathlib.Path(lib_bpath.to_path())
-            try:
-                lib_path = lib_path.resolve()
-            except FileNotFoundError:
+            lib_path = bpathlib.make_absolute(lib_bpath.to_path())
+
+            assert lib_path.exists()
+            if not lib_path.exists():
                 log.warning('Library %s does not exist', lib_path)
                 continue
 

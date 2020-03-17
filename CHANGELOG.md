@@ -3,6 +3,14 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.3 (in development)
+
+- When creating a BAT pack, symlinks are no longer followed. This allows BAT-packing a directory structure with symlinked files (such as a Shaman checkout).
+- When creating a BAT pack, mapped network drives are no longer changed from a drive letter to UNC notation. For example, when mapping a share `\\SERVER\Share` to drive letter `S:\`, BAT will now keep referencing `S:\` instead of rewriting paths to `\\SERVER\Share`.
+- Better handling of drive letters, and of paths that cross drive boundaries.
+- Better testing of Windows-specific cases when running the tests on Windows, and of POSIX-specific cases on other platforms.
+
+
 ## Version 1.2 (2019-10-09)
 
 - Migrated from Pipenv to Poetry for managing Python package dependencies.

@@ -24,7 +24,7 @@ import sys
 import typing
 
 import blender_asset_tracer.pack.transfer
-from blender_asset_tracer import pack
+from blender_asset_tracer import pack, bpathlib
 
 log = logging.getLogger(__name__)
 
@@ -168,15 +168,15 @@ def paths_from_cli(args) -> typing.Tuple[pathlib.Path, pathlib.Path, str]:
     if bpath.is_dir():
         log.critical('%s is a directory, should be a blend file')
         sys.exit(3)
-    bpath = bpath.absolute().resolve()
+    bpath = bpathlib.make_absolute(bpath)
 
     tpath = args.target
 
     if args.project is None:
-        ppath = bpath.absolute().parent.resolve()
+        ppath = bpathlib.make_absolute(bpath).parent
         log.warning('No project path given, using %s', ppath)
     else:
-        ppath = args.project.absolute().resolve()
+        ppath = bpathlib.make_absolute(args.project)
 
     if not ppath.exists():
         log.critical('Project directory %s does not exist', ppath)

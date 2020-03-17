@@ -26,6 +26,7 @@ import typing
 import requests
 
 import blender_asset_tracer.pack.transfer as bat_transfer
+from blender_asset_tracer import bpathlib
 
 MAX_DEFERRED_PATHS = 8
 MAX_FAILED_PATHS = 8
@@ -83,6 +84,9 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             self.log.info('Created checkout definition file of %d KiB',
                           len(definition_file) // 1024)
             self.log.info('Feeding %d files to the Shaman', len(self._file_info))
+            if self.log.isEnabledFor(logging.INFO):
+                for path in self._file_info:
+                    self.log.info('   - %s', path)
 
             # Try to upload all the files.
             failed_paths = set()  # type: typing.Set[str]
@@ -151,7 +155,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 checksum = cache.compute_cached_checksum(src)
                 filesize = src.stat().st_size
                 # relpath = dst.relative_to(self.project_root)
-                relpath = str(dst)[1:]
+                relpath = bpathlib.strip_root(dst).as_posix()
 
                 self._file_info[relpath] = FileInfo(
                     checksum=checksum,
