@@ -41,7 +41,8 @@ class AbstractPackTest(AbstractBlendFileTest):
     def outside_project(self) -> Path:
         """Return the '_outside_project' path for files in self.blendfiles."""
         # /tmp/target + /workspace/bat/tests/blendfiles → /tmp/target/workspace/bat/tests/blendfiles
-        extpath = Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
+        # /tmp/target + C:\workspace\bat\tests\blendfiles → /tmp/target/C/workspace/bat/tests/blendfiles
+        extpath = Path(self.tpath, '_outside_project', bpathlib.strip_root(self.blendfiles))
         return extpath
 
 
@@ -92,7 +93,8 @@ class PackTest(AbstractPackTest):
             path = self.blendfiles / fn
             act = packer._actions[path]
             self.assertEqual(pack.PathAction.FIND_NEW_LOCATION, act.path_action, 'for %s' % fn)
-            self.assertEqual(extpath / fn, act.new_path, 'for %s' % fn)
+            self.assertEqual(extpath / fn, act.new_path,
+                             f'\nEXPECT: {extpath / fn}\nACTUAL: {act.new_path}\nfor {fn}')
 
         to_rewrite = (
             'linked_cube.blend',
@@ -165,7 +167,12 @@ class PackTest(AbstractPackTest):
     def test_execute_rewrite(self):
         infile, _ = self._pack_with_rewrite()
 
-        extpath = PurePosixPath('//_outside_project', *self.blendfiles.parts[1:])
+        if platform.system() == 'Windows':
+            extpath = PurePosixPath('//_outside_project',
+                                    self.blendfiles.drive[0],
+                                    *self.blendfiles.parts[1:])
+        else:
+            extpath = PurePosixPath('//_outside_project', *self.blendfiles.parts[1:])
         extbpath = bpathlib.BlendPath(extpath)
 
         # Those libraries should be properly rewritten.
@@ -287,9 +294,13 @@ class PackTest(AbstractPackTest):
         seq = ed.get_pointer((b'seqbase', b'first'))
         seq_strip = seq.get_pointer(b'strip')
 
-        imgseq_path = (self.blendfiles / 'imgseq').absolute()
-        as_bytes = str(imgseq_path.relative_to(imgseq_path.anchor)).encode()
+        imgseq_path = bpathlib.make_absolute(self.blendfiles / 'imgseq')
+        print(f'imgseq_path: {imgseq_path!r}')
+        print(f'     anchor: {imgseq_path.anchor!r}')
+        as_bytes = bpathlib.strip_root(imgseq_path).as_posix().encode()
+        print(f'as_bytes: {as_bytes!r}')
         relpath = bpathlib.BlendPath(b'//_outside_project') / as_bytes
+        print(f'relpath: {relpath!r}')
 
         # The image sequence base path should be rewritten.
         self.assertEqual(b'SQ000210.png', seq[b'name'])
@@ -391,7 +402,7 @@ class PackTest(AbstractPackTest):
                             'Expected %s to be compressed' % bpath)
             break
         else:
-            self.fail('Expected to have Blend files in the BAT pack.')
+            self.fail(f'Expected to have Blend files in the BAT pack at {self.tpath}.')
 
         for imgpath in self.tpath.rglob('*.jpg'):
             with imgpath.open('rb') as imgfile:
@@ -400,7 +411,7 @@ class PackTest(AbstractPackTest):
                              'Expected %s to NOT be compressed' % imgpath)
             break
         else:
-            self.fail('Expected to have JPEG files in the BAT pack.')
+            self.fail(f'Expected to have JPEG files in the BAT pack at {self.tpath}.')
 
 
 class ProgressTest(AbstractPackTest):

@@ -28,7 +28,7 @@ import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.trace import file_sequence, result
-from . import filesystem, transfer, progress, utils
+from . import filesystem, transfer, progress
 
 log = logging.getLogger(__name__)
 

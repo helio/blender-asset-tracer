@@ -41,7 +41,7 @@ class BlendPath(bytes):
         return super().__new__(cls, path.replace(b'\\', b'/'))
 
     @classmethod
-    def mkrelative(cls, asset_path: pathlib.Path, bfile_path: pathlib.PurePath) -> 'BlendPath':
+    def mkrelative(cls, asset_path: pathlib.PurePath, bfile_path: pathlib.PurePath) -> 'BlendPath':
         """Construct a BlendPath to the asset relative to the blend file.
 
         Assumes that bfile_path is absolute.
@@ -51,11 +51,19 @@ class BlendPath(bytes):
         """
         from collections import deque
 
+        # Only compare absolute paths.
         assert bfile_path.is_absolute(), \
             'BlendPath().mkrelative(bfile_path=%r) should get absolute bfile_path' % bfile_path
+        assert asset_path.is_absolute(), \
+            'BlendPath().mkrelative(asset_path=%r) should get absolute asset_path' % asset_path
+
+        # There is no way to construct a relative path between drives.
+        if bfile_path.drive != asset_path.drive:
+            return cls(asset_path)
 
         bdir_parts = deque(bfile_path.parent.parts)
-        asset_parts = deque(asset_path.absolute().parts)
+        asset_path = make_absolute(asset_path)
+        asset_parts = deque(asset_path.parts)
 
         # Remove matching initial parts. What is left in bdir_parts represents
         # the number of '..' we need. What is left in asset_parts represents
@@ -104,6 +112,8 @@ class BlendPath(bytes):
 
         Interprets the path as UTF-8, and if that fails falls back to the local
         filesystem encoding.
+
+        The exact type returned is determined by the current platform.
         """
         # TODO(Sybren): once we target Python 3.6, implement __fspath__().
         try:
@@ -151,7 +161,7 @@ class BlendPath(bytes):
         return BlendPath(os.path.join(root, my_relpath))
 
 
-def make_absolute(path: pathlib.Path) -> pathlib.Path:
+def make_absolute(path: pathlib.PurePath) -> pathlib.Path:
     """Make the path absolute without resolving symlinks or drive letters.
 
     This function is an alternative to `Path.resolve()`. It make the path absolute,
@@ -160,6 +170,34 @@ def make_absolute(path: pathlib.Path) -> pathlib.Path:
         - Symlinks are NOT followed.
         - Windows Network shares that are mapped to a drive letter are NOT resolved
           to their UNC notation.
+
+    The type of the returned path is determined by the current platform.
     """
     str_path = str(path)
+    path_class = type(path)
     return pathlib.Path(os.path.abspath(str_path))
+
+
+def strip_root(path: pathlib.PurePath) -> pathlib.PurePosixPath:
+    """Turn the path into a relative path by stripping the root.
+
+    This also turns any drive letter into a normal path component.
+
+    This changes "C:/Program Files/Blender" to "C/Program Files/Blender",
+    and "/absolute/path.txt" to "absolute/path.txt", making it possible to
+    treat it as a relative path.
+    """
+
+    if path.drive:
+        return pathlib.PurePosixPath(path.drive[0], *path.parts[1:])
+    if isinstance(path, pathlib.PurePosixPath):
+        # This happens when running on POSIX but still handling paths
+        # originating from a Windows machine.
+        parts = path.parts
+        if parts and len(parts[0]) == 2 and parts[0][0].isalpha() and parts[0][1] == ':':
+            # The first part is a drive letter.
+            return pathlib.PurePosixPath(parts[0][0], *path.parts[1:])
+
+    if path.is_absolute():
+        return pathlib.PurePosixPath(*path.parts[1:])
+    return pathlib.PurePosixPath(path)

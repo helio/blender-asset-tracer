@@ -49,7 +49,7 @@ def open_cached(path: pathlib.Path, mode='rb',
                 assert_cached: typing.Optional[bool] = None) -> 'BlendFile':
     """Open a blend file, ensuring it is only opened once."""
     my_log = log.getChild('open_cached')
-    bfile_path = path.absolute().resolve()
+    bfile_path = bpathlib.make_absolute(path)
 
     if assert_cached is not None:
         is_cached = bfile_path in _cached_bfiles

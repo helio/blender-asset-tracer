@@ -123,10 +123,10 @@ class BlockIterator:
         # We've gone through all the blocks in this file, now open the libraries
         # and iterate over the blocks referred there.
         for lib_bpath, idblocks in blocks_per_lib.items():
-            lib_path = pathlib.Path(lib_bpath.to_path())
-            try:
-                lib_path = lib_path.resolve()
-            except FileNotFoundError:
+            lib_path = bpathlib.make_absolute(lib_bpath.to_path())
+
+            assert lib_path.exists()
+            if not lib_path.exists():
                 log.warning('Library %s does not exist', lib_path)
                 continue
 
