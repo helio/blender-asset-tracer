@@ -84,13 +84,13 @@ def close_all_cached() -> None:
 
 def _cache(path: pathlib.Path, bfile: 'BlendFile'):
     """Add a BlendFile to the cache."""
-    bfile_path = path.absolute().resolve()
+    bfile_path = bpathlib.make_absolute(path)
     _cached_bfiles[bfile_path] = bfile
 
 
 def _uncache(path: pathlib.Path):
     """Remove a BlendFile object from the cache."""
-    bfile_path = path.absolute().resolve()
+    bfile_path = bpathlib.make_absolute(path)
     _cached_bfiles.pop(bfile_path, None)
 
 

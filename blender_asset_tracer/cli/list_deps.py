@@ -27,7 +27,7 @@ import sys
 import time
 import typing
 
-from blender_asset_tracer import trace
+from blender_asset_tracer import trace, bpathlib
 from . import common
 
 log = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ def report_text(bpath, *, include_sha256: bool, show_timing: bool):
         last_reported_bfile = filepath
 
         for assetpath in usage.files():
-            assetpath = assetpath.resolve()
+            assetpath = bpathlib.make_absolute(assetpath)
             if assetpath in reported_assets:
                 log.debug('Already reported %s', assetpath)
                 continue

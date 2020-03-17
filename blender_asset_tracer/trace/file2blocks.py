@@ -82,7 +82,7 @@ class BlockIterator:
         yield from self._visit_linked_blocks(blocks_per_lib)
 
     def _visit_blocks(self, bfile, limit_to):
-        bpath = bfile.filepath.absolute().resolve()
+        bpath = bpathlib.make_absolute(bfile.filepath)
         root_dir = bpathlib.BlendPath(bpath.parent)
 
         # Mapping from library path to data blocks to expand.
