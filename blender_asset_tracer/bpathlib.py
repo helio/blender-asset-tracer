@@ -45,6 +45,9 @@ class BlendPath(bytes):
         """Construct a BlendPath to the asset relative to the blend file.
 
         Assumes that bfile_path is absolute.
+
+        Note that this can return an absolute path on Windows when 'asset_path'
+        and 'bfile_path' are on different drives.
         """
         from collections import deque
 

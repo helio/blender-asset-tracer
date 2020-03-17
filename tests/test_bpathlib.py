@@ -1,5 +1,4 @@
-import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import platform
 import tempfile
 import unittest
@@ -111,6 +110,16 @@ class BlendPathTest(unittest.TestCase):
         self.assertEqual(b'//../../../../../../../../shallow/asset.png', BlendPath.mkrelative(
             Path('/shallow/asset.png'),
             PurePosixPath('/path/to/very/very/very/very/very/deep/bfile.blend'),
+        ))
+
+    def test_mkrelative_windows(self):
+        self.assertEqual(b'//../of/asset.png', BlendPath.mkrelative(
+            PureWindowsPath('C:/path/of/asset.png'),
+            PureWindowsPath('C:/path/to/bfile.blend'),
+        ))
+        self.assertEqual(b'C:/path/of/asset.png', BlendPath.mkrelative(
+            PureWindowsPath('C:/path/of/asset.png'),
+            PureWindowsPath('D:/path/to/bfile.blend'),
         ))
 
 
