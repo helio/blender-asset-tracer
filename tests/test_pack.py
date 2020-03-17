@@ -1,8 +1,11 @@
 import logging
-import pathlib
-import typing
-
+import os
+import platform
+import shutil
 import tempfile
+import typing
+import unittest
+from pathlib import Path, PurePosixPath
 from unittest import mock
 
 from blender_asset_tracer import blendfile, pack, bpathlib
@@ -23,7 +26,7 @@ class AbstractPackTest(AbstractBlendFileTest):
     def setUp(self):
         super().setUp()
         self.tdir = tempfile.TemporaryDirectory(suffix='-packtest')
-        self.tpath = pathlib.Path(self.tdir.name)
+        self.tpath = Path(self.tdir.name)
 
     def tearDown(self):
         super().tearDown()
@@ -35,10 +38,10 @@ class AbstractPackTest(AbstractBlendFileTest):
                 for path, action in packer._actions.items()
                 if action.rewrites}
 
-    def outside_project(self) -> pathlib.Path:
+    def outside_project(self) -> Path:
         """Return the '_outside_project' path for files in self.blendfiles."""
         # /tmp/target + /workspace/bat/tests/blendfiles → /tmp/target/workspace/bat/tests/blendfiles
-        extpath = pathlib.Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
+        extpath = Path(self.tpath, '_outside_project', *self.blendfiles.parts[1:])
         return extpath
 
 
@@ -162,7 +165,7 @@ class PackTest(AbstractPackTest):
     def test_execute_rewrite(self):
         infile, _ = self._pack_with_rewrite()
 
-        extpath = pathlib.PurePosixPath('//_outside_project', *self.blendfiles.parts[1:])
+        extpath = PurePosixPath('//_outside_project', *self.blendfiles.parts[1:])
         extbpath = bpathlib.BlendPath(extpath)
 
         # Those libraries should be properly rewritten.
@@ -184,6 +187,81 @@ class PackTest(AbstractPackTest):
         # After closing the packer, the tempdir should also be gone.
         packer.close()
         self.assertFalse(packer._rewrite_in.exists())
+
+    @unittest.skipIf(platform.system() == 'Windows',
+                     "Symlinks on Windows require Administrator rights")
+    def test_symlinked_files(self):
+        """Test that symlinks are NOT resolved.
+
+        When packing, an asset that is symlinked should be treated as if it
+        were really at that location. Symlinks should NOT be resolved.
+
+        As a concrete example, a directory structure with only symlinked files
+        in it should still be BAT-packable and produce the same structure.
+        """
+        orig_ppath = self.blendfiles / 'subdir'
+
+        # This is the original structure when packing subdir/doubly_linked_up.blend:
+        #   .
+        #   ├── basic_file.blend
+        #   ├── linked_cube.blend
+        #   ├── material_textures.blend
+        #   ├── subdir
+        #   │   └── doubly_linked_up.blend
+        #   └── textures
+        #       └── Bricks
+        #           ├── brick_dotted_04-bump.jpg
+        #           └── brick_dotted_04-color.jpg
+
+        # This test copies the files to a temporary location and renames them,
+        # then recreates the above structure with symlinks. Packing the symlinks
+        # should be no different than packing the originals.
+
+        orig_paths = [
+            Path('basic_file.blend'),
+            Path('linked_cube.blend'),
+            Path('material_textures.blend'),
+            Path('subdir/doubly_linked_up.blend'),
+            Path('textures/Bricks/brick_dotted_04-bump.jpg'),
+            Path('textures/Bricks/brick_dotted_04-color.jpg'),
+        ]
+
+        import hashlib
+
+        with tempfile.TemporaryDirectory(suffix="-bat-symlink") as tmpdir_str:
+            tmpdir = Path(tmpdir_str)
+
+            real_file_dir = tmpdir / 'real'
+            symlinked_dir = tmpdir / 'symlinked'
+
+            real_file_dir.mkdir()
+            symlinked_dir.mkdir()
+
+            for orig_path in orig_paths:
+                hashed_name = hashlib.new('md5', bytes(orig_path)).hexdigest()
+                # Copy the file to the temporary project, under a hashed name.
+                # This will break Blendfile linking.
+                real_file_path = real_file_dir / hashed_name
+                shutil.copy(self.blendfiles / orig_path, real_file_path)
+
+                # Create a symlink to the above file, in such a way that it
+                # restores the original directory structure, and thus repairs
+                # the Blendfile linking.
+                symlink = symlinked_dir / orig_path
+                symlink.parent.mkdir(parents=True, exist_ok=True)
+                symlink.symlink_to(real_file_path)
+
+            # Pack the symlinked directory structure.
+            pack_dir = tmpdir / 'packed'
+            packer = pack.Packer(self.blendfiles / 'subdir/doubly_linked_up.blend',
+                                 self.blendfiles,
+                                 pack_dir)
+            packer.strategise()
+            packer.execute()
+
+            for orig_path in orig_paths:
+                packed_path = pack_dir / orig_path
+                self.assertTrue(packed_path.exists(), f'{packed_path} should exist')
 
     def _pack_with_rewrite(self):
         ppath = self.blendfiles / 'subdir'
@@ -485,7 +563,7 @@ class AbortTest(AbstractPackTest):
         packer = pack.Packer(infile, self.blendfiles, self.tpath)
 
         class AbortingCallback(progress.Callback):
-            def trace_blendfile(self, filename: pathlib.Path):
+            def trace_blendfile(self, filename: Path):
                 # Call abort() somewhere during the strategise() call.
                 if filename.name == 'linked_cube.blend':
                     packer.abort()

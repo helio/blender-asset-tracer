@@ -146,3 +146,17 @@ class BlendPath(bytes):
         else:
             my_relpath = self
         return BlendPath(os.path.join(root, my_relpath))
+
+
+def make_absolute(path: pathlib.Path) -> pathlib.Path:
+    """Make the path absolute without resolving symlinks or drive letters.
+
+    This function is an alternative to `Path.resolve()`. It make the path absolute,
+    and resolves `../../`, but contrary to `Path.resolve()` does NOT perform these
+    changes:
+        - Symlinks are NOT followed.
+        - Windows Network shares that are mapped to a drive letter are NOT resolved
+          to their UNC notation.
+    """
+    str_path = str(path)
+    return pathlib.Path(os.path.abspath(str_path))

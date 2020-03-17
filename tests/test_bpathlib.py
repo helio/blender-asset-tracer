@@ -1,8 +1,11 @@
+import os
 from pathlib import Path, PurePosixPath
+import platform
+import tempfile
 import unittest
 from unittest import mock
 
-from blender_asset_tracer.bpathlib import BlendPath
+from blender_asset_tracer.bpathlib import BlendPath, make_absolute
 
 
 class BlendPathTest(unittest.TestCase):
@@ -109,3 +112,49 @@ class BlendPathTest(unittest.TestCase):
             Path('/shallow/asset.png'),
             PurePosixPath('/path/to/very/very/very/very/very/deep/bfile.blend'),
         ))
+
+
+class MakeAbsoluteTest(unittest.TestCase):
+    def test_relative(self):
+        my_dir = Path(__file__).absolute().parent
+        cwd = os.getcwd()
+        try:
+            os.chdir(my_dir)
+            self.assertEqual(my_dir / 'blendfiles/Cube.btx',
+                             make_absolute(Path('blendfiles/Cube.btx')))
+        except Exception:
+            os.chdir(cwd)
+            raise
+
+    def test_dotdot_dotdot(self):
+        in_path = Path('/wrongroot/oops/../../path/to/a/file')
+        expect_path = Path('/path/to/a/file')
+        self.assertNotEqual(expect_path, in_path, 'pathlib should not automatically resolve ../')
+        self.assertEqual(expect_path, make_absolute(in_path))
+
+    def test_way_too_many_dotdot(self):
+        in_path = Path('/webroot/../../../../../etc/passwd')
+        expect_path = Path('/etc/passwd')
+        self.assertEqual(expect_path, make_absolute(in_path))
+
+    @unittest.skipIf(platform.system() == 'Windows',
+                     "Symlinks on Windows require Administrator rights")
+    def test_symlinks(self):
+        with tempfile.TemporaryDirectory(suffix="-bat-symlink-test") as tmpdir_str:
+            tmpdir = Path(tmpdir_str)
+
+            orig_path = tmpdir / 'some_file.txt'
+            with orig_path.open('w') as outfile:
+                outfile.write('this file exists now')
+
+            symlink = tmpdir / 'subdir' / 'linked.txt'
+            symlink.parent.mkdir()
+            symlink.symlink_to(orig_path)
+
+            self.assertEqual(symlink, make_absolute(symlink), 'Symlinks should not be resolved')
+
+    @unittest.skipIf(platform.system() != 'Windows',
+                     "Drive letters mapped to network share can only be tested on Windows")
+    @unittest.skip('Mapped drive letter testing should be mocked, but that is hard to do')
+    def test_mapped_drive_letters(self):
+        pass
