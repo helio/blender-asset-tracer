@@ -25,6 +25,7 @@ or vice versa.
 
 import os.path
 import pathlib
+import platform
 import string
 import sys
 
@@ -173,8 +174,16 @@ def make_absolute(path: pathlib.PurePath) -> pathlib.Path:
 
     The type of the returned path is determined by the current platform.
     """
-    str_path = str(path)
-    path_class = type(path)
+    str_path = path.as_posix()
+    if len(str_path) >= 2 and str_path[0].isalpha() and str_path[1] == ':':
+        # This is an absolute Windows path. It must be handled with care on non-Windows platforms.
+        if platform.system() != 'Windows':
+            # Normalize the POSIX-like part of the path, but leave out the drive letter.
+            non_drive_path = str_path[2:]
+            normalized = os.path.normpath(non_drive_path)
+            # Stick the drive letter back on the normalized path.
+            return pathlib.Path(str_path[:2] + normalized)
+
     return pathlib.Path(os.path.abspath(str_path))
 
 
