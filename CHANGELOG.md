@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-## Version 1.3 (in development)
+## Version 1.3 (2021-02-02)
 
 - When creating a BAT pack, symlinks are no longer followed. This allows BAT-packing a directory structure with symlinked files (such as a Shaman checkout).
 - When creating a BAT pack, mapped network drives are no longer changed from a drive letter to UNC notation. For example, when mapping a share `\\SERVER\Share` to drive letter `S:\`, BAT will now keep referencing `S:\` instead of rewriting paths to `\\SERVER\Share`.
