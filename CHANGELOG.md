@@ -9,6 +9,7 @@ changed functionality, fixed bugs).
 - When creating a BAT pack, mapped network drives are no longer changed from a drive letter to UNC notation. For example, when mapping a share `\\SERVER\Share` to drive letter `S:\`, BAT will now keep referencing `S:\` instead of rewriting paths to `\\SERVER\Share`.
 - Better handling of drive letters, and of paths that cross drive boundaries.
 - Better testing of Windows-specific cases when running the tests on Windows, and of POSIX-specific cases on other platforms.
+- Add support for Geometry Nodes modifier.
 
 
 ## Version 1.2 (2019-10-09)

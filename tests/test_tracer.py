@@ -255,6 +255,16 @@ class DepsTest(AbstractTracerTest):
             #     b'//textures/Textures/Buildings/buildings_roof_04-color.png', False),
         })
 
+    def test_geometry_nodes(self):
+        self.assert_deps('geometry-nodes/file_to_pack.blend', {
+            b'LInode_lib.blend': Expect(
+                type='Library', full_field='name[1024]', dirname_field=None,
+                basename_field=None, asset_path=b'//node_lib.blend', is_sequence=False),
+            b'LIobject_lib.blend': Expect(
+                type='Library', full_field='name[1024]', dirname_field=None,
+                basename_field=None, asset_path=b'//object_lib.blend', is_sequence=False),
+        })
+
     def test_usage_abspath(self):
         deps = [dep for dep in trace.deps(self.blendfiles / 'doubly_linked.blend')
                 if dep.asset_path == b'//material_textures.blend']

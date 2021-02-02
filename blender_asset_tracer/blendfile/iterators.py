@@ -60,3 +60,11 @@ def sequencer_strips(sequence_editor: BlendFileBlock) \
 
     sbase = sequence_editor.get_pointer((b'seqbase', b'first'))
     yield from iter_seqbase(sbase)
+
+
+def modifiers(object_block: BlendFileBlock) -> typing.Iterator[BlendFileBlock]:
+    """Generator, yield the object's modifiers."""
+
+    # 'ob->modifiers[...]'
+    mods = object_block.get_pointer((b'modifiers', b'first'))
+    yield from listbase(mods, next_path=(b'modifier', b'next'))

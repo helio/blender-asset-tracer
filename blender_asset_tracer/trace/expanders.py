@@ -224,6 +224,14 @@ def _expand_object(block: blendfile.BlendFileBlock):
     for psystem in iterators.listbase(psystems):
         yield psystem.get_pointer(b'part')
 
+    # Modifiers can also refer to other datablocks, which should also get expanded.
+    for block_mod in iterators.modifiers(block):
+        mod_type = block_mod[b'modifier', b'type']
+        # Currently only node groups are supported. If the support should expand
+        # to more types, something more intelligent than this should be made.
+        if mod_type == cdefs.eModifierType_Nodes:
+            yield block_mod.get_pointer(b'node_group')
+
 
 @dna_code('PA')
 def _expand_particle_settings(block: blendfile.BlendFileBlock):

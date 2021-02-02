@@ -139,8 +139,7 @@ def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bloc
     ctx = modifier_walkers.ModifierContext(owner=block)
 
     # 'ob->modifiers[...].filepath'
-    mods = block.get_pointer((b'modifiers', b'first'))
-    for mod_idx, block_mod in enumerate(iterators.listbase(mods, next_path=(b'modifier', b'next'))):
+    for mod_idx, block_mod in enumerate(iterators.modifiers(block)):
         block_name = b'%s.modifiers[%d]' % (block.id_name, mod_idx)
         mod_type = block_mod[b'modifier', b'type']
         log.debug('Tracing modifier %s, type=%d', block_name.decode(), mod_type)
