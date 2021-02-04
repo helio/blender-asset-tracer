@@ -3,6 +3,11 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.3.1 (in development)
+
+- Remove assertion error when a library blend file linked from a Geometry Nodes modifier does not exist.
+
+
 ## Version 1.3 (2021-02-02)
 
 - When creating a BAT pack, symlinks are no longer followed. This allows BAT-packing a directory structure with symlinked files (such as a Shaman checkout).

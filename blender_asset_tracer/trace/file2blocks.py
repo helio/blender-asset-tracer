@@ -125,7 +125,6 @@ class BlockIterator:
         for lib_bpath, idblocks in blocks_per_lib.items():
             lib_path = bpathlib.make_absolute(lib_bpath.to_path())
 
-            assert lib_path.exists()
             if not lib_path.exists():
                 log.warning('Library %s does not exist', lib_path)
                 continue
