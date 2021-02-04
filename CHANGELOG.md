@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-## Version 1.3.1 (in development)
+## Version 1.3.1 (2021-02-04)
 
 - Remove assertion error when a library blend file linked from a Geometry Nodes modifier does not exist.
 
