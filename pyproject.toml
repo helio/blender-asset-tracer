@@ -21,7 +21,7 @@ classifiers = [
 s3 = ["boto3"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.5"
 requests = "^2.11"
 
 # For S3 storage support:
@@ -42,7 +42,6 @@ sphinx-rtd-theme = "^0.4"
 responses = "^0.10"
 pathlib2 = {version = "^2.3", python = "<3.6"}
 tox = "^3.12"
-types-requests = "^2.25.0"
 
 [tool.poetry.scripts]
 bat = 'blender_asset_tracer.cli:cli_main'
