@@ -839,3 +839,17 @@ class BlendFileBlock:
         """Generator, yields (property path, property value) recursively for all properties."""
         for k in self.keys():
             yield from self.get_recursive_iter(k, as_str=False)
+
+
+def set_strict_pointer_mode(strict_pointers: bool) -> None:
+    """Control behaviour when a pointer to unknown memory is dereferenced.
+
+    Strict pointer mode raise exceptions.SegmentationFault when dereferencing an
+    unknown pointer. This is the default.
+
+    Set to False to disable this exception, and to return None instead, i.e. to
+    ignore such pointers. Note that this can cause None to be returned from a
+    non-nil pointer.
+    """
+
+    BlendFile.strict_pointer_mode = strict_pointers

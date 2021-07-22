@@ -62,6 +62,14 @@ def cli_main():
         const=logging.ERROR,
         help="Log at ERROR level and higher",
     )
+    parser.add_argument(
+        "-S",
+        "--strict-pointers",
+        default=False,
+        action="store_true",
+        help="Crash on pointers to missing data; otherwise the missing data is just ignored.",
+    )
+
     subparsers = parser.add_subparsers(
         help="Choose a subcommand to actually make BAT do something. "
         "Global options go before the subcommand, "
@@ -87,6 +95,8 @@ def cli_main():
 
     if not args.func:
         parser.error("No subcommand was given")
+
+    set_strict_pointer_mode(args.strict_pointers)
 
     start_time = time.time()
     if args.profile:
@@ -118,3 +128,9 @@ def config_logging(args):
     # Only set the log level on our own logger. Otherwise
     # debug logging will be completely swamped.
     logging.getLogger("blender_asset_tracer").setLevel(args.loglevel)
+
+
+def set_strict_pointer_mode(strict_pointers: bool) -> None:
+    from blender_asset_tracer import blendfile
+
+    blendfile.set_strict_pointer_mode(strict_pointers)
