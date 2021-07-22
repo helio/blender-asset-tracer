@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-## Version 1.5 (in development)
+## Version 1.5 (2021-07-22)
 
 - Drop support for Python 3.5 and 3.6, and add support for 3.8 and 3.9.
 

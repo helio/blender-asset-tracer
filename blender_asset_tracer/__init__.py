@@ -20,4 +20,4 @@
 
 # <pep8 compliant>
 
-__version__ = "1.5b0"
+__version__ = "1.5"
