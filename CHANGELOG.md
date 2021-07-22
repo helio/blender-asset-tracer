@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.4.1 (2021-07-22)
+
+- Reverted unintended bump of required Python version.
+
 
 ## Version 1.4 (2021-07-22)
 
