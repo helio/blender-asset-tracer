@@ -21,7 +21,7 @@ classifiers = [
 s3 = ["boto3"]
 
 [tool.poetry.dependencies]
-python = "^3.5"
+python = "^3.7"
 requests = "^2.11"
 
 # For S3 storage support:
