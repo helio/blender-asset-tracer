@@ -4,7 +4,7 @@ This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
 
-## Version 1.4 (in development)
+## Version 1.4 (2021-07-22)
 
 - Add a *Strict Pointer Mode* setting, which determines what happens when a pointer to an unknown datablock is dereferenced. When enabled, a `SegmentationFault` exception stops the program execution. This has always been the behaviour of BAT, but it now has a name and can be disabled.
 
