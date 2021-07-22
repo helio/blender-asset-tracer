@@ -3,6 +3,16 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+
+## Version 1.4 (in development)
+
+- Add a *Strict Pointer Mode* setting, which determines what happens when a pointer to an unknown datablock is dereferenced. When enabled, a `SegmentationFault` exception stops the program execution. This has always been the behaviour of BAT, but it now has a name and can be disabled.
+
+  On the commandline Strict Pointer Mode is now disabled by default; it can be enabled with the `-S` parameter (see `bat --help`).
+
+  When BAT is used as library, Strict Pointer Mode is enabled by default, and can be disabled via `blender_asset_tracer.blendfile.set_strict_pointer_mode(False)`.
+
+
 ## Version 1.3.1 (2021-02-04)
 
 - Remove assertion error when a library blend file linked from a Geometry Nodes modifier does not exist.
