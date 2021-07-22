@@ -217,6 +217,15 @@ class PointerTest(AbstractBlendFileTest):
         with self.assertRaises(exceptions.SegmentationFault):
             scene.get_pointer(b"ed")
 
+    def test_disabled_strict_pointer_mode(self):
+        scene = self.bf.code_index[b"SC"][0]
+        ed_ptr = scene.get(b"ed")
+        del self.bf.block_from_addr[ed_ptr]
+
+        self.bf.strict_pointer_mode = False
+        dereferenced = scene.get_pointer(b"ed")
+        self.assertIsNone(dereferenced)
+
     def test_abs_offset(self):
         scene = self.bf.code_index[b"SC"][0]
         ed = scene.get_pointer(b"ed")

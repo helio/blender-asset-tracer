@@ -106,6 +106,12 @@ class BlendFile:
 
     log = log.getChild("BlendFile")
 
+    strict_pointer_mode = True
+    """Raise exceptions.SegmentationFault when dereferencing an unknown pointer.
+
+    Set to False to disable this exception, and to return None instead.
+    """
+
     def __init__(self, path: pathlib.Path, mode="rb") -> None:
         """Create a BlendFile instance for the blend file at the path.
 
@@ -401,15 +407,21 @@ class BlendFile:
 
         return abspath
 
-    def dereference_pointer(self, address: int) -> "BlendFileBlock":
-        """Return the pointed-to block, or raise SegmentationFault."""
+    def dereference_pointer(self, address: int) -> typing.Optional["BlendFileBlock"]:
+        """Return the pointed-to block, or raise SegmentationFault.
+
+        When BlendFile.strict_pointer_mode is False, the exception will not be
+        thrown, but None will be returned.
+        """
 
         try:
             return self.block_from_addr[address]
         except KeyError:
-            raise exceptions.SegmentationFault(
-                "address does not exist", address
-            ) from None
+            if self.strict_pointer_mode:
+                raise exceptions.SegmentationFault(
+                    "address does not exist", address
+                ) from None
+            return None
 
     def struct(self, name: bytes) -> dna.Struct:
         index = self.sdna_index_from_id[name]
@@ -755,7 +767,11 @@ class BlendFileBlock:
             address = endian.read_pointer(fileobj, ps)
             if address == 0:
                 continue
-            yield self.bfile.dereference_pointer(address)
+            dereferenced = self.bfile.dereference_pointer(address)
+            if dereferenced is None:
+                # This can happen when strict pointer mode is disabled.
+                continue
+            yield dereferenced
 
     def iter_fixed_array_of_pointers(
         self, path: dna.FieldPath
@@ -786,7 +802,12 @@ class BlendFileBlock:
             if not address:
                 # Fixed-size arrays contain 0-pointers.
                 continue
-            yield self.bfile.dereference_pointer(address)
+
+            dereferenced = self.bfile.dereference_pointer(address)
+            if dereferenced is None:
+                # This can happen when strict pointer mode is disabled.
+                continue
+            yield dereferenced
 
     def __getitem__(self, path: dna.FieldPath):
         return self.get(path)

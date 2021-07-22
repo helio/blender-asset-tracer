@@ -512,6 +512,14 @@ class Packer:
 
                 # Find the same block in the newly copied file.
                 block = bfile.dereference_pointer(usage.block.addr_old)
+
+                # Pointers can point to a non-existing data block, in which case
+                # either a SegmentationFault exception is thrown, or None is
+                # returned, based on the strict pointer mode set on the
+                # BlendFile class. Since this block was already meant to be
+                # rewritten, it was found before.
+                assert block is not None
+
                 if usage.path_full_field is None:
                     dir_field = usage.path_dir_field
                     assert dir_field is not None
