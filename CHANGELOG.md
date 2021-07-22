@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.5.1 (2021-07-22)
+
+- Add log warning if SegmentationFault caused by dereferencing invalid pointer is silenced when strict_pointer_mode is turned off.
+
 ## Version 1.5 (2021-07-22)
 
 - Drop support for Python 3.5 and 3.6, and add support for 3.8 and 3.9.
