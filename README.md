@@ -8,6 +8,17 @@ Blender Asset Tracer, a.k.a. BAT🦇, is the replacement of
 
 Development is driven by choices explained in [T54125](https://developer.blender.org/T54125).
 
+## Setting up development environment
+
+```
+python3.9 -m venv .venv
+. ./.venv/bin/activate
+pip install -U pip
+pip install poetry black
+poetry install
+mypy --install-types
+```
+
 
 ## Uploading to S3-compatible storage
 
