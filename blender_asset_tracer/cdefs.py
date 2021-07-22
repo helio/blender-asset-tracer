@@ -64,9 +64,9 @@ PTCACHE_EXTERNAL = 512
 # BKE_pointcache.h
 PTCACHE_FILE_PTCACHE = 0
 PTCACHE_FILE_OPENVDB = 1
-PTCACHE_EXT = b'.bphys'
-PTCACHE_EXT_VDB = b'.vdb'
-PTCACHE_PATH = b'blendcache_'
+PTCACHE_EXT = b".bphys"
+PTCACHE_EXT_VDB = b".vdb"
+PTCACHE_PATH = b"blendcache_"
 
 # BKE_node.h
 SH_NODE_TEX_IMAGE = 143

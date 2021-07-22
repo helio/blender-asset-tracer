@@ -65,14 +65,15 @@ class BlockIterator:
 
         self.progress_cb = progress.Callback()
 
-    def iter_blocks(self,
-                    bfile: blendfile.BlendFile,
-                    limit_to: typing.Set[blendfile.BlendFileBlock] = set(),
-                    ) -> typing.Iterator[blendfile.BlendFileBlock]:
+    def iter_blocks(
+        self,
+        bfile: blendfile.BlendFile,
+        limit_to: typing.Set[blendfile.BlendFileBlock] = set(),
+    ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
 
         self.progress_cb.trace_blendfile(bfile.filepath)
-        log.info('inspecting: %s', bfile.filepath)
+        log.info("inspecting: %s", bfile.filepath)
         if limit_to:
             self._queue_named_blocks(bfile, limit_to)
         else:
@@ -94,14 +95,14 @@ class BlockIterator:
             if (bpath, block.addr_old) in self.blocks_yielded:
                 continue
 
-            if block.code == b'ID':
+            if block.code == b"ID":
                 # ID blocks represent linked-in assets. Those are the ones that
                 # should be loaded from their own blend file and "expanded" to
                 # the entire set of data blocks required to render them. We
                 # defer the handling of those so that we can work with one
                 # blend file at a time.
-                lib = block.get_pointer(b'lib')
-                lib_bpath = bpathlib.BlendPath(lib[b'name']).absolute(root_dir)
+                lib = block.get_pointer(b"lib")
+                lib_bpath = bpathlib.BlendPath(lib[b"name"]).absolute(root_dir)
                 blocks_per_lib[lib_bpath].add(block)
 
                 # The library block itself should also be reported, because it
@@ -126,25 +127,25 @@ class BlockIterator:
             lib_path = bpathlib.make_absolute(lib_bpath.to_path())
 
             if not lib_path.exists():
-                log.warning('Library %s does not exist', lib_path)
+                log.warning("Library %s does not exist", lib_path)
                 continue
 
-            log.debug('Expanding %d blocks in %s', len(idblocks), lib_path)
+            log.debug("Expanding %d blocks in %s", len(idblocks), lib_path)
             libfile = blendfile.open_cached(lib_path)
             yield from self.iter_blocks(libfile, idblocks)
 
     def _queue_all_blocks(self, bfile: blendfile.BlendFile):
-        log.debug('Queueing all blocks from file %s', bfile.filepath)
+        log.debug("Queueing all blocks from file %s", bfile.filepath)
         for block in bfile.blocks:
             # Don't bother visiting DATA blocks, as we won't know what
             # to do with them anyway.
-            if block.code == b'DATA':
+            if block.code == b"DATA":
                 continue
             self.to_visit.put(block)
 
-    def _queue_named_blocks(self,
-                            bfile: blendfile.BlendFile,
-                            limit_to: typing.Set[blendfile.BlendFileBlock]):
+    def _queue_named_blocks(
+        self, bfile: blendfile.BlendFile, limit_to: typing.Set[blendfile.BlendFileBlock]
+    ):
         """Queue only the blocks referred to in limit_to.
 
         :param bfile:
@@ -154,14 +155,14 @@ class BlockIterator:
         """
 
         for to_find in limit_to:
-            assert to_find.code == b'ID'
-            name_to_find = to_find[b'name']
+            assert to_find.code == b"ID"
+            name_to_find = to_find[b"name"]
             code = name_to_find[:2]
-            log.debug('Finding block %r with code %r', name_to_find, code)
+            log.debug("Finding block %r with code %r", name_to_find, code)
             same_code = bfile.find_blocks_from_code(code)
             for block in same_code:
                 if block.id_name == name_to_find:
-                    log.debug('Queueing %r from file %s', block, bfile.filepath)
+                    log.debug("Queueing %r from file %s", block, bfile.filepath)
                     self.to_visit.put(block)
 
     def _queue_dependencies(self, block: blendfile.BlendFileBlock):
@@ -169,7 +170,9 @@ class BlockIterator:
             self.to_visit.put(block)
 
 
-def iter_blocks(bfile: blendfile.BlendFile) -> typing.Iterator[blendfile.BlendFileBlock]:
+def iter_blocks(
+    bfile: blendfile.BlendFile,
+) -> typing.Iterator[blendfile.BlendFileBlock]:
     """Generator, yield all blocks in this file + required blocks in libs."""
     bi = BlockIterator()
     yield from bi.iter_blocks(bfile)

@@ -12,8 +12,8 @@ class CompressorTest(AbstractBlendFileTest):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         tempdir = pathlib.Path(self.temp.name)
-        self.srcdir = tempdir / 'src'
-        self.destdir = tempdir / 'dest'
+        self.srcdir = tempdir / "src"
+        self.destdir = tempdir / "dest"
 
         self.srcdir.mkdir()
         self.destdir.mkdir()
@@ -43,31 +43,33 @@ class CompressorTest(AbstractBlendFileTest):
         self.assertEqual(source_must_remain, srcfile.exists())
         self.assertTrue(destfile.exists())
 
-        if destfile.suffix == '.blend':
+        if destfile.suffix == ".blend":
             self.bf = blendfile.BlendFile(destfile)
             self.assertTrue(self.bf.is_compressed)
             return
 
-        with destfile.open('rb') as infile:
+        with destfile.open("rb") as infile:
             magic = infile.read(3)
-        if destfile.suffix == '.jpg':
-            self.assertEqual(b'\xFF\xD8\xFF', magic,
-                             'Expected %s to be a JPEG' % destfile)
+        if destfile.suffix == ".jpg":
+            self.assertEqual(
+                b"\xFF\xD8\xFF", magic, "Expected %s to be a JPEG" % destfile
+            )
         else:
-            self.assertNotEqual(b'\x1f\x8b', magic[:2],
-                                'Expected %s to be NOT compressed' % destfile)
+            self.assertNotEqual(
+                b"\x1f\x8b", magic[:2], "Expected %s to be NOT compressed" % destfile
+            )
 
     def test_move_already_compressed(self):
-        self._test('basic_file_ñønæščii.blend', False)
+        self._test("basic_file_ñønæščii.blend", False)
 
     def test_move_compress_on_the_fly(self):
-        self._test('basic_file.blend', False)
+        self._test("basic_file.blend", False)
 
     def test_copy_already_compressed(self):
-        self._test('basic_file_ñønæščii.blend', True)
+        self._test("basic_file_ñønæščii.blend", True)
 
     def test_copy_compress_on_the_fly(self):
-        self._test('basic_file.blend', True)
+        self._test("basic_file.blend", True)
 
     def test_move_jpeg(self):
-        self._test('textures/Bricks/brick_dotted_04-color.jpg', False)
+        self._test("textures/Bricks/brick_dotted_04-color.jpg", False)

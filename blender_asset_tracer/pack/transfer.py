@@ -56,7 +56,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
     def __init__(self) -> None:
         super().__init__()
-        self.log = log.getChild('FileTransferer')
+        self.log = log.getChild("FileTransferer")
 
         # For copying in a different process. By using a priority queue the files
         # are automatically sorted alphabetically, which means we go through all files
@@ -67,13 +67,15 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         # maxsize=100 is just a guess as to a reasonable upper limit. When this limit
         # is reached, the main thread will simply block while waiting for this thread
         # to finish copying a file.
-        self.queue = queue.PriorityQueue(maxsize=100)  # type: queue.PriorityQueue[QueueItem]
+        self.queue = queue.PriorityQueue(
+            maxsize=100
+        )  # type: queue.PriorityQueue[QueueItem]
         self.done = threading.Event()
         self._abort = threading.Event()  # Indicates user-requested abort
 
         self.__error_mutex = threading.Lock()
         self.__error = threading.Event()  # Indicates abort due to some error
-        self.__error_message = ''
+        self.__error_message = ""
 
         # Instantiate a dummy progress callback so that we can call it
         # without checking for None all the time.
@@ -87,8 +89,12 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
     def queue_copy(self, src: pathlib.Path, dst: pathlib.PurePath):
         """Queue a copy action from 'src' to 'dst'."""
-        assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
-        assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        assert (
+            not self.done.is_set()
+        ), "Queueing not allowed after done_and_join() was called"
+        assert (
+            not self._abort.is_set()
+        ), "Queueing not allowed after abort_and_join() was called"
         if self.__error.is_set():
             return
         self.queue.put((src, dst, Action.COPY))
@@ -96,8 +102,12 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
     def queue_move(self, src: pathlib.Path, dst: pathlib.PurePath):
         """Queue a move action from 'src' to 'dst'."""
-        assert not self.done.is_set(), 'Queueing not allowed after done_and_join() was called'
-        assert not self._abort.is_set(), 'Queueing not allowed after abort_and_join() was called'
+        assert (
+            not self.done.is_set()
+        ), "Queueing not allowed after done_and_join() was called"
+        assert (
+            not self._abort.is_set()
+        ), "Queueing not allowed after abort_and_join() was called"
         if self.__error.is_set():
             return
         self.queue.put((src, dst, Action.MOVE))
@@ -107,7 +117,9 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Report transfer of `block_size` bytes."""
 
         self.total_transferred_bytes += bytes_transferred
-        self.progress_cb.transfer_progress(self.total_queued_bytes, self.total_transferred_bytes)
+        self.progress_cb.transfer_progress(
+            self.total_queued_bytes, self.total_transferred_bytes
+        )
 
     def done_and_join(self) -> None:
         """Indicate all files have been queued, and wait until done.
@@ -128,7 +140,8 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
             assert files_remaining
             raise FileTransferError(
                 "%d files couldn't be transferred" % len(files_remaining),
-                files_remaining)
+                files_remaining,
+            )
 
     def _files_remaining(self) -> typing.List[pathlib.Path]:
         """Source files that were queued but not transferred."""
@@ -140,7 +153,7 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
     def abort(self) -> None:
         """Abort the file transfer, immediately returns."""
-        log.info('Aborting')
+        log.info("Aborting")
         self._abort.set()
 
     def abort_and_join(self) -> None:
@@ -152,8 +165,11 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         files_remaining = self._files_remaining()
         if not files_remaining:
             return
-        log.warning("%d files couldn't be transferred, starting with %s",
-                    len(files_remaining), files_remaining[0])
+        log.warning(
+            "%d files couldn't be transferred, starting with %s",
+            len(files_remaining),
+            files_remaining[0],
+        )
 
     def iter_queue(self) -> typing.Iterable[QueueItem]:
         """Generator, yield queued items until the work is done."""
@@ -176,13 +192,13 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         if timeout:
             run_until = time.time() + timeout
         else:
-            run_until = float('inf')
+            run_until = float("inf")
 
         # We can't simply block the thread, we have to keep watching the
         # progress queue.
         while self.is_alive():
             if time.time() > run_until:
-                self.log.warning('Timeout while waiting for transfer to finish')
+                self.log.warning("Timeout while waiting for transfer to finish")
                 return
 
             self.progress_cb.flush(timeout=0.5)
@@ -192,11 +208,11 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
 
     def delete_file(self, path: pathlib.Path):
         """Deletes a file, only logging a warning if deletion fails."""
-        log.debug('Deleting %s, file has been transferred', path)
+        log.debug("Deleting %s, file has been transferred", path)
         try:
             path.unlink()
         except IOError as ex:
-            log.warning('Unable to delete %s: %s', path, ex)
+            log.warning("Unable to delete %s: %s", path, ex)
 
     @property
     def has_error(self) -> bool:
@@ -217,5 +233,5 @@ class FileTransferer(threading.Thread, metaclass=abc.ABCMeta):
         """Retrieve the error messsage, or an empty string if no error occurred."""
         with self.__error_mutex:
             if not self.__error.is_set():
-                return ''
+                return ""
             return self.__error_message

@@ -35,14 +35,16 @@ class BlendPath(bytes):
 
     def __new__(cls, path):
         if isinstance(path, pathlib.PurePath):
-            path = str(path).encode('utf-8')
+            path = str(path).encode("utf-8")
         if not isinstance(path, bytes):
-            raise TypeError('path must be bytes or pathlib.Path, but is %r' % path)
+            raise TypeError("path must be bytes or pathlib.Path, but is %r" % path)
 
-        return super().__new__(cls, path.replace(b'\\', b'/'))
+        return super().__new__(cls, path.replace(b"\\", b"/"))
 
     @classmethod
-    def mkrelative(cls, asset_path: pathlib.PurePath, bfile_path: pathlib.PurePath) -> 'BlendPath':
+    def mkrelative(
+        cls, asset_path: pathlib.PurePath, bfile_path: pathlib.PurePath
+    ) -> "BlendPath":
         """Construct a BlendPath to the asset relative to the blend file.
 
         Assumes that bfile_path is absolute.
@@ -53,10 +55,14 @@ class BlendPath(bytes):
         from collections import deque
 
         # Only compare absolute paths.
-        assert bfile_path.is_absolute(), \
-            'BlendPath().mkrelative(bfile_path=%r) should get absolute bfile_path' % bfile_path
-        assert asset_path.is_absolute(), \
-            'BlendPath().mkrelative(asset_path=%r) should get absolute asset_path' % asset_path
+        assert bfile_path.is_absolute(), (
+            "BlendPath().mkrelative(bfile_path=%r) should get absolute bfile_path"
+            % bfile_path
+        )
+        assert asset_path.is_absolute(), (
+            "BlendPath().mkrelative(asset_path=%r) should get absolute asset_path"
+            % asset_path
+        )
 
         # There is no way to construct a relative path between drives.
         if bfile_path.drive != asset_path.drive:
@@ -77,8 +83,8 @@ class BlendPath(bytes):
 
         rel_asset = pathlib.PurePath(*asset_parts)
         # TODO(Sybren): should we use sys.getfilesystemencoding() instead?
-        rel_bytes = str(rel_asset).encode('utf-8')
-        as_bytes = b'//' + len(bdir_parts) * b'../' + rel_bytes
+        rel_bytes = str(rel_asset).encode("utf-8")
+        as_bytes = b"//" + len(bdir_parts) * b"../" + rel_bytes
         return cls(as_bytes)
 
     def __str__(self) -> str:
@@ -87,23 +93,23 @@ class BlendPath(bytes):
         Undecodable bytes are ignored so this function can be safely used
         for reporting.
         """
-        return self.decode('utf8', errors='replace')
+        return self.decode("utf8", errors="replace")
 
     def __repr__(self) -> str:
-        return 'BlendPath(%s)' % super().__repr__()
+        return "BlendPath(%s)" % super().__repr__()
 
     def __truediv__(self, subpath: bytes):
         """Slash notation like pathlib.Path."""
         sub = BlendPath(subpath)
         if sub.is_absolute():
             raise ValueError("'a / b' only works when 'b' is a relative path")
-        return BlendPath(self.rstrip(b'/') + b'/' + sub)
+        return BlendPath(self.rstrip(b"/") + b"/" + sub)
 
     def __rtruediv__(self, parentpath: bytes):
         """Slash notation like pathlib.Path."""
         if self.is_absolute():
             raise ValueError("'a / b' only works when 'b' is a relative path")
-        return BlendPath(parentpath.rstrip(b'/') + b'/' + self)
+        return BlendPath(parentpath.rstrip(b"/") + b"/" + self)
 
     def to_path(self) -> pathlib.PurePath:
         """Convert this path to a pathlib.PurePath.
@@ -118,32 +124,34 @@ class BlendPath(bytes):
         """
         # TODO(Sybren): once we target Python 3.6, implement __fspath__().
         try:
-            decoded = self.decode('utf8')
+            decoded = self.decode("utf8")
         except UnicodeDecodeError:
             decoded = self.decode(sys.getfilesystemencoding())
         if self.is_blendfile_relative():
-            raise ValueError('to_path() cannot be used on blendfile-relative paths')
+            raise ValueError("to_path() cannot be used on blendfile-relative paths")
         return pathlib.PurePath(decoded)
 
     def is_blendfile_relative(self) -> bool:
-        return self[:2] == b'//'
+        return self[:2] == b"//"
 
     def is_absolute(self) -> bool:
         if self.is_blendfile_relative():
             return False
-        if self[0:1] == b'/':
+        if self[0:1] == b"/":
             return True
 
         # Windows style path starting with drive letter.
-        if (len(self) >= 3 and
-                (self.decode('utf8'))[0] in string.ascii_letters and
-                self[1:2] == b':' and
-                self[2:3] in {b'\\', b'/'}):
+        if (
+            len(self) >= 3
+            and (self.decode("utf8"))[0] in string.ascii_letters
+            and self[1:2] == b":"
+            and self[2:3] in {b"\\", b"/"}
+        ):
             return True
 
         return False
 
-    def absolute(self, root: bytes = b'') -> 'BlendPath':
+    def absolute(self, root: bytes = b"") -> "BlendPath":
         """Determine absolute path.
 
         :param root: root directory to compute paths relative to.
@@ -175,9 +183,9 @@ def make_absolute(path: pathlib.PurePath) -> pathlib.Path:
     The type of the returned path is determined by the current platform.
     """
     str_path = path.as_posix()
-    if len(str_path) >= 2 and str_path[0].isalpha() and str_path[1] == ':':
+    if len(str_path) >= 2 and str_path[0].isalpha() and str_path[1] == ":":
         # This is an absolute Windows path. It must be handled with care on non-Windows platforms.
-        if platform.system() != 'Windows':
+        if platform.system() != "Windows":
             # Normalize the POSIX-like part of the path, but leave out the drive letter.
             non_drive_path = str_path[2:]
             normalized = os.path.normpath(non_drive_path)
@@ -203,7 +211,12 @@ def strip_root(path: pathlib.PurePath) -> pathlib.PurePosixPath:
         # This happens when running on POSIX but still handling paths
         # originating from a Windows machine.
         parts = path.parts
-        if parts and len(parts[0]) == 2 and parts[0][0].isalpha() and parts[0][1] == ':':
+        if (
+            parts
+            and len(parts[0]) == 2
+            and parts[0][0].isalpha()
+            and parts[0][1] == ":"
+        ):
             # The first part is a drive letter.
             return pathlib.PurePosixPath(parts[0][0], *path.parts[1:])
 

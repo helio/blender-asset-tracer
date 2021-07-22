@@ -39,9 +39,10 @@ def expand_sequence(path: pathlib.Path) -> typing.Iterator[pathlib.Path]:
         or the path of the first file in the sequence.
     """
 
-    if '*' in str(path):  # assume it is a glob
+    if "*" in str(path):  # assume it is a glob
         import glob
-        log.debug('expanding glob %s', path)
+
+        log.debug("expanding glob %s", path)
         for fname in sorted(glob.glob(str(path), recursive=True)):
             yield pathlib.Path(fname)
         return
@@ -53,9 +54,10 @@ def expand_sequence(path: pathlib.Path) -> typing.Iterator[pathlib.Path]:
         yield path
         return
 
-    log.debug('expanding file sequence %s', path)
+    log.debug("expanding file sequence %s", path)
 
     import string
+
     stem_no_digits = path.stem.rstrip(string.digits)
     if stem_no_digits == path.stem:
         # Just a single file, no digits here.
@@ -65,5 +67,5 @@ def expand_sequence(path: pathlib.Path) -> typing.Iterator[pathlib.Path]:
     # Return everything start starts with 'stem_no_digits' and ends with the
     # same suffix as the first file. This may result in more files than used
     # by Blender, but at least it shouldn't miss any.
-    pattern = '%s*%s' % (stem_no_digits, path.suffix)
+    pattern = "%s*%s" % (stem_no_digits, path.suffix)
     yield from sorted(path.parent.glob(pattern))

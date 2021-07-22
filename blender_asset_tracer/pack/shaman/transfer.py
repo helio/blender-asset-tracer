@@ -48,9 +48,15 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
     class AbortUpload(Exception):
         """Raised from the upload callback to abort an upload."""
 
-    def __init__(self, auth_token: str, project_root: pathlib.Path,
-                 shaman_endpoint: str, checkout_id: str) -> None:
+    def __init__(
+        self,
+        auth_token: str,
+        project_root: pathlib.Path,
+        shaman_endpoint: str,
+        checkout_id: str,
+    ) -> None:
         from . import client
+
         super().__init__()
         self.client = client.ShamanClient(auth_token, shaman_endpoint)
         self.project_root = project_root
@@ -63,7 +69,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
         # checkout. This can then be combined with the project-relative path
         # of the to-be-rendered blend file (e.g. the one 'bat pack' was pointed
         # at).
-        self._checkout_location = ''
+        self._checkout_location = ""
 
         self.uploaded_files = 0
         self.uploaded_bytes = 0
@@ -76,24 +82,32 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
 
             # Construct the Shaman Checkout Definition file.
             # This blocks until we know the entire list of files to transfer.
-            definition_file, allowed_relpaths, delete_when_done = self._create_checkout_definition()
+            (
+                definition_file,
+                allowed_relpaths,
+                delete_when_done,
+            ) = self._create_checkout_definition()
             if not definition_file:
                 # An error has already been logged.
                 return
 
-            self.log.info('Created checkout definition file of %d KiB',
-                          len(definition_file) // 1024)
-            self.log.info('Feeding %d files to the Shaman', len(self._file_info))
+            self.log.info(
+                "Created checkout definition file of %d KiB",
+                len(definition_file) // 1024,
+            )
+            self.log.info("Feeding %d files to the Shaman", len(self._file_info))
             if self.log.isEnabledFor(logging.INFO):
                 for path in self._file_info:
-                    self.log.info('   - %s', path)
+                    self.log.info("   - %s", path)
 
             # Try to upload all the files.
             failed_paths = set()  # type: typing.Set[str]
             max_tries = 50
             for try_index in range(max_tries):
                 # Send the file to the Shaman and see what we still need to send there.
-                to_upload = self._send_checkout_def_to_shaman(definition_file, allowed_relpaths)
+                to_upload = self._send_checkout_def_to_shaman(
+                    definition_file, allowed_relpaths
+                )
                 if to_upload is None:
                     # An error has already been logged.
                     return
@@ -102,7 +116,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                     break
 
                 # Send the files that still need to be sent.
-                self.log.info('Upload attempt %d', try_index + 1)
+                self.log.info("Upload attempt %d", try_index + 1)
                 failed_paths = self._upload_files(to_upload)
                 if not failed_paths:
                     break
@@ -113,11 +127,13 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 # file to the Shaman and obtain a new list of files to upload.
 
             if failed_paths:
-                self.log.error('Aborting upload due to too many failures')
-                self.error_set('Giving up after %d attempts to upload the files' % max_tries)
+                self.log.error("Aborting upload due to too many failures")
+                self.error_set(
+                    "Giving up after %d attempts to upload the files" % max_tries
+                )
                 return
 
-            self.log.info('All files uploaded succesfully')
+            self.log.info("All files uploaded succesfully")
             self._request_checkout(definition_file)
 
             # Delete the files that were supposed to be moved.
@@ -127,12 +143,13 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
         except Exception as ex:
             # We have to catch exceptions in a broad way, as this is running in
             # a separate thread, and exceptions won't otherwise be seen.
-            self.log.exception('Error transferring files to Shaman')
-            self.error_set('Unexpected exception transferring files to Shaman: %s' % ex)
+            self.log.exception("Error transferring files to Shaman")
+            self.error_set("Unexpected exception transferring files to Shaman: %s" % ex)
 
     # noinspection PyBroadException
-    def _create_checkout_definition(self) \
-            -> typing.Tuple[bytes, typing.Set[str], typing.List[pathlib.Path]]:
+    def _create_checkout_definition(
+        self,
+    ) -> typing.Tuple[bytes, typing.Set[str], typing.List[pathlib.Path]]:
         """Create the checkout definition file for this BAT pack.
 
         :returns: the checkout definition (as bytes), a set of paths in that file,
@@ -162,8 +179,8 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                     filesize=filesize,
                     abspath=src,
                 )
-                line = '%s %s %s' % (checksum, filesize, relpath)
-                definition_lines.append(line.encode('utf8'))
+                line = "%s %s %s" % (checksum, filesize, relpath)
+                definition_lines.append(line.encode("utf8"))
                 relpaths.add(relpath)
 
                 if act == bat_transfer.Action.MOVE:
@@ -171,7 +188,7 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             except Exception:
                 # We have to catch exceptions in a broad way, as this is running in
                 # a separate thread, and exceptions won't otherwise be seen.
-                msg = 'Error transferring %s to %s' % (src, dst)
+                msg = "Error transferring %s to %s" % (src, dst)
                 self.log.exception(msg)
                 # Put the files to copy back into the queue, and abort. This allows
                 # the main thread to inspect the queue and see which files were not
@@ -179,35 +196,39 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 # be reported there.
                 self.queue.put((src, dst, act))
                 self.error_set(msg)
-                return b'', set(), delete_when_done
+                return b"", set(), delete_when_done
 
         cache.cleanup_cache()
-        return b'\n'.join(definition_lines), relpaths, delete_when_done
+        return b"\n".join(definition_lines), relpaths, delete_when_done
 
-    def _send_checkout_def_to_shaman(self, definition_file: bytes,
-                                     allowed_relpaths: typing.Set[str]) \
-            -> typing.Optional[collections.deque]:
+    def _send_checkout_def_to_shaman(
+        self, definition_file: bytes, allowed_relpaths: typing.Set[str]
+    ) -> typing.Optional[collections.deque]:
         """Send the checkout definition file to the Shaman.
 
         :return: An iterable of paths (relative to the project root) that still
             need to be uploaded, or None if there was an error.
         """
-        resp = self.client.post('checkout/requirements', data=definition_file, stream=True,
-                                headers={'Content-Type': 'text/plain'},
-                                timeout=15)
+        resp = self.client.post(
+            "checkout/requirements",
+            data=definition_file,
+            stream=True,
+            headers={"Content-Type": "text/plain"},
+            timeout=15,
+        )
         if resp.status_code >= 300:
-            msg = 'Error from Shaman, code %d: %s' % (resp.status_code, resp.text)
+            msg = "Error from Shaman, code %d: %s" % (resp.status_code, resp.text)
             self.log.error(msg)
             self.error_set(msg)
             return None
 
         to_upload = collections.deque()  # type: collections.deque
         for line in resp.iter_lines():
-            response, path = line.decode().split(' ', 1)
-            self.log.debug('   %s: %s', response, path)
+            response, path = line.decode().split(" ", 1)
+            self.log.debug("   %s: %s", response, path)
 
             if path not in allowed_relpaths:
-                msg = 'Shaman requested path we did not intend to upload: %r' % path
+                msg = "Shaman requested path we did not intend to upload: %r" % path
                 self.log.error(msg)
                 self.error_set(msg)
                 return None
@@ -216,13 +237,13 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 to_upload.appendleft(path)
             elif response == response_already_uploading:
                 to_upload.append(path)
-            elif response == 'ERROR':
-                msg = 'Error from Shaman: %s' % path
+            elif response == "ERROR":
+                msg = "Error from Shaman: %s" % path
                 self.log.error(msg)
                 self.error_set(msg)
                 return None
             else:
-                msg = 'Unknown response from Shaman for path %r: %r' % (path, response)
+                msg = "Unknown response from Shaman for path %r: %r" % (path, response)
                 self.log.error(msg)
                 self.error_set(msg)
                 return None
@@ -240,7 +261,9 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
         def defer(some_path: str):
             nonlocal to_upload
 
-            self.log.info('   %s deferred (already being uploaded by someone else)', some_path)
+            self.log.info(
+                "   %s deferred (already being uploaded by someone else)", some_path
+            )
             deferred_paths.add(some_path)
 
             # Instead of deferring this one file, randomize the files to upload.
@@ -251,35 +274,41 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             to_upload = collections.deque(all_files)
 
         if not to_upload:
-            self.log.info('All %d files are at the Shaman already', len(self._file_info))
+            self.log.info(
+                "All %d files are at the Shaman already", len(self._file_info)
+            )
             self.report_transferred(0)
             return failed_paths
 
-        self.log.info('Going to upload %d of %d files', len(to_upload), len(self._file_info))
+        self.log.info(
+            "Going to upload %d of %d files", len(to_upload), len(self._file_info)
+        )
         while to_upload:
             # After too many failures, just retry to get a fresh set of files to upload.
             if len(failed_paths) > MAX_FAILED_PATHS:
-                self.log.info('Too many failures, going to abort this iteration')
+                self.log.info("Too many failures, going to abort this iteration")
                 failed_paths.update(to_upload)
                 return failed_paths
 
             path = to_upload.popleft()
             fileinfo = self._file_info[path]
-            self.log.info('   %s', path)
+            self.log.info("   %s", path)
 
             headers = {
-                'X-Shaman-Original-Filename': path,
+                "X-Shaman-Original-Filename": path,
             }
             # Let the Shaman know whether we can defer uploading this file or not.
-            can_defer = (len(deferred_paths) < MAX_DEFERRED_PATHS
-                         and path not in deferred_paths
-                         and len(to_upload))
+            can_defer = (
+                len(deferred_paths) < MAX_DEFERRED_PATHS
+                and path not in deferred_paths
+                and len(to_upload)
+            )
             if can_defer:
-                headers['X-Shaman-Can-Defer-Upload'] = 'true'
+                headers["X-Shaman-Can-Defer-Upload"] = "true"
 
-            url = 'files/%s/%d' % (fileinfo.checksum, fileinfo.filesize)
+            url = "files/%s/%d" % (fileinfo.checksum, fileinfo.filesize)
             try:
-                with fileinfo.abspath.open('rb') as infile:
+                with fileinfo.abspath.open("rb") as infile:
                     resp = self.client.post(url, data=infile, headers=headers)
 
             except requests.ConnectionError as ex:
@@ -290,7 +319,9 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                     # connection.
                     defer(path)
                 else:
-                    self.log.info('   %s could not be uploaded, might retry later: %s', path, ex)
+                    self.log.info(
+                        "   %s could not be uploaded, might retry later: %s", path, ex
+                    )
                     failed_paths.add(path)
                 continue
 
@@ -301,12 +332,15 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
                 if can_defer:
                     defer(path)
                 else:
-                    self.log.info('   %s skipped (already existed on the server)', path)
+                    self.log.info("   %s skipped (already existed on the server)", path)
                 continue
 
             if resp.status_code >= 300:
-                msg = 'Error from Shaman uploading %s, code %d: %s' % (
-                    fileinfo.abspath, resp.status_code, resp.text)
+                msg = "Error from Shaman uploading %s, code %d: %s" % (
+                    fileinfo.abspath,
+                    resp.status_code,
+                    resp.text,
+                )
                 self.log.error(msg)
                 self.error_set(msg)
                 return failed_paths
@@ -318,42 +352,53 @@ class ShamanTransferrer(bat_transfer.FileTransferer):
             self.report_transferred(file_size)
 
         if not failed_paths:
-            self.log.info('Done uploading %d bytes in %d files',
-                          self.uploaded_bytes, self.uploaded_files)
+            self.log.info(
+                "Done uploading %d bytes in %d files",
+                self.uploaded_bytes,
+                self.uploaded_files,
+            )
         else:
-            self.log.info('Uploaded %d bytes in %d files so far',
-                          self.uploaded_bytes, self.uploaded_files)
+            self.log.info(
+                "Uploaded %d bytes in %d files so far",
+                self.uploaded_bytes,
+                self.uploaded_files,
+            )
 
         return failed_paths
 
     def report_transferred(self, bytes_transferred: int):
         if self._abort.is_set():
-            self.log.warning('Interrupting ongoing upload')
-            raise self.AbortUpload('interrupting ongoing upload')
+            self.log.warning("Interrupting ongoing upload")
+            raise self.AbortUpload("interrupting ongoing upload")
         super().report_transferred(bytes_transferred)
 
     def _request_checkout(self, definition_file: bytes):
         """Ask the Shaman to create a checkout of this BAT pack."""
 
         if not self.checkout_id:
-            self.log.warning('NOT requesting checkout at Shaman')
+            self.log.warning("NOT requesting checkout at Shaman")
             return
 
-        self.log.info('Requesting checkout at Shaman for checkout_id=%r', self.checkout_id)
-        resp = self.client.post('checkout/create/%s' % self.checkout_id, data=definition_file,
-                                headers={'Content-Type': 'text/plain'})
+        self.log.info(
+            "Requesting checkout at Shaman for checkout_id=%r", self.checkout_id
+        )
+        resp = self.client.post(
+            "checkout/create/%s" % self.checkout_id,
+            data=definition_file,
+            headers={"Content-Type": "text/plain"},
+        )
         if resp.status_code >= 300:
-            msg = 'Error from Shaman, code %d: %s' % (resp.status_code, resp.text)
+            msg = "Error from Shaman, code %d: %s" % (resp.status_code, resp.text)
             self.log.error(msg)
             self.error_set(msg)
             return
 
         self._checkout_location = resp.text.strip()
-        self.log.info('Response from Shaman, code %d: %s', resp.status_code, resp.text)
+        self.log.info("Response from Shaman, code %d: %s", resp.status_code, resp.text)
 
     @property
     def checkout_location(self) -> str:
         """Returns the checkout location, or '' if no checkout was made."""
         if not self._checkout_location:
-            return ''
+            return ""
         return self._checkout_location

@@ -24,14 +24,14 @@ import unittest
 from blender_asset_tracer import blendfile
 
 logging.basicConfig(
-    format='%(asctime)-15s %(levelname)8s %(name)s %(message)s',
-    level=logging.INFO)
+    format="%(asctime)-15s %(levelname)8s %(name)s %(message)s", level=logging.INFO
+)
 
 
 class AbstractBlendFileTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.blendfiles = pathlib.Path(__file__).with_name('blendfiles')
+        cls.blendfiles = pathlib.Path(__file__).with_name("blendfiles")
 
     def setUp(self):
         self.bf = None

@@ -8,7 +8,7 @@ fi
 poetry version $1
 sed "s/version = '[^']*'/version = '$1'/" -i  docs/conf.py
 sed "s/release = '[^']*'/release = '$1'/" -i docs/conf.py
-sed "s/__version__\s*=\s*'[^']*'/__version__ = '$1'/" -i blender_asset_tracer/__init__.py
+sed "s/__version__\s*=\s*\"[^']*\"/__version__ = \"$1\"/" -i blender_asset_tracer/__init__.py
 
 git diff
 echo

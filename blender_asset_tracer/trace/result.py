@@ -52,32 +52,37 @@ class BlockUsage:
     :ivar path_base_field: field containing the basename of this asset.
     """
 
-    def __init__(self,
-                 block: blendfile.BlendFileBlock,
-                 asset_path: bpathlib.BlendPath,
-                 is_sequence: bool = False,
-                 path_full_field: dna.Field = None,
-                 path_dir_field: dna.Field = None,
-                 path_base_field: dna.Field = None,
-                 block_name: bytes = b'',
-                 ) -> None:
+    def __init__(
+        self,
+        block: blendfile.BlendFileBlock,
+        asset_path: bpathlib.BlendPath,
+        is_sequence: bool = False,
+        path_full_field: dna.Field = None,
+        path_dir_field: dna.Field = None,
+        path_base_field: dna.Field = None,
+        block_name: bytes = b"",
+    ) -> None:
         if block_name:
             self.block_name = block_name
         else:
             self.block_name = self.guess_block_name(block)
 
         assert isinstance(block, blendfile.BlendFileBlock)
-        assert isinstance(asset_path, (bytes, bpathlib.BlendPath)), \
-            'asset_path should be BlendPath, not %r' % type(asset_path)
+        assert isinstance(
+            asset_path, (bytes, bpathlib.BlendPath)
+        ), "asset_path should be BlendPath, not %r" % type(asset_path)
 
         if path_full_field is None:
-            assert isinstance(path_dir_field, dna.Field), \
-                'path_dir_field should be dna.Field, not %r' % type(path_dir_field)
-            assert isinstance(path_base_field, dna.Field), \
-                'path_base_field should be dna.Field, not %r' % type(path_base_field)
+            assert isinstance(
+                path_dir_field, dna.Field
+            ), "path_dir_field should be dna.Field, not %r" % type(path_dir_field)
+            assert isinstance(
+                path_base_field, dna.Field
+            ), "path_base_field should be dna.Field, not %r" % type(path_base_field)
         else:
-            assert isinstance(path_full_field, dna.Field), \
-                'path_full_field should be dna.Field, not %r' % type(path_full_field)
+            assert isinstance(
+                path_full_field, dna.Field
+            ), "path_full_field should be dna.Field, not %r" % type(path_full_field)
 
         if isinstance(asset_path, bytes):
             asset_path = bpathlib.BlendPath(asset_path)
@@ -95,26 +100,30 @@ class BlockUsage:
     @staticmethod
     def guess_block_name(block: blendfile.BlendFileBlock) -> bytes:
         try:
-            return block[b'id', b'name']
+            return block[b"id", b"name"]
         except KeyError:
             pass
         try:
-            return block[b'name']
+            return block[b"name"]
         except KeyError:
             pass
-        return b'-unnamed-'
+        return b"-unnamed-"
 
     def __repr__(self):
         if self.path_full_field is None:
-            field_name = self.path_dir_field.name.name_full.decode() + \
-                '/' + \
-                self.path_base_field.name.name_full.decode()
+            field_name = (
+                self.path_dir_field.name.name_full.decode()
+                + "/"
+                + self.path_base_field.name.name_full.decode()
+            )
         else:
             field_name = self.path_full_field.name.name_full.decode()
-        return '<BlockUsage name=%r type=%r field=%r asset=%r%s>' % (
-            self.block_name, self.block.dna_type_name,
-            field_name, self.asset_path,
-            ' sequence' if self.is_sequence else ''
+        return "<BlockUsage name=%r type=%r field=%r asset=%r%s>" % (
+            self.block_name,
+            self.block.dna_type_name,
+            field_name,
+            self.asset_path,
+            " sequence" if self.is_sequence else "",
         )
 
     def files(self) -> typing.Iterator[pathlib.Path]:
@@ -130,7 +139,7 @@ class BlockUsage:
         path = self.__fspath__()
         if not self.is_sequence:
             if not path.exists():
-                log.warning('Path %s does not exist for %s', path, self)
+                log.warning("Path %s does not exist for %s", path, self)
                 return
             yield path
             return
@@ -138,14 +147,18 @@ class BlockUsage:
         try:
             yield from file_sequence.expand_sequence(path)
         except file_sequence.DoesNotExist:
-            log.warning('Path %s does not exist for %s', path, self)
+            log.warning("Path %s does not exist for %s", path, self)
 
     def __fspath__(self) -> pathlib.Path:
         """Determine the absolute path of the asset on the filesystem."""
         if self._abspath is None:
             bpath = self.block.bfile.abspath(self.asset_path)
-            log.info('Resolved %s rel to %s -> %s',
-                     self.asset_path, self.block.bfile.filepath, bpath)
+            log.info(
+                "Resolved %s rel to %s -> %s",
+                self.asset_path,
+                self.block.bfile.filepath,
+                bpath,
+            )
 
             as_path = pathlib.Path(bpath.to_path())
 
@@ -159,15 +172,19 @@ class BlockUsage:
             else:
                 self._abspath = abs_parent / as_path.name
 
-            log.info('Resolving %s rel to %s -> %s',
-                     self.asset_path, self.block.bfile.filepath, self._abspath)
+            log.info(
+                "Resolving %s rel to %s -> %s",
+                self.asset_path,
+                self.block.bfile.filepath,
+                self._abspath,
+            )
         else:
-            log.info('Reusing abspath %s', self._abspath)
+            log.info("Reusing abspath %s", self._abspath)
         return self._abspath
 
     abspath = property(__fspath__)
 
-    def __lt__(self, other: 'BlockUsage'):
+    def __lt__(self, other: "BlockUsage"):
         """Allow sorting for repeatable and predictable unit tests."""
         if not isinstance(other, BlockUsage):
             raise NotImplemented()

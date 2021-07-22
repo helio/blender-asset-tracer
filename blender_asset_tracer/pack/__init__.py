@@ -93,14 +93,16 @@ class Packer:
     instance.
     """
 
-    def __init__(self,
-                 bfile: pathlib.Path,
-                 project: pathlib.Path,
-                 target: str,
-                 *,
-                 noop=False,
-                 compress=False,
-                 relative_only=False) -> None:
+    def __init__(
+        self,
+        bfile: pathlib.Path,
+        project: pathlib.Path,
+        target: str,
+        *,
+        noop=False,
+        compress=False,
+        relative_only=False
+    ) -> None:
         self.blendfile = bfile
         self.project = project
         self.target = target
@@ -110,7 +112,7 @@ class Packer:
         self.relative_only = relative_only
         self._aborted = threading.Event()
         self._abort_lock = threading.RLock()
-        self._abort_reason = ''
+        self._abort_reason = ""
 
         # Set this to a custom Callback() subclass instance before calling
         # strategise() to receive progress reports.
@@ -120,14 +122,16 @@ class Packer:
         self._exclude_globs = set()  # type: typing.Set[str]
 
         from blender_asset_tracer.cli import common
+
         self._shorten = functools.partial(common.shorten, self.project)
 
         if noop:
-            log.warning('Running in no-op mode, only showing what will be done.')
+            log.warning("Running in no-op mode, only showing what will be done.")
 
         # Filled by strategise()
-        self._actions = collections.defaultdict(AssetAction) \
-            # type: typing.DefaultDict[pathlib.Path, AssetAction]
+        self._actions = collections.defaultdict(
+            AssetAction
+        )  # type: typing.DefaultDict[pathlib.Path, AssetAction]
         self.missing_files = set()  # type: typing.Set[pathlib.Path]
         self._new_location_paths = set()  # type: typing.Set[pathlib.Path]
         self._output_path = None  # type: typing.Optional[pathlib.PurePath]
@@ -138,7 +142,7 @@ class Packer:
         # Number of files we would copy, if not for --noop
         self._file_count = 0
 
-        self._tmpdir = tempfile.TemporaryDirectory(prefix='bat-', suffix='-batpack')
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bat-", suffix="-batpack")
         self._rewrite_in = pathlib.Path(self._tmpdir.name)
 
     def _make_target_path(self, target: str) -> pathlib.PurePath:
@@ -155,7 +159,7 @@ class Packer:
         self._tscb.flush()
         self._tmpdir.cleanup()
 
-    def __enter__(self) -> 'Packer':
+    def __enter__(self) -> "Packer":
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -177,7 +181,7 @@ class Packer:
         self._progress_cb = new_progress_cb
         self._tscb = progress.ThreadSafeCallback(self._progress_cb)
 
-    def abort(self, reason='') -> None:
+    def abort(self, reason="") -> None:
         """Aborts the current packing process.
 
         Can be called from any thread. Aborts as soon as the running strategise
@@ -196,12 +200,12 @@ class Packer:
         with self._abort_lock:
             reason = self._abort_reason
             if self._file_transferer is not None and self._file_transferer.has_error:
-                log.error('A transfer error occurred')
+                log.error("A transfer error occurred")
                 reason = self._file_transferer.error_message()
             elif not self._aborted.is_set():
                 return
 
-            log.warning('Aborting')
+            log.warning("Aborting")
             self._tscb.flush()
             self._progress_cb.pack_aborted(reason)
             raise Aborted(reason)
@@ -212,8 +216,10 @@ class Packer:
         Must be called before calling strategise().
         """
         if self._actions:
-            raise RuntimeError('%s.exclude() must be called before strategise()' %
-                               self.__class__.__qualname__)
+            raise RuntimeError(
+                "%s.exclude() must be called before strategise()"
+                % self.__class__.__qualname__
+            )
         self._exclude_globs.update(globs)
 
     def strategise(self) -> None:
@@ -236,7 +242,9 @@ class Packer:
         # network shares mapped to Windows drive letters back to their UNC
         # notation. Only resolving one but not the other (which can happen
         # with the abosolute() call above) can cause errors.
-        bfile_pp = self._target_path / bfile_path.relative_to(bpathlib.make_absolute(self.project))
+        bfile_pp = self._target_path / bfile_path.relative_to(
+            bpathlib.make_absolute(self.project)
+        )
         self._output_path = bfile_pp
 
         self._progress_cb.pack_start()
@@ -251,11 +259,11 @@ class Packer:
             self._check_aborted()
             asset_path = usage.abspath
             if any(asset_path.match(glob) for glob in self._exclude_globs):
-                log.info('Excluding file: %s', asset_path)
+                log.info("Excluding file: %s", asset_path)
                 continue
 
-            if self.relative_only and not usage.asset_path.startswith(b'//'):
-                log.info('Skipping absolute path: %s', usage.asset_path)
+            if self.relative_only and not usage.asset_path.startswith(b"//"):
+                log.info("Skipping absolute path: %s", usage.asset_path)
                 continue
 
             if usage.is_sequence:
@@ -269,14 +277,22 @@ class Packer:
     def _visit_sequence(self, asset_path: pathlib.Path, usage: result.BlockUsage):
         assert usage.is_sequence
 
-        for first_path in file_sequence.expand_sequence(asset_path):
-            if first_path.exists():
-                break
-        else:
-            # At least the first file of a sequence must exist.
-            log.warning('Missing file: %s', asset_path)
+        def handle_missing_file():
+            log.warning("Missing file: %s", asset_path)
             self.missing_files.add(asset_path)
             self._progress_cb.missing_file(asset_path)
+
+        try:
+            for file_path in file_sequence.expand_sequence(asset_path):
+                if file_path.exists():
+                    break
+            else:
+                # At least some file of a sequence must exist.
+                handle_missing_file()
+                return
+        except file_sequence.DoesNotExist:
+            # The asset path should point to something existing.
+            handle_missing_file()
             return
 
         # Handle this sequence as an asset.
@@ -291,7 +307,7 @@ class Packer:
 
         # Sequences are allowed to not exist at this point.
         if not usage.is_sequence and not asset_path.exists():
-            log.warning('Missing file: %s', asset_path)
+            log.warning("Missing file: %s", asset_path)
             self.missing_files.add(asset_path)
             self._progress_cb.missing_file(asset_path)
             return
@@ -315,11 +331,11 @@ class Packer:
         act.usages.append(usage)
 
         if needs_rewriting:
-            log.info('%s needs rewritten path to %s', bfile_path, usage.asset_path)
+            log.info("%s needs rewritten path to %s", bfile_path, usage.asset_path)
             act.path_action = PathAction.FIND_NEW_LOCATION
             self._new_location_paths.add(asset_path)
         else:
-            log.debug('%s can keep using %s', bfile_path, usage.asset_path)
+            log.debug("%s can keep using %s", bfile_path, usage.asset_path)
             asset_pp = self._target_path / asset_path.relative_to(self.project)
             act.new_path = asset_pp
 
@@ -331,7 +347,7 @@ class Packer:
             assert isinstance(act, AssetAction)
 
             relpath = bpathlib.strip_root(path)
-            act.new_path = pathlib.Path(self._target_path, '_outside_project', relpath)
+            act.new_path = pathlib.Path(self._target_path, "_outside_project", relpath)
 
     def _group_rewrites(self) -> None:
         """For each blend file, collect which fields need rewriting.
@@ -370,7 +386,7 @@ class Packer:
 
     def execute(self) -> None:
         """Execute the strategy."""
-        assert self._actions, 'Run strategise() first'
+        assert self._actions, "Run strategise() first"
 
         if not self.noop:
             self._rewrite_paths()
@@ -408,7 +424,7 @@ class Packer:
 
         This creates the BAT Pack but does not yet do any path rewriting.
         """
-        log.debug('Executing %d copy actions', len(self._actions))
+        log.debug("Executing %d copy actions", len(self._actions))
 
         assert self._file_transferer is not None
 
@@ -418,12 +434,12 @@ class Packer:
                 self._copy_asset_and_deps(asset_path, action)
 
             if self.noop:
-                log.info('Would copy %d files to %s', self._file_count, self.target)
+                log.info("Would copy %d files to %s", self._file_count, self.target)
                 return
             self._file_transferer.done_and_join()
             self._on_file_transfer_finished(file_transfer_completed=True)
         except KeyboardInterrupt:
-            log.info('File transfer interrupted with Ctrl+C, aborting.')
+            log.info("File transfer interrupted with Ctrl+C, aborting.")
             self._file_transferer.abort_and_join()
             self._on_file_transfer_finished(file_transfer_completed=False)
             raise
@@ -465,18 +481,20 @@ class Packer:
             # Use tempfile to create a unique name in our temporary directoy.
             # The file should be deleted when self.close() is called, and not
             # when the bfile_tp object is GC'd.
-            bfile_tmp = tempfile.NamedTemporaryFile(dir=str(self._rewrite_in),
-                                                    prefix='bat-',
-                                                    suffix='-' + bfile_path.name,
-                                                    delete=False)
+            bfile_tmp = tempfile.NamedTemporaryFile(
+                dir=str(self._rewrite_in),
+                prefix="bat-",
+                suffix="-" + bfile_path.name,
+                delete=False,
+            )
             bfile_tp = pathlib.Path(bfile_tmp.name)
             action.read_from = bfile_tp
-            log.info('Rewriting %s to %s', bfile_path, bfile_tp)
+            log.info("Rewriting %s to %s", bfile_path, bfile_tp)
 
             # The original blend file will have been cached, so we can use it
             # to avoid re-parsing all data blocks in the to-be-rewritten file.
             bfile = blendfile.open_cached(bfile_path, assert_cached=True)
-            bfile.copy_and_rebind(bfile_tp, mode='rb+')
+            bfile.copy_and_rebind(bfile_tp, mode="rb+")
 
             for usage in action.rewrites:
                 self._check_aborted()
@@ -484,25 +502,27 @@ class Packer:
                 asset_pp = self._actions[usage.abspath].new_path
                 assert isinstance(asset_pp, pathlib.Path)
 
-                log.debug('   - %s is packed at %s', usage.asset_path, asset_pp)
+                log.debug("   - %s is packed at %s", usage.asset_path, asset_pp)
                 relpath = bpathlib.BlendPath.mkrelative(asset_pp, bfile_pp)
                 if relpath == usage.asset_path:
-                    log.info('   - %s remained at %s', usage.asset_path, relpath)
+                    log.info("   - %s remained at %s", usage.asset_path, relpath)
                     continue
 
-                log.info('   - %s moved to %s', usage.asset_path, relpath)
+                log.info("   - %s moved to %s", usage.asset_path, relpath)
 
                 # Find the same block in the newly copied file.
                 block = bfile.dereference_pointer(usage.block.addr_old)
                 if usage.path_full_field is None:
                     dir_field = usage.path_dir_field
                     assert dir_field is not None
-                    log.debug('   - updating field %s of block %s',
-                              dir_field.name.name_only,
-                              block)
+                    log.debug(
+                        "   - updating field %s of block %s",
+                        dir_field.name.name_only,
+                        block,
+                    )
                     reldir = bpathlib.BlendPath.mkrelative(asset_pp.parent, bfile_pp)
                     written = block.set(dir_field.name.name_only, reldir)
-                    log.debug('   - written %d bytes', written)
+                    log.debug("   - written %d bytes", written)
 
                     # BIG FAT ASSUMPTION that the filename (e.g. basename
                     # without path) does not change. This makes things much
@@ -510,10 +530,13 @@ class Packer:
                     # filename fields are in different blocks. See the
                     # blocks2assets.scene() function for the implementation.
                 else:
-                    log.debug('   - updating field %s of block %s',
-                              usage.path_full_field.name.name_only, block)
+                    log.debug(
+                        "   - updating field %s of block %s",
+                        usage.path_full_field.name.name_only,
+                        block,
+                    )
                     written = block.set(usage.path_full_field.name.name_only, relpath)
-                    log.debug('   - written %d bytes', written)
+                    log.debug("   - written %d bytes", written)
 
             # Make sure we close the file, otherwise changes may not be
             # flushed before it gets copied.
@@ -524,12 +547,13 @@ class Packer:
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
         # Copy the asset itself, but only if it's not a sequence (sequences are
         # handled below in the for-loop).
-        if '*' not in str(asset_path):
+        if "*" not in str(asset_path):
             packed_path = action.new_path
             assert packed_path is not None
             read_path = action.read_from or asset_path
-            self._send_to_target(read_path, packed_path,
-                                 may_move=action.read_from is not None)
+            self._send_to_target(
+                read_path, packed_path, may_move=action.read_from is not None
+            )
 
         # Copy its sequence dependencies.
         for usage in action.usages:
@@ -541,7 +565,7 @@ class Packer:
 
             # In case of globbing, we only support globbing by filename,
             # and not by directory.
-            assert '*' not in str(first_pp) or '*' in first_pp.name
+            assert "*" not in str(first_pp) or "*" in first_pp.name
 
             packed_base_dir = first_pp.parent
             for file_path in usage.files():
@@ -552,17 +576,16 @@ class Packer:
             # Assumption: all data blocks using this asset use it the same way.
             break
 
-    def _send_to_target(self,
-                        asset_path: pathlib.Path,
-                        target: pathlib.PurePath,
-                        may_move=False):
+    def _send_to_target(
+        self, asset_path: pathlib.Path, target: pathlib.PurePath, may_move=False
+    ):
         if self.noop:
-            print('%s -> %s' % (asset_path, target))
+            print("%s -> %s" % (asset_path, target))
             self._file_count += 1
             return
 
-        verb = 'move' if may_move else 'copy'
-        log.debug('Queueing %s of %s', verb, asset_path)
+        verb = "move" if may_move else "copy"
+        log.debug("Queueing %s of %s", verb, asset_path)
 
         self._tscb.flush()
 
@@ -575,13 +598,15 @@ class Packer:
     def _write_info_file(self):
         """Write a little text file with info at the top of the pack."""
 
-        infoname = 'pack-info.txt'
+        infoname = "pack-info.txt"
         infopath = self._rewrite_in / infoname
-        log.debug('Writing info to %s', infopath)
-        with infopath.open('wt', encoding='utf8') as infofile:
-            print('This is a Blender Asset Tracer pack.', file=infofile)
-            print('Start by opening the following blend file:', file=infofile)
-            print('    %s' % self._output_path.relative_to(self._target_path).as_posix(),
-                  file=infofile)
+        log.debug("Writing info to %s", infopath)
+        with infopath.open("wt", encoding="utf8") as infofile:
+            print("This is a Blender Asset Tracer pack.", file=infofile)
+            print("Start by opening the following blend file:", file=infofile)
+            print(
+                "    %s" % self._output_path.relative_to(self._target_path).as_posix(),
+                file=infofile,
+            )
 
         self._file_transferer.queue_move(infopath, self._target_path / infoname)

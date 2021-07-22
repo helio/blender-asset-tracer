@@ -30,7 +30,7 @@ from pathlib import Path
 
 from . import time_tracker
 
-CACHE_ROOT = Path().home() / '.cache/shaman-client/shasums'
+CACHE_ROOT = Path().home() / ".cache/shaman-client/shasums"
 MAX_CACHE_FILES_AGE_SECS = 3600 * 24 * 60  # 60 days
 
 log = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def find_files(root: Path) -> typing.Iterable[Path]:
 
         # Ignore hidden files/dirs; these can be things like '.svn' or '.git',
         # which shouldn't be sent to Shaman.
-        if path.name.startswith('.'):
+        if path.name.startswith("."):
             continue
 
         if path.is_dir():
@@ -76,10 +76,10 @@ def compute_checksum(filepath: Path) -> str:
     """Compute the SHA256 checksum for the given file."""
     blocksize = 32 * 1024
 
-    log.debug('Computing checksum of %s', filepath)
-    with time_tracker.track_time(TimeInfo, 'computing_checksums'):
+    log.debug("Computing checksum of %s", filepath)
+    with time_tracker.track_time(TimeInfo, "computing_checksums"):
         hasher = hashlib.sha256()
-        with filepath.open('rb') as infile:
+        with filepath.open("rb") as infile:
             while True:
                 block = infile.read(blocksize)
                 if not block:
@@ -98,7 +98,9 @@ def _cache_path(filepath: Path) -> Path:
     # Reverse the directory, because most variation is in the last bytes.
     rev_dir = str(filepath.parent)[::-1]
     encoded_path = filepath.stem + rev_dir + filepath.suffix
-    cache_key = base64.urlsafe_b64encode(encoded_path.encode(fs_encoding)).decode().rstrip('=')
+    cache_key = (
+        base64.urlsafe_b64encode(encoded_path.encode(fs_encoding)).decode().rstrip("=")
+    )
 
     cache_path = CACHE_ROOT / cache_key[:10] / cache_key[10:]
     return cache_path
@@ -111,42 +113,44 @@ def compute_cached_checksum(filepath: Path) -> str:
     skip the actual SHA256 computation.
     """
 
-    with time_tracker.track_time(TimeInfo, 'checksum_cache_handling'):
+    with time_tracker.track_time(TimeInfo, "checksum_cache_handling"):
         current_stat = filepath.stat()
         cache_path = _cache_path(filepath)
 
         try:
-            with cache_path.open('r') as cache_file:
+            with cache_path.open("r") as cache_file:
                 payload = json.load(cache_file)
         except (OSError, ValueError):
             # File may not exist, or have invalid contents.
             pass
         else:
-            checksum = payload.get('checksum', '')
-            cached_mtime = payload.get('file_mtime', 0.0)
-            cached_size = payload.get('file_size', -1)
+            checksum = payload.get("checksum", "")
+            cached_mtime = payload.get("file_mtime", 0.0)
+            cached_size = payload.get("file_size", -1)
 
-            if (checksum
-                    and current_stat.st_size == cached_size
-                    and abs(cached_mtime - current_stat.st_mtime) < 0.01):
+            if (
+                checksum
+                and current_stat.st_size == cached_size
+                and abs(cached_mtime - current_stat.st_mtime) < 0.01
+            ):
                 cache_path.touch()
                 return checksum
 
     checksum = compute_checksum(filepath)
 
-    with time_tracker.track_time(TimeInfo, 'checksum_cache_handling'):
+    with time_tracker.track_time(TimeInfo, "checksum_cache_handling"):
         payload = {
-            'checksum': checksum,
-            'file_mtime': current_stat.st_mtime,
-            'file_size': current_stat.st_size,
+            "checksum": checksum,
+            "file_mtime": current_stat.st_mtime,
+            "file_size": current_stat.st_size,
         }
 
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
-            with cache_path.open('w') as cache_file:
+            with cache_path.open("w") as cache_file:
                 json.dump(payload, cache_file)
         except IOError as ex:
-            log.warning('Unable to write checksum cache file %s: %s', cache_path, ex)
+            log.warning("Unable to write checksum cache file %s: %s", cache_path, ex)
 
     return checksum
 
@@ -157,7 +161,7 @@ def cleanup_cache() -> None:
     if not CACHE_ROOT.exists():
         return
 
-    with time_tracker.track_time(TimeInfo, 'checksum_cache_handling'):
+    with time_tracker.track_time(TimeInfo, "checksum_cache_handling"):
         queue = deque([CACHE_ROOT])
         rmdir_queue = []
 
@@ -194,4 +198,8 @@ def cleanup_cache() -> None:
                 pass
 
     if num_removed_dirs or num_removed_files:
-        log.info('Cache Cleanup: removed %d dirs and %d files', num_removed_dirs, num_removed_files)
+        log.info(
+            "Cache Cleanup: removed %d dirs and %d files",
+            num_removed_dirs,
+            num_removed_files,
+        )

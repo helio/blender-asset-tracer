@@ -28,23 +28,28 @@ log = logging.getLogger(__name__)
 
 codes_to_skip = {
     # These blocks never have external assets:
-    b'ID', b'WM', b'SN',
-
+    b"ID",
+    b"WM",
+    b"SN",
     # These blocks are skipped for now, until we have proof they point to
     # assets otherwise missed:
-    b'GR', b'WO', b'BR', b'LS',
+    b"GR",
+    b"WO",
+    b"BR",
+    b"LS",
 }
 
 
-def deps(bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback] = None) \
-        -> typing.Iterator[result.BlockUsage]:
+def deps(
+    bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback] = None
+) -> typing.Iterator[result.BlockUsage]:
     """Open the blend file and report its dependencies.
 
     :param bfilepath: File to open.
     :param progress_cb: Progress callback object.
     """
 
-    log.info('opening: %s', bfilepath)
+    log.info("opening: %s", bfilepath)
     bfile = blendfile.open_cached(bfilepath)
 
     bi = file2blocks.BlockIterator()
@@ -64,8 +69,9 @@ def deps(bfilepath: pathlib.Path, progress_cb: typing.Optional[progress.Callback
             yield block_usage
 
 
-def asset_holding_blocks(blocks: typing.Iterable[blendfile.BlendFileBlock]) \
-        -> typing.Iterator[blendfile.BlendFileBlock]:
+def asset_holding_blocks(
+    blocks: typing.Iterable[blendfile.BlendFileBlock],
+) -> typing.Iterator[blendfile.BlendFileBlock]:
     """Generator, yield data blocks that could reference external assets."""
     for block in blocks:
         assert isinstance(block, blendfile.BlendFileBlock)

@@ -32,17 +32,18 @@ log = logging.getLogger(__name__)
 # TODO(Sybren): compute MD5 sums of queued files in a separate thread, so that
 # we can upload a file to S3 and compute an MD5 of another file simultaneously.
 
+
 def compute_md5(filepath: pathlib.Path) -> str:
-    log.debug('Computing MD5sum of %s', filepath)
+    log.debug("Computing MD5sum of %s", filepath)
     hasher = hashlib.md5()
-    with filepath.open('rb') as infile:
+    with filepath.open("rb") as infile:
         while True:
             block = infile.read(102400)
             if not block:
                 break
             hasher.update(block)
     md5 = hasher.hexdigest()
-    log.debug('MD5sum of %s is %s', filepath, md5)
+    log.debug("MD5sum of %s is %s", filepath, md5)
     return md5
 
 
@@ -63,20 +64,21 @@ class S3Packer(Packer):
         components = urllib.parse.urlparse(endpoint)
         profile_name = components.netloc
         endpoint = urllib.parse.urlunparse(components)
-        log.debug('Using Boto3 profile name %r for url %r', profile_name, endpoint)
+        log.debug("Using Boto3 profile name %r for url %r", profile_name, endpoint)
         self.session = boto3.Session(profile_name=profile_name)
 
-        self.client = self.session.client('s3', endpoint_url=endpoint)
+        self.client = self.session.client("s3", endpoint_url=endpoint)
 
-    def set_credentials(self,
-                        endpoint: str,
-                        access_key_id: str,
-                        secret_access_key: str):
+    def set_credentials(
+        self, endpoint: str, access_key_id: str, secret_access_key: str
+    ):
         """Set S3 credentials."""
-        self.client = self.session.client('s3',
-                                          endpoint_url=endpoint,
-                                          aws_access_key_id=access_key_id,
-                                          aws_secret_access_key=secret_access_key)
+        self.client = self.session.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+        )
 
     def _create_file_transferer(self) -> transfer.FileTransferer:
         return S3Transferrer(self.client)
@@ -107,7 +109,7 @@ class S3Transferrer(transfer.FileTransferer):
             except Exception:
                 # We have to catch exceptions in a broad way, as this is running in
                 # a separate thread, and exceptions won't otherwise be seen.
-                log.exception('Error transferring %s to %s', src, dst)
+                log.exception("Error transferring %s to %s", src, dst)
                 # Put the files to copy back into the queue, and abort. This allows
                 # the main thread to inspect the queue and see which files were not
                 # copied. The one we just failed (due to this exception) should also
@@ -116,9 +118,9 @@ class S3Transferrer(transfer.FileTransferer):
                 return
 
         if files_transferred:
-            log.info('Transferred %d files', files_transferred)
+            log.info("Transferred %d files", files_transferred)
         if files_skipped:
-            log.info('Skipped %d files', files_skipped)
+            log.info("Skipped %d files", files_skipped)
 
     def upload_file(self, src: pathlib.Path, dst: pathlib.PurePath) -> bool:
         """Upload a file to an S3 bucket.
@@ -135,25 +137,30 @@ class S3Transferrer(transfer.FileTransferer):
 
         existing_md5, existing_size = self.get_metadata(bucket, key)
         if md5 == existing_md5 and src.stat().st_size == existing_size:
-            log.debug('skipping %s, it already exists on the server with MD5 %s',
-                      src, existing_md5)
+            log.debug(
+                "skipping %s, it already exists on the server with MD5 %s",
+                src,
+                existing_md5,
+            )
             return False
 
-        log.info('Uploading %s', src)
+        log.info("Uploading %s", src)
         try:
-            self.client.upload_file(str(src),
-                                    Bucket=bucket,
-                                    Key=key,
-                                    Callback=self.report_transferred,
-                                    ExtraArgs={'Metadata': {'md5': md5}})
+            self.client.upload_file(
+                str(src),
+                Bucket=bucket,
+                Key=key,
+                Callback=self.report_transferred,
+                ExtraArgs={"Metadata": {"md5": md5}},
+            )
         except self.AbortUpload:
             return False
         return True
 
     def report_transferred(self, bytes_transferred: int):
         if self._abort.is_set():
-            log.warning('Interrupting ongoing upload')
-            raise self.AbortUpload('interrupting ongoing upload')
+            log.warning("Interrupting ongoing upload")
+            raise self.AbortUpload("interrupting ongoing upload")
         super().report_transferred(bytes_transferred)
 
     def get_metadata(self, bucket: str, key: str) -> typing.Tuple[str, int]:
@@ -165,18 +172,18 @@ class S3Transferrer(transfer.FileTransferer):
         """
         import botocore.exceptions
 
-        log.debug('Getting metadata of %s/%s', bucket, key)
+        log.debug("Getting metadata of %s/%s", bucket, key)
         try:
             info = self.client.head_object(Bucket=bucket, Key=key)
         except botocore.exceptions.ClientError as ex:
-            error_code = ex.response.get('Error').get('Code', 'Unknown')
+            error_code = ex.response.get("Error").get("Code", "Unknown")
             # error_code already is a string, but this makes the code forward
             # compatible with a time where they use integer codes.
-            if str(error_code) == '404':
-                return '', -1
-            raise ValueError('error response:' % ex.response) from None
+            if str(error_code) == "404":
+                return "", -1
+            raise ValueError("error response:" % ex.response) from None
 
         try:
-            return info['Metadata']['md5'], info['ContentLength']
+            return info["Metadata"]["md5"], info["ContentLength"]
         except KeyError:
-            return '', -1
+            return "", -1

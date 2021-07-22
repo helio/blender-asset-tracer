@@ -26,8 +26,9 @@ from . import BlendFileBlock
 from .dna import FieldPath
 
 
-def listbase(block: typing.Optional[BlendFileBlock], next_path: FieldPath = b'next') \
-        -> typing.Iterator[BlendFileBlock]:
+def listbase(
+    block: typing.Optional[BlendFileBlock], next_path: FieldPath = b"next"
+) -> typing.Iterator[BlendFileBlock]:
     """Generator, yields all blocks in the ListBase linked list."""
     while block:
         yield block
@@ -37,8 +38,9 @@ def listbase(block: typing.Optional[BlendFileBlock], next_path: FieldPath = b'ne
         block = block.bfile.dereference_pointer(next_ptr)
 
 
-def sequencer_strips(sequence_editor: BlendFileBlock) \
-        -> typing.Iterator[typing.Tuple[BlendFileBlock, int]]:
+def sequencer_strips(
+    sequence_editor: BlendFileBlock,
+) -> typing.Iterator[typing.Tuple[BlendFileBlock, int]]:
     """Generator, yield all sequencer strip blocks with their type number.
 
     Recurses into meta strips, yielding both the meta strip itself and the
@@ -49,16 +51,16 @@ def sequencer_strips(sequence_editor: BlendFileBlock) \
 
     def iter_seqbase(seqbase) -> typing.Iterator[typing.Tuple[BlendFileBlock, int]]:
         for seq in listbase(seqbase):
-            seq.refine_type(b'Sequence')
-            seq_type = seq[b'type']
+            seq.refine_type(b"Sequence")
+            seq_type = seq[b"type"]
             yield seq, seq_type
 
             if seq_type == cdefs.SEQ_TYPE_META:
                 # Recurse into this meta-sequence.
-                subseq = seq.get_pointer((b'seqbase', b'first'))
+                subseq = seq.get_pointer((b"seqbase", b"first"))
                 yield from iter_seqbase(subseq)
 
-    sbase = sequence_editor.get_pointer((b'seqbase', b'first'))
+    sbase = sequence_editor.get_pointer((b"seqbase", b"first"))
     yield from iter_seqbase(sbase)
 
 
@@ -66,5 +68,5 @@ def modifiers(object_block: BlendFileBlock) -> typing.Iterator[BlendFileBlock]:
     """Generator, yield the object's modifiers."""
 
     # 'ob->modifiers[...]'
-    mods = object_block.get_pointer((b'modifiers', b'first'))
-    yield from listbase(mods, next_path=(b'modifier', b'next'))
+    mods = object_block.get_pointer((b"modifiers", b"first"))
+    yield from listbase(mods, next_path=(b"modifier", b"next"))

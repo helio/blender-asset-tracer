@@ -81,9 +81,9 @@ class FileCopier(transfer.FileTransferer):
                 # We have to catch exceptions in a broad way, as this is running in
                 # a separate thread, and exceptions won't otherwise be seen.
                 if self._abort.is_set():
-                    log.debug('Error transferring %s to %s: %s', src, dst, ex)
+                    log.debug("Error transferring %s to %s: %s", src, dst, ex)
                 else:
-                    msg = 'Error transferring %s to %s' % (src, dst)
+                    msg = "Error transferring %s to %s" % (src, dst)
                     log.exception(msg)
                     self.error_set(msg)
                 # Put the files to copy back into the queue, and abort. This allows
@@ -93,16 +93,16 @@ class FileCopier(transfer.FileTransferer):
                 self.queue.put((src, dst, act), timeout=1.0)
                 break
 
-        log.debug('All transfer threads queued')
+        log.debug("All transfer threads queued")
         pool.close()
-        log.debug('Waiting for transfer threads to finish')
+        log.debug("Waiting for transfer threads to finish")
         pool.join()
-        log.debug('All transfer threads finished')
+        log.debug("All transfer threads finished")
 
         if self.files_transferred:
-            log.info('Transferred %d files', self.files_transferred)
+            log.info("Transferred %d files", self.files_transferred)
         if self.files_skipped:
-            log.info('Skipped %d files', self.files_skipped)
+            log.info("Skipped %d files", self.files_skipped)
 
     def _thread(self, src: pathlib.Path, dst: pathlib.Path, act: transfer.Action):
         try:
@@ -111,7 +111,7 @@ class FileCopier(transfer.FileTransferer):
             if self.has_error or self._abort.is_set():
                 raise AbortTransfer()
 
-            log.info('%s %s -> %s', act.name, src, dst)
+            log.info("%s %s -> %s", act.name, src, dst)
             tfunc(src, dst)
         except AbortTransfer:
             # either self._error or self._abort is already set. We just have to
@@ -121,9 +121,9 @@ class FileCopier(transfer.FileTransferer):
             # We have to catch exceptions in a broad way, as this is running in
             # a separate thread, and exceptions won't otherwise be seen.
             if self._abort.is_set():
-                log.debug('Error transferring %s to %s: %s', src, dst, ex)
+                log.debug("Error transferring %s to %s: %s", src, dst, ex)
             else:
-                msg = 'Error transferring %s to %s' % (src, dst)
+                msg = "Error transferring %s to %s" % (src, dst)
                 log.exception(msg)
                 self.error_set(msg)
             # Put the files to copy back into the queue, and abort. This allows
@@ -132,7 +132,9 @@ class FileCopier(transfer.FileTransferer):
             # be reported there.
             self.queue.put((src, dst, act), timeout=1.0)
 
-    def _skip_file(self, src: pathlib.Path, dst: pathlib.Path, act: transfer.Action) -> bool:
+    def _skip_file(
+        self, src: pathlib.Path, dst: pathlib.Path, act: transfer.Action
+    ) -> bool:
         """Skip this file (return True) or not (return False)."""
         st_src = src.stat()  # must exist, or it wouldn't be queued.
         if not dst.exists():
@@ -142,9 +144,9 @@ class FileCopier(transfer.FileTransferer):
         if st_dst.st_size != st_src.st_size or st_dst.st_mtime < st_src.st_mtime:
             return False
 
-        log.info('SKIP %s; already exists', src)
+        log.info("SKIP %s; already exists", src)
         if act == transfer.Action.MOVE:
-            log.debug('Deleting %s', src)
+            log.debug("Deleting %s", src)
             src.unlink()
         self.files_skipped += 1
         return True
@@ -171,19 +173,19 @@ class FileCopier(transfer.FileTransferer):
             return
 
         if (srcpath, dstpath) in self.already_copied:
-            log.debug('SKIP %s; already copied', srcpath)
+            log.debug("SKIP %s; already copied", srcpath)
             return
 
         s_stat = srcpath.stat()  # must exist, or it wouldn't be queued.
         if dstpath.exists():
             d_stat = dstpath.stat()
             if d_stat.st_size == s_stat.st_size and d_stat.st_mtime >= s_stat.st_mtime:
-                log.info('SKIP %s; already exists', srcpath)
+                log.info("SKIP %s; already exists", srcpath)
                 self.progress_cb.transfer_file_skipped(srcpath, dstpath)
                 self.files_skipped += 1
                 return
 
-        log.debug('Copying %s -> %s', srcpath, dstpath)
+        log.debug("Copying %s -> %s", srcpath, dstpath)
         self._copy(srcpath, dstpath)
 
         self.already_copied.add((srcpath, dstpath))
@@ -191,8 +193,13 @@ class FileCopier(transfer.FileTransferer):
 
         self.report_transferred(s_stat.st_size)
 
-    def copytree(self, src: pathlib.Path, dst: pathlib.Path,
-                 symlinks=False, ignore_dangling_symlinks=False):
+    def copytree(
+        self,
+        src: pathlib.Path,
+        dst: pathlib.Path,
+        symlinks=False,
+        ignore_dangling_symlinks=False,
+    ):
         """Recursively copy a directory tree.
 
         Copy of shutil.copytree() with some changes:
@@ -204,7 +211,7 @@ class FileCopier(transfer.FileTransferer):
         """
 
         if (src, dst) in self.already_copied:
-            log.debug('SKIP %s; already copied', src)
+            log.debug("SKIP %s; already copied", src)
             return
 
         if self.has_error or self._abort.is_set():
@@ -225,7 +232,9 @@ class FileCopier(transfer.FileTransferer):
                         # code with a custom `copy_function` may rely on copytree
                         # doing the right thing.
                         linkto.symlink_to(dstpath)
-                        shutil.copystat(str(srcpath), str(dstpath), follow_symlinks=not symlinks)
+                        shutil.copystat(
+                            str(srcpath), str(dstpath), follow_symlinks=not symlinks
+                        )
                     else:
                         # ignore dangling symlink if the flag is on
                         if not linkto.exists() and ignore_dangling_symlinks:
@@ -250,7 +259,7 @@ class FileCopier(transfer.FileTransferer):
             shutil.copystat(str(src), str(dst))
         except OSError as why:
             # Copying file access times may fail on Windows
-            if getattr(why, 'winerror', None) is None:
+            if getattr(why, "winerror", None) is None:
                 errors.append((src, dst, str(why)))
         if errors:
             raise shutil.Error(errors)

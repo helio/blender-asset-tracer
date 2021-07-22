@@ -39,17 +39,17 @@ _funcs_for_code = {}  # type: typing.Dict[bytes, typing.Callable]
 
 def iter_assets(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Generator, yield the assets used by this data block."""
-    assert block.code != b'DATA'
+    assert block.code != b"DATA"
 
     try:
         block_reader = _funcs_for_code[block.code]
     except KeyError:
         if block.code not in _warned_about_types:
-            log.debug('No reader implemented for block type %r', block.code.decode())
+            log.debug("No reader implemented for block type %r", block.code.decode())
             _warned_about_types.add(block.code)
         return
 
-    log.debug('Tracing block %r', block)
+    log.debug("Tracing block %r", block)
     yield from block_reader(block)
 
 
@@ -70,8 +70,8 @@ def skip_packed(wrapped):
 
     @functools.wraps(wrapped)
     def wrapper(block: blendfile.BlendFileBlock, *args, **kwargs):
-        if block.get(b'packedfile', default=False):
-            log.debug('Datablock %r is packed; skipping', block.id_name)
+        if block.get(b"packedfile", default=False):
+            log.debug("Datablock %r is packed; skipping", block.id_name)
             return
 
         yield from wrapped(block, *args, **kwargs)
@@ -79,32 +79,36 @@ def skip_packed(wrapped):
     return wrapper
 
 
-@dna_code('CF')
+@dna_code("CF")
 def cache_file(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Cache file data blocks."""
-    path, field = block.get(b'filepath', return_field=True)
+    path, field = block.get(b"filepath", return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
-@dna_code('IM')
+@dna_code("IM")
 @skip_packed
 def image(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Image data blocks."""
     # old files miss this
-    image_source = block.get(b'source', default=cdefs.IMA_SRC_FILE)
-    if image_source not in {cdefs.IMA_SRC_FILE, cdefs.IMA_SRC_SEQUENCE, cdefs.IMA_SRC_MOVIE}:
+    image_source = block.get(b"source", default=cdefs.IMA_SRC_FILE)
+    if image_source not in {
+        cdefs.IMA_SRC_FILE,
+        cdefs.IMA_SRC_SEQUENCE,
+        cdefs.IMA_SRC_MOVIE,
+    }:
         return
 
-    pathname, field = block.get(b'name', return_field=True)
+    pathname, field = block.get(b"name", return_field=True)
     is_sequence = image_source == cdefs.IMA_SRC_SEQUENCE
 
     yield result.BlockUsage(block, pathname, is_sequence, path_full_field=field)
 
 
-@dna_code('LI')
+@dna_code("LI")
 def library(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Library data blocks."""
-    path, field = block.get(b'name', return_field=True)
+    path, field = block.get(b"name", return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
     # The 'filepath' also points to the blend file. However, this is set to the
@@ -112,37 +116,37 @@ def library(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsag
     # is thus not a property we have to report or rewrite.
 
 
-@dna_code('ME')
+@dna_code("ME")
 def mesh(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Mesh data blocks."""
-    block_external = block.get_pointer((b'ldata', b'external'), None)
+    block_external = block.get_pointer((b"ldata", b"external"), None)
     if block_external is None:
-        block_external = block.get_pointer((b'fdata', b'external'), None)
+        block_external = block.get_pointer((b"fdata", b"external"), None)
     if block_external is None:
         return
 
-    path, field = block_external.get(b'filename', return_field=True)
+    path, field = block_external.get(b"filename", return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
-@dna_code('MC')
+@dna_code("MC")
 def movie_clip(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """MovieClip data blocks."""
-    path, field = block.get(b'name', return_field=True)
+    path, field = block.get(b"name", return_field=True)
     # TODO: The assumption that this is not a sequence may not be true for all modifiers.
     yield result.BlockUsage(block, path, is_sequence=False, path_full_field=field)
 
 
-@dna_code('OB')
+@dna_code("OB")
 def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Object data blocks."""
     ctx = modifier_walkers.ModifierContext(owner=block)
 
     # 'ob->modifiers[...].filepath'
     for mod_idx, block_mod in enumerate(iterators.modifiers(block)):
-        block_name = b'%s.modifiers[%d]' % (block.id_name, mod_idx)
-        mod_type = block_mod[b'modifier', b'type']
-        log.debug('Tracing modifier %s, type=%d', block_name.decode(), mod_type)
+        block_name = b"%s.modifiers[%d]" % (block.id_name, mod_idx)
+        mod_type = block_mod[b"modifier", b"type"]
+        log.debug("Tracing modifier %s, type=%d", block_name.decode(), mod_type)
 
         try:
             mod_handler = modifier_walkers.modifier_handlers[mod_type]
@@ -151,52 +155,59 @@ def object_block(block: blendfile.BlendFileBlock) -> typing.Iterator[result.Bloc
         yield from mod_handler(ctx, block_mod, block_name)
 
 
-@dna_code('SC')
+@dna_code("SC")
 def scene(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Scene data blocks."""
     # Sequence editor is the only interesting bit.
-    block_ed = block.get_pointer(b'ed')
+    block_ed = block.get_pointer(b"ed")
     if block_ed is None:
         return
 
-    single_asset_types = {cdefs.SEQ_TYPE_MOVIE, cdefs.SEQ_TYPE_SOUND_RAM, cdefs.SEQ_TYPE_SOUND_HD}
+    single_asset_types = {
+        cdefs.SEQ_TYPE_MOVIE,
+        cdefs.SEQ_TYPE_SOUND_RAM,
+        cdefs.SEQ_TYPE_SOUND_HD,
+    }
     asset_types = single_asset_types.union({cdefs.SEQ_TYPE_IMAGE})
 
     for seq, seq_type in iterators.sequencer_strips(block_ed):
         if seq_type not in asset_types:
             continue
 
-        seq_strip = seq.get_pointer(b'strip')
+        seq_strip = seq.get_pointer(b"strip")
         if seq_strip is None:
             continue
-        seq_stripdata = seq_strip.get_pointer(b'stripdata')
+        seq_stripdata = seq_strip.get_pointer(b"stripdata")
         if seq_stripdata is None:
             continue
 
-        dirname, dn_field = seq_strip.get(b'dir', return_field=True)
-        basename, bn_field = seq_stripdata.get(b'name', return_field=True)
+        dirname, dn_field = seq_strip.get(b"dir", return_field=True)
+        basename, bn_field = seq_stripdata.get(b"name", return_field=True)
         asset_path = bpathlib.BlendPath(dirname) / basename
 
         is_sequence = seq_type not in single_asset_types
-        yield result.BlockUsage(seq_strip, asset_path,
-                                is_sequence=is_sequence,
-                                path_dir_field=dn_field,
-                                path_base_field=bn_field)
+        yield result.BlockUsage(
+            seq_strip,
+            asset_path,
+            is_sequence=is_sequence,
+            path_dir_field=dn_field,
+            path_base_field=bn_field,
+        )
 
 
-@dna_code('SO')
+@dna_code("SO")
 @skip_packed
 def sound(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Sound data blocks."""
-    path, field = block.get(b'name', return_field=True)
+    path, field = block.get(b"name", return_field=True)
     yield result.BlockUsage(block, path, path_full_field=field)
 
 
-@dna_code('VF')
+@dna_code("VF")
 @skip_packed
 def vector_font(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]:
     """Vector Font data blocks."""
-    path, field = block.get(b'name', return_field=True)
-    if path == b'<builtin>':  # builtin font
+    path, field = block.get(b"name", return_field=True)
+    if path == b"<builtin>":  # builtin font
         return
     yield result.BlockUsage(block, path, path_full_field=field)

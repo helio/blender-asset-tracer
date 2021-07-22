@@ -42,38 +42,38 @@ class Name:
         self.array_size = self.calc_array_size()
 
     def __repr__(self):
-        return '%s(%r)' % (type(self).__qualname__, self.name_full)
+        return "%s(%r)" % (type(self).__qualname__, self.name_full)
 
     def as_reference(self, parent) -> bytes:
         if not parent:
             return self.name_only
-        return parent + b'.' + self.name_only
+        return parent + b"." + self.name_only
 
     def calc_name_only(self) -> bytes:
-        result = self.name_full.strip(b'*()')
-        index = result.find(b'[')
+        result = self.name_full.strip(b"*()")
+        index = result.find(b"[")
         if index == -1:
             return result
         return result[:index]
 
     def calc_is_pointer(self) -> bool:
-        return b'*' in self.name_full
+        return b"*" in self.name_full
 
     def calc_is_method_pointer(self):
-        return b'(*' in self.name_full
+        return b"(*" in self.name_full
 
     def calc_array_size(self):
         result = 1
         partial_name = self.name_full
 
         while True:
-            idx_start = partial_name.find(b'[')
+            idx_start = partial_name.find(b"[")
             if idx_start < 0:
                 break
 
-            idx_stop = partial_name.find(b']')
-            result *= int(partial_name[idx_start + 1:idx_stop])
-            partial_name = partial_name[idx_stop + 1:]
+            idx_stop = partial_name.find(b"]")
+            result *= int(partial_name[idx_start + 1 : idx_stop])
+            partial_name = partial_name[idx_stop + 1 :]
 
         return result
 
@@ -89,24 +89,20 @@ class Field:
     :ivar offset: cached offset of the field, in bytes.
     """
 
-    def __init__(self,
-                 dna_type: 'Struct',
-                 name: Name,
-                 size: int,
-                 offset: int) -> None:
+    def __init__(self, dna_type: "Struct", name: Name, size: int, offset: int) -> None:
         self.dna_type = dna_type
         self.name = name
         self.size = size
         self.offset = offset
 
     def __repr__(self):
-        return '<%r %r (%s)>' % (type(self).__qualname__, self.name, self.dna_type)
+        return "<%r %r (%s)>" % (type(self).__qualname__, self.name, self.dna_type)
 
 
 class Struct:
     """dna.Struct is a C-type structure stored in the DNA."""
 
-    log = log.getChild('Struct')
+    log = log.getChild("Struct")
 
     def __init__(self, dna_type_id: bytes, size: int = None) -> None:
         """
@@ -121,13 +117,13 @@ class Struct:
         self._fields_by_name = {}  # type: typing.Dict[bytes, Field]
 
     def __repr__(self):
-        return '%s(%r)' % (type(self).__qualname__, self.dna_type_id)
+        return "%s(%r)" % (type(self).__qualname__, self.dna_type_id)
 
     @property
     def size(self) -> int:
         if self._size is None:
             if not self._fields:
-                raise ValueError('Unable to determine size of fieldless %r' % self)
+                raise ValueError("Unable to determine size of fieldless %r" % self)
             last_field = max(self._fields, key=lambda f: f.offset)
             self._size = last_field.offset + last_field.size
         return self._size
@@ -151,10 +147,9 @@ class Struct:
     def has_field(self, field_name: bytes) -> bool:
         return field_name in self._fields_by_name
 
-    def field_from_path(self,
-                        pointer_size: int,
-                        path: FieldPath) \
-            -> typing.Tuple[Field, int]:
+    def field_from_path(
+        self, pointer_size: int, path: FieldPath
+    ) -> typing.Tuple[Field, int]:
         """
         Support lookups as bytes or a tuple of bytes and optional index.
 
@@ -181,12 +176,14 @@ class Struct:
             index = 0
 
         if not isinstance(name, bytes):
-            raise TypeError('name should be bytes, but is %r' % type(name))
+            raise TypeError("name should be bytes, but is %r" % type(name))
 
         field = self._fields_by_name.get(name)
         if not field:
-            raise KeyError('%r has no field %r, only %r' %
-                           (self, name, sorted(self._fields_by_name.keys())))
+            raise KeyError(
+                "%r has no field %r, only %r"
+                % (self, name, sorted(self._fields_by_name.keys()))
+            )
 
         offset = field.offset
         if index:
@@ -195,8 +192,10 @@ class Struct:
             else:
                 index_offset = field.dna_type.size * index
             if index_offset >= field.size:
-                raise OverflowError('path %r is out of bounds of its DNA type %s' %
-                                    (path, field.dna_type))
+                raise OverflowError(
+                    "path %r is out of bounds of its DNA type %s"
+                    % (path, field.dna_type)
+                )
             offset += index_offset
 
         if name_tail:
@@ -205,14 +204,15 @@ class Struct:
 
         return field, offset
 
-    def field_get(self,
-                  file_header: header.BlendFileHeader,
-                  fileobj: typing.IO[bytes],
-                  path: FieldPath,
-                  default=...,
-                  null_terminated=True,
-                  as_str=True,
-                  ) -> typing.Tuple[typing.Optional[Field], typing.Any]:
+    def field_get(
+        self,
+        file_header: header.BlendFileHeader,
+        fileobj: typing.IO[bytes],
+        path: FieldPath,
+        default=...,
+        null_terminated=True,
+        as_str=True,
+    ) -> typing.Tuple[typing.Optional[Field], typing.Any]:
         """Read the value of the field from the blend file.
 
         Assumes the file pointer of `fileobj` is seek()ed to the start of the
@@ -248,22 +248,26 @@ class Struct:
         # Some special cases (pointers, strings/bytes)
         if dna_name.is_pointer:
             return field, endian.read_pointer(fileobj, file_header.pointer_size)
-        if dna_type.dna_type_id == b'char':
-            return field, self._field_get_char(file_header, fileobj, field, null_terminated, as_str)
+        if dna_type.dna_type_id == b"char":
+            return field, self._field_get_char(
+                file_header, fileobj, field, null_terminated, as_str
+            )
 
         simple_readers = {
-            b'int': endian.read_int,
-            b'short': endian.read_short,
-            b'uint64_t': endian.read_ulong,
-            b'float': endian.read_float,
+            b"int": endian.read_int,
+            b"short": endian.read_short,
+            b"uint64_t": endian.read_ulong,
+            b"float": endian.read_float,
         }
         try:
             simple_reader = simple_readers[dna_type.dna_type_id]
         except KeyError:
             raise exceptions.NoReaderImplemented(
-                "%r exists but not simple type (%r), can't resolve field %r" %
-                (path, dna_type.dna_type_id.decode(), dna_name.name_only),
-                dna_name, dna_type) from None
+                "%r exists but not simple type (%r), can't resolve field %r"
+                % (path, dna_type.dna_type_id.decode(), dna_name.name_only),
+                dna_name,
+                dna_type,
+            ) from None
 
         if isinstance(path, tuple) and len(path) > 1 and isinstance(path[-1], int):
             # The caller wants to get a single item from an array. The offset we seeked to already
@@ -275,12 +279,14 @@ class Struct:
             return field, [simple_reader(fileobj) for _ in range(dna_name.array_size)]
         return field, simple_reader(fileobj)
 
-    def _field_get_char(self,
-                        file_header: header.BlendFileHeader,
-                        fileobj: typing.IO[bytes],
-                        field: 'Field',
-                        null_terminated: typing.Optional[bool],
-                        as_str: bool) -> typing.Any:
+    def _field_get_char(
+        self,
+        file_header: header.BlendFileHeader,
+        fileobj: typing.IO[bytes],
+        field: "Field",
+        null_terminated: typing.Optional[bool],
+        as_str: bool,
+    ) -> typing.Any:
         dna_name = field.name
         endian = file_header.endian
 
@@ -294,21 +300,23 @@ class Struct:
             data = fileobj.read(dna_name.array_size)
 
         if as_str:
-            return data.decode('utf8')
+            return data.decode("utf8")
         return data
 
-    def field_set(self,
-                  file_header: header.BlendFileHeader,
-                  fileobj: typing.IO[bytes],
-                  path: bytes,
-                  value: typing.Any):
+    def field_set(
+        self,
+        file_header: header.BlendFileHeader,
+        fileobj: typing.IO[bytes],
+        path: bytes,
+        value: typing.Any,
+    ):
         """Write a value to the blend file.
 
         Assumes the file pointer of `fileobj` is seek()ed to the start of the
         struct on disk (e.g. the start of the BlendFileBlock containing the
         data).
         """
-        assert isinstance(path, bytes), 'path should be bytes, but is %s' % type(path)
+        assert isinstance(path, bytes), "path should be bytes, but is %s" % type(path)
 
         field, offset = self.field_from_path(file_header.pointer_size, path)
 
@@ -316,17 +324,22 @@ class Struct:
         dna_name = field.name
         endian = file_header.endian
 
-        if dna_type.dna_type_id != b'char':
+        if dna_type.dna_type_id != b"char":
             msg = "Setting type %r is not supported for %s.%s" % (
-                dna_type, self.dna_type_id.decode(), dna_name.name_full.decode())
+                dna_type,
+                self.dna_type_id.decode(),
+                dna_name.name_full.decode(),
+            )
             raise exceptions.NoWriterImplemented(msg, dna_name, dna_type)
 
         fileobj.seek(offset, os.SEEK_CUR)
 
         if self.log.isEnabledFor(logging.DEBUG):
             filepos = fileobj.tell()
-            thing = 'string' if isinstance(value, str) else 'bytes'
-            self.log.debug('writing %s %r at file offset %d / %x', thing, value, filepos, filepos)
+            thing = "string" if isinstance(value, str) else "bytes"
+            self.log.debug(
+                "writing %s %r at file offset %d / %x", thing, value, filepos, filepos
+            )
 
         if isinstance(value, str):
             return endian.write_string(fileobj, value, dna_name.array_size)

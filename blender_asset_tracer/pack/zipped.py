@@ -30,7 +30,7 @@ from . import Packer, transfer
 log = logging.getLogger(__name__)
 
 # Suffixes to store uncompressed in the zip.
-STORE_ONLY = {'.jpg', '.jpeg', '.exr'}
+STORE_ONLY = {".jpg", ".jpeg", ".exr"}
 
 
 class ZipPacker(Packer):
@@ -58,9 +58,9 @@ class ZipTransferrer(transfer.FileTransferer):
 
         zippath = self.zippath.absolute()
 
-        with zipfile.ZipFile(str(zippath), 'w') as outzip:
+        with zipfile.ZipFile(str(zippath), "w") as outzip:
             for src, dst, act in self.iter_queue():
-                assert src.is_absolute(), 'expecting only absolute paths, not %r' % src
+                assert src.is_absolute(), "expecting only absolute paths, not %r" % src
 
                 dst = pathlib.Path(dst).absolute()
                 try:
@@ -69,18 +69,20 @@ class ZipTransferrer(transfer.FileTransferer):
                     # Don't bother trying to compress already-compressed files.
                     if src.suffix.lower() in STORE_ONLY:
                         compression = zipfile.ZIP_STORED
-                        log.debug('ZIP %s -> %s (uncompressed)', src, relpath)
+                        log.debug("ZIP %s -> %s (uncompressed)", src, relpath)
                     else:
                         compression = zipfile.ZIP_DEFLATED
-                        log.debug('ZIP %s -> %s', src, relpath)
-                    outzip.write(str(src), arcname=str(relpath), compress_type=compression)
+                        log.debug("ZIP %s -> %s", src, relpath)
+                    outzip.write(
+                        str(src), arcname=str(relpath), compress_type=compression
+                    )
 
                     if act == transfer.Action.MOVE:
                         self.delete_file(src)
                 except Exception:
                     # We have to catch exceptions in a broad way, as this is running in
                     # a separate thread, and exceptions won't otherwise be seen.
-                    log.exception('Error transferring %s to %s', src, dst)
+                    log.exception("Error transferring %s to %s", src, dst)
                     # Put the files to copy back into the queue, and abort. This allows
                     # the main thread to inspect the queue and see which files were not
                     # copied. The one we just failed (due to this exception) should also

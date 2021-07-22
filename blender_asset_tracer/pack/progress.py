@@ -37,9 +37,11 @@ class Callback(blender_asset_tracer.trace.progress.Callback):
     def pack_start(self) -> None:
         """Called when packing starts."""
 
-    def pack_done(self,
-                  output_blendfile: pathlib.PurePath,
-                  missing_files: typing.Set[pathlib.Path]) -> None:
+    def pack_done(
+        self,
+        output_blendfile: pathlib.PurePath,
+        missing_files: typing.Set[pathlib.Path],
+    ) -> None:
         """Called when packing is done."""
 
     def pack_aborted(self, reason: str):
@@ -86,7 +88,7 @@ class ThreadSafeCallback(Callback):
     """
 
     def __init__(self, wrapped: Callback) -> None:
-        self.log = log.getChild('ThreadSafeCallback')
+        self.log = log.getChild("ThreadSafeCallback")
         self.wrapped = wrapped
 
         # Thread-safe queue for passing progress reports on the main thread.
@@ -104,9 +106,11 @@ class ThreadSafeCallback(Callback):
     def pack_start(self) -> None:
         self._queue(self.wrapped.pack_start)
 
-    def pack_done(self,
-                  output_blendfile: pathlib.PurePath,
-                  missing_files: typing.Set[pathlib.Path]) -> None:
+    def pack_done(
+        self,
+        output_blendfile: pathlib.PurePath,
+        missing_files: typing.Set[pathlib.Path],
+    ) -> None:
         self._queue(self.wrapped.pack_done, output_blendfile, missing_files)
 
     def pack_aborted(self, reason: str):
@@ -135,8 +139,9 @@ class ThreadSafeCallback(Callback):
 
         while True:
             try:
-                call = self._reporting_queue.get(block=timeout is not None,
-                                                 timeout=timeout)
+                call = self._reporting_queue.get(
+                    block=timeout is not None, timeout=timeout
+                )
             except queue.Empty:
                 return
 
@@ -145,4 +150,4 @@ class ThreadSafeCallback(Callback):
             except Exception:
                 # Don't let the handling of one callback call
                 # block the entire flush process.
-                self.log.exception('Error calling %s', call)
+                self.log.exception("Error calling %s", call)

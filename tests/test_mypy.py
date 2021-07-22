@@ -13,11 +13,11 @@ class MypyRunnerTest(unittest.TestCase):
         # /path/to/blender-asset-tracer/.tox/py37/lib/python3.7/site-packages is in the PYTHONPATH.
         # Please change directory so it is not.
         for path in sys.path:
-            if '/.tox/' in path and path.endswith('/site-packages'):
+            if "/.tox/" in path and path.endswith("/site-packages"):
                 self.skipTest("Mypy doesn't like Tox")
 
         path = pathlib.Path(blender_asset_tracer.__file__).parent
-        result = mypy.api.run(['--incremental', '--ignore-missing-imports', str(path)])
+        result = mypy.api.run(["--incremental", "--ignore-missing-imports", str(path)])
 
         stdout, stderr, status = result
 
@@ -27,6 +27,6 @@ class MypyRunnerTest(unittest.TestCase):
         if stdout:
             messages.append(stdout)
         if status:
-            messages.append('Mypy failed with status %d' % status)
-        if messages and not all(msg.startswith('Success: ') for msg in messages):
-            self.fail('\n'.join(['Mypy errors:'] + messages))
+            messages.append("Mypy failed with status %d" % status)
+        if messages and not all(msg.startswith("Success: ") for msg in messages):
+            self.fail("\n".join(["Mypy errors:"] + messages))

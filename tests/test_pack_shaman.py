@@ -30,23 +30,32 @@ httpmock = responses.RequestsMock()
 class ShamanPackTest(AbstractPackTest):
     @httpmock.activate
     def test_all_files_already_uploaded(self):
-        infile = self.blendfiles / 'basic_file_ñønæščii.blend'
+        infile = self.blendfiles / "basic_file_ñønæščii.blend"
 
-        packer = shaman.ShamanPacker(infile, infile.parent, '/',
-                                     endpoint='http://shaman.local',
-                                     checkout_id='DA-JOBBY-ID')
+        packer = shaman.ShamanPacker(
+            infile,
+            infile.parent,
+            "/",
+            endpoint="http://shaman.local",
+            checkout_id="DA-JOBBY-ID",
+        )
 
         # Temporary hack
-        httpmock.add('GET', 'http://shaman.local/get-token', body='AUTH-TOKEN')
+        httpmock.add("GET", "http://shaman.local/get-token", body="AUTH-TOKEN")
 
         # Just fake that everything is already available on the server.
-        httpmock.add('POST', 'http://shaman.local/checkout/requirements', body='')
-        httpmock.add('POST', 'http://shaman.local/checkout/create/DA-JOBBY-ID',
-                     body='DA/-JOBBY-ID')
+        httpmock.add("POST", "http://shaman.local/checkout/requirements", body="")
+        httpmock.add(
+            "POST",
+            "http://shaman.local/checkout/create/DA-JOBBY-ID",
+            body="DA/-JOBBY-ID",
+        )
 
         with packer:
             packer.strategise()
             packer.execute()
 
-        self.assertEqual(pathlib.PurePosixPath('DA/-JOBBY-ID/basic_file_ñønæščii.blend'),
-                         packer.output_path)
+        self.assertEqual(
+            pathlib.PurePosixPath("DA/-JOBBY-ID/basic_file_ñønæščii.blend"),
+            packer.output_path,
+        )

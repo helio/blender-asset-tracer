@@ -37,7 +37,8 @@ class BlendFileHeader:
     It contains information about the hardware architecture, which is relevant
     to the structure of the rest of the file.
     """
-    structure = struct.Struct(b'7s1s1s3s')
+
+    structure = struct.Struct(b"7s1s1s3s")
 
     def __init__(self, fileobj: typing.IO[bytes], path: pathlib.Path) -> None:
         log.debug("reading blend-file-header %s", path)
@@ -48,31 +49,39 @@ class BlendFileHeader:
         self.magic = values[0]
 
         pointer_size_id = values[1]
-        if pointer_size_id == b'-':
+        if pointer_size_id == b"-":
             self.pointer_size = 8
-        elif pointer_size_id == b'_':
+        elif pointer_size_id == b"_":
             self.pointer_size = 4
         else:
-            raise exceptions.BlendFileError('invalid pointer size %r' % pointer_size_id, path)
+            raise exceptions.BlendFileError(
+                "invalid pointer size %r" % pointer_size_id, path
+            )
 
         endian_id = values[2]
-        if endian_id == b'v':
+        if endian_id == b"v":
             self.endian = dna_io.LittleEndianTypes
-            self.endian_str = b'<'  # indication for struct.Struct()
-        elif endian_id == b'V':
+            self.endian_str = b"<"  # indication for struct.Struct()
+        elif endian_id == b"V":
             self.endian = dna_io.BigEndianTypes
-            self.endian_str = b'>'  # indication for struct.Struct()
+            self.endian_str = b">"  # indication for struct.Struct()
         else:
-            raise exceptions.BlendFileError('invalid endian indicator %r' % endian_id, path)
+            raise exceptions.BlendFileError(
+                "invalid endian indicator %r" % endian_id, path
+            )
 
         version_id = values[3]
         self.version = int(version_id)
 
     def create_block_header_struct(self) -> struct.Struct:
         """Create a Struct instance for parsing data block headers."""
-        return struct.Struct(b''.join((
-            self.endian_str,
-            b'4sI',
-            b'I' if self.pointer_size == 4 else b'Q',
-            b'II',
-        )))
+        return struct.Struct(
+            b"".join(
+                (
+                    self.endian_str,
+                    b"4sI",
+                    b"I" if self.pointer_size == 4 else b"Q",
+                    b"II",
+                )
+            )
+        )

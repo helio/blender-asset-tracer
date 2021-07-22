@@ -38,34 +38,35 @@ from blender_asset_tracer import bpathlib
 log = logging.getLogger(__name__)
 
 FILE_BUFFER_SIZE = 1024 * 1024
-BLENDFILE_MAGIC = b'BLENDER'
-GZIP_MAGIC = b'\x1f\x8b'
-BFBList = typing.List['BlendFileBlock']
+BLENDFILE_MAGIC = b"BLENDER"
+GZIP_MAGIC = b"\x1f\x8b"
+BFBList = typing.List["BlendFileBlock"]
 
 _cached_bfiles = {}  # type: typing.Dict[pathlib.Path, BlendFile]
 
 
-def open_cached(path: pathlib.Path, mode='rb',
-                assert_cached: typing.Optional[bool] = None) -> 'BlendFile':
+def open_cached(
+    path: pathlib.Path, mode="rb", assert_cached: typing.Optional[bool] = None
+) -> "BlendFile":
     """Open a blend file, ensuring it is only opened once."""
-    my_log = log.getChild('open_cached')
+    my_log = log.getChild("open_cached")
     bfile_path = bpathlib.make_absolute(path)
 
     if assert_cached is not None:
         is_cached = bfile_path in _cached_bfiles
         if assert_cached and not is_cached:
-            raise AssertionError('File %s was not cached' % bfile_path)
+            raise AssertionError("File %s was not cached" % bfile_path)
         elif not assert_cached and is_cached:
-            raise AssertionError('File %s was cached' % bfile_path)
+            raise AssertionError("File %s was cached" % bfile_path)
 
     try:
         bfile = _cached_bfiles[bfile_path]
     except KeyError:
-        my_log.debug('Opening non-cached %s', path)
+        my_log.debug("Opening non-cached %s", path)
         bfile = BlendFile(path, mode=mode)
         _cached_bfiles[bfile_path] = bfile
     else:
-        my_log.debug('Returning cached %s', path)
+        my_log.debug("Returning cached %s", path)
 
     return bfile
 
@@ -76,13 +77,13 @@ def close_all_cached() -> None:
         # Don't even log anything when there is nothing to close
         return
 
-    log.debug('Closing %d cached blend files', len(_cached_bfiles))
+    log.debug("Closing %d cached blend files", len(_cached_bfiles))
     for bfile in list(_cached_bfiles.values()):
         bfile.close()
     _cached_bfiles.clear()
 
 
-def _cache(path: pathlib.Path, bfile: 'BlendFile'):
+def _cache(path: pathlib.Path, bfile: "BlendFile"):
     """Add a BlendFile to the cache."""
     bfile_path = bpathlib.make_absolute(path)
     _cached_bfiles[bfile_path] = bfile
@@ -102,9 +103,10 @@ class BlendFile:
         uncompressed files, but a temporary file for compressed files.
     :ivar fileobj: the file object that's being accessed.
     """
-    log = log.getChild('BlendFile')
 
-    def __init__(self, path: pathlib.Path, mode='rb') -> None:
+    log = log.getChild("BlendFile")
+
+    def __init__(self, path: pathlib.Path, mode="rb") -> None:
         """Create a BlendFile instance for the blend file at the path.
 
         Opens the file for reading or writing pending on the access. Compressed
@@ -121,7 +123,9 @@ class BlendFile:
         self.blocks = []  # type: BFBList
         """BlendFileBlocks of this file, in disk order."""
 
-        self.code_index = collections.defaultdict(list)  # type: typing.Dict[bytes, BFBList]
+        self.code_index = collections.defaultdict(
+            list
+        )  # type: typing.Dict[bytes, BFBList]
         self.structs = []  # type: typing.List[dna.Struct]
         self.sdna_index_from_id = {}  # type: typing.Dict[bytes, int]
         self.block_from_addr = {}  # type: typing.Dict[int, BlendFileBlock]
@@ -141,8 +145,8 @@ class BlendFile:
             correct magic bytes.
         """
 
-        if 'b' not in mode:
-            raise ValueError('Only binary modes are supported, not %r' % mode)
+        if "b" not in mode:
+            raise ValueError("Only binary modes are supported, not %r" % mode)
 
         self.filepath = path
 
@@ -165,7 +169,9 @@ class BlendFile:
             with gzip.GzipFile(fileobj=fileobj, mode=mode) as gzfile:
                 magic = gzfile.read(len(BLENDFILE_MAGIC))
                 if magic != BLENDFILE_MAGIC:
-                    raise exceptions.BlendFileError("Compressed file is not a blend file", path)
+                    raise exceptions.BlendFileError(
+                        "Compressed file is not a blend file", path
+                    )
 
                 data = magic
                 while data:
@@ -187,10 +193,10 @@ class BlendFile:
         self.sdna_index_from_id.clear()
         while True:
             block = BlendFileBlock(self)
-            if block.code == b'ENDB':
+            if block.code == b"ENDB":
                 break
 
-            if block.code == b'DNA1':
+            if block.code == b"DNA1":
                 self.decode_structs(block)
             else:
                 self.fileobj.seek(block.size, os.SEEK_CUR)
@@ -200,33 +206,34 @@ class BlendFile:
             self.block_from_addr[block.addr_old] = block
 
         if not self.structs:
-            raise exceptions.NoDNA1Block("No DNA1 block in file, not a valid .blend file",
-                                         self.filepath)
+            raise exceptions.NoDNA1Block(
+                "No DNA1 block in file, not a valid .blend file", self.filepath
+            )
 
     def __repr__(self) -> str:
         clsname = self.__class__.__qualname__
         if self.filepath == self.raw_filepath:
-            return '<%s %r>' % (clsname, self.filepath)
-        return '<%s %r reading from %r>' % (clsname, self.filepath, self.raw_filepath)
+            return "<%s %r>" % (clsname, self.filepath)
+        return "<%s %r reading from %r>" % (clsname, self.filepath, self.raw_filepath)
 
-    def __enter__(self) -> 'BlendFile':
+    def __enter__(self) -> "BlendFile":
         return self
 
     def __exit__(self, exctype, excvalue, traceback) -> None:
         self.close()
 
-    def copy_and_rebind(self, path: pathlib.Path, mode='rb') -> None:
+    def copy_and_rebind(self, path: pathlib.Path, mode="rb") -> None:
         """Change which file is bound to this BlendFile.
 
         This allows cloning a previously opened file, and rebinding it to reuse
         the already-loaded DNA structs and data blocks.
         """
-        log.debug('Rebinding %r to %s', self, path)
+        log.debug("Rebinding %r to %s", self, path)
 
         self.close()
         _uncache(self.filepath)
 
-        self.log.debug('Copying %s to %s', self.filepath, path)
+        self.log.debug("Copying %s to %s", self.filepath, path)
         # TODO(Sybren): remove str() calls when targeting Python 3.6+
         shutil.copy(str(self.filepath), str(path))
 
@@ -239,10 +246,10 @@ class BlendFile:
 
     def mark_modified(self) -> None:
         """Recompess the file when it is closed."""
-        self.log.debug('Marking %s as modified', self.raw_filepath)
+        self.log.debug("Marking %s as modified", self.raw_filepath)
         self._is_modified = True
 
-    def find_blocks_from_code(self, code: bytes) -> typing.List['BlendFileBlock']:
+    def find_blocks_from_code(self, code: bytes) -> typing.List["BlendFileBlock"]:
         assert isinstance(code, bytes)
         return self.code_index[code]
 
@@ -255,13 +262,13 @@ class BlendFile:
             return
 
         if self._is_modified:
-            log.debug('closing blend file %s after it was modified', self.raw_filepath)
+            log.debug("closing blend file %s after it was modified", self.raw_filepath)
 
         if self._is_modified and self.is_compressed:
             log.debug("recompressing modified blend file %s", self.raw_filepath)
             self.fileobj.seek(os.SEEK_SET, 0)
 
-            with gzip.open(str(self.filepath), 'wb') as gzfile:
+            with gzip.open(str(self.filepath), "wb") as gzfile:
                 while True:
                     data = self.fileobj.read(FILE_BUFFER_SIZE)
                     if not data:
@@ -284,11 +291,15 @@ class BlendFile:
         curr_struct = self.structs[sdna_index_curr]
         next_struct = self.structs[sdna_index_next]
         if curr_struct.size > next_struct.size:
-            raise RuntimeError("Can't refine to smaller type (%s -> %s)" %
-                               (curr_struct.dna_type_id.decode('utf-8'),
-                                next_struct.dna_type_id.decode('utf-8')))
+            raise RuntimeError(
+                "Can't refine to smaller type (%s -> %s)"
+                % (
+                    curr_struct.dna_type_id.decode("utf-8"),
+                    next_struct.dna_type_id.decode("utf-8"),
+                )
+            )
 
-    def decode_structs(self, block: 'BlendFileBlock'):
+    def decode_structs(self, block: "BlendFileBlock"):
         """
         DNACatalog is a catalog of all information in the DNA1 file-block
         """
@@ -356,7 +367,9 @@ class BlendFile:
             dna_offset = 0
 
             for field_index in range(fields_len):
-                field_type_index, field_name_index = shortstruct2.unpack_from(data, offset)
+                field_type_index, field_name_index = shortstruct2.unpack_from(
+                    data, offset
+                )
                 offset += 4
 
                 dna_type = types[field_type_index]
@@ -381,18 +394,22 @@ class BlendFile:
         root = bpathlib.BlendPath(bfile_dir)
         abspath = relpath.absolute(root)
 
-        my_log = self.log.getChild('abspath')
-        my_log.debug('Resolved %s relative to %s to %s', relpath, self.filepath, abspath)
+        my_log = self.log.getChild("abspath")
+        my_log.debug(
+            "Resolved %s relative to %s to %s", relpath, self.filepath, abspath
+        )
 
         return abspath
 
-    def dereference_pointer(self, address: int) -> 'BlendFileBlock':
+    def dereference_pointer(self, address: int) -> "BlendFileBlock":
         """Return the pointed-to block, or raise SegmentationFault."""
 
         try:
             return self.block_from_addr[address]
         except KeyError:
-            raise exceptions.SegmentationFault('address does not exist', address) from None
+            raise exceptions.SegmentationFault(
+                "address does not exist", address
+            ) from None
 
     def struct(self, name: bytes) -> dna.Struct:
         index = self.sdna_index_from_id[name]
@@ -410,19 +427,26 @@ class BlendFileBlock:
     # dependency tracer significantly (p<0.001) faster. In my test case the
     # speed improvement was 16% for a 'bam list' command.
     __slots__ = (
-        'bfile', 'code', 'size', 'addr_old', 'sdna_index',
-        'count', 'file_offset', 'endian', '_id_name',
+        "bfile",
+        "code",
+        "size",
+        "addr_old",
+        "sdna_index",
+        "count",
+        "file_offset",
+        "endian",
+        "_id_name",
     )
 
-    log = log.getChild('BlendFileBlock')
-    old_structure = struct.Struct(b'4sI')
+    log = log.getChild("BlendFileBlock")
+    old_structure = struct.Struct(b"4sI")
     """old blend files ENDB block structure"""
 
     def __init__(self, bfile: BlendFile) -> None:
         self.bfile = bfile
 
         # Defaults; actual values are set by interpreting the block header.
-        self.code = b''
+        self.code = b""
         self.size = 0
         self.addr_old = 0
         self.sdna_index = 0
@@ -438,10 +462,14 @@ class BlendFileBlock:
         header_struct = bfile.block_header_struct
         data = bfile.fileobj.read(header_struct.size)
         if len(data) != header_struct.size:
-            self.log.warning("Blend file %s seems to be truncated, "
-                             "expected %d bytes but could read only %d",
-                             bfile.filepath, header_struct.size, len(data))
-            self.code = b'ENDB'
+            self.log.warning(
+                "Blend file %s seems to be truncated, "
+                "expected %d bytes but could read only %d",
+                bfile.filepath,
+                header_struct.size,
+                len(data),
+            )
+            self.code = b"ENDB"
             return
 
         # header size can be 8, 20, or 24 bytes long
@@ -449,14 +477,14 @@ class BlendFileBlock:
         # 20: normal headers 32 bit platform
         # 24: normal headers 64 bit platform
         if len(data) <= 15:
-            self.log.debug('interpreting block as old-style ENB block')
+            self.log.debug("interpreting block as old-style ENB block")
             blockheader = self.old_structure.unpack(data)
             self.code = self.endian.read_data0(blockheader[0])
             return
 
         blockheader = header_struct.unpack(data)
         self.code = self.endian.read_data0(blockheader[0])
-        if self.code != b'ENDB':
+        if self.code != b"ENDB":
             self.size = blockheader[1]
             self.addr_old = blockheader[2]
             self.sdna_index = blockheader[3]
@@ -478,11 +506,13 @@ class BlendFileBlock:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BlendFileBlock):
             return False
-        return (self.code == other.code and
-                self.addr_old == other.addr_old and
-                self.bfile.filepath == other.bfile.filepath)
+        return (
+            self.code == other.code
+            and self.addr_old == other.addr_old
+            and self.bfile.filepath == other.bfile.filepath
+        )
 
-    def __lt__(self, other: 'BlendFileBlock') -> bool:
+    def __lt__(self, other: "BlendFileBlock") -> bool:
         """Order blocks by file path and offset within that file."""
         if not isinstance(other, BlendFileBlock):
             raise NotImplemented()
@@ -504,7 +534,7 @@ class BlendFileBlock:
 
     @property
     def dna_type_name(self) -> str:
-        return self.dna_type_id.decode('ascii')
+        return self.dna_type_id.decode("ascii")
 
     @property
     def id_name(self) -> typing.Optional[bytes]:
@@ -515,7 +545,7 @@ class BlendFileBlock:
         """
         if self._id_name is ...:
             try:
-                self._id_name = self[b'id', b'name']
+                self._id_name = self[b"id", b"name"]
             except KeyError:
                 self._id_name = None
 
@@ -553,16 +583,19 @@ class BlendFileBlock:
 
         :returns: tuple (offset in bytes, length of array in items)
         """
-        field, field_offset = self.dna_type.field_from_path(self.bfile.header.pointer_size, path)
+        field, field_offset = self.dna_type.field_from_path(
+            self.bfile.header.pointer_size, path
+        )
         return self.file_offset + field_offset, field.name.array_size
 
-    def get(self,
-            path: dna.FieldPath,
-            default=...,
-            null_terminated=True,
-            as_str=False,
-            return_field=False
-            ) -> typing.Any:
+    def get(
+        self,
+        path: dna.FieldPath,
+        default=...,
+        null_terminated=True,
+        as_str=False,
+        return_field=False,
+    ) -> typing.Any:
         """Read a property and return the value.
 
         :param path: name of the property (like `b'loc'`), tuple of names
@@ -583,21 +616,25 @@ class BlendFileBlock:
 
         dna_struct = self.bfile.structs[self.sdna_index]
         field, value = dna_struct.field_get(
-            self.bfile.header, self.bfile.fileobj, path,
+            self.bfile.header,
+            self.bfile.fileobj,
+            path,
             default=default,
-            null_terminated=null_terminated, as_str=as_str,
+            null_terminated=null_terminated,
+            as_str=as_str,
         )
         if return_field:
             return value, field
         return value
 
-    def get_recursive_iter(self,
-                           path: dna.FieldPath,
-                           path_root: dna.FieldPath = b'',
-                           default=...,
-                           null_terminated=True,
-                           as_str=True,
-                           ) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
+    def get_recursive_iter(
+        self,
+        path: dna.FieldPath,
+        path_root: dna.FieldPath = b"",
+        default=...,
+        null_terminated=True,
+        as_str=True,
+    ) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
         """Generator, yields (path, property value) tuples.
 
         If a property cannot be decoded, a string representing its DNA type
@@ -613,20 +650,24 @@ class BlendFileBlock:
 
         try:
             # Try accessing as simple property
-            yield (path_full,
-                   self.get(path_full, default, null_terminated, as_str))
+            yield (path_full, self.get(path_full, default, null_terminated, as_str))
         except exceptions.NoReaderImplemented as ex:
             # This was not a simple property, so recurse into its DNA Struct.
             dna_type = ex.dna_type
             struct_index = self.bfile.sdna_index_from_id.get(dna_type.dna_type_id)
             if struct_index is None:
-                yield (path_full, "<%s>" % dna_type.dna_type_id.decode('ascii'))
+                yield (path_full, "<%s>" % dna_type.dna_type_id.decode("ascii"))
                 return
 
             # Recurse through the fields.
             for f in dna_type.fields:
-                yield from self.get_recursive_iter(f.name.name_only, path_full, default=default,
-                                                   null_terminated=null_terminated, as_str=as_str)
+                yield from self.get_recursive_iter(
+                    f.name.name_only,
+                    path_full,
+                    default=default,
+                    null_terminated=null_terminated,
+                    as_str=as_str,
+                )
 
     def hash(self) -> int:
         """Generate a pointer-independent hash for the block.
@@ -657,9 +698,10 @@ class BlendFileBlock:
         return dna_struct.field_set(self.bfile.header, self.bfile.fileobj, path, value)
 
     def get_pointer(
-            self, path: dna.FieldPath,
-            default=...,
-    ) -> typing.Union[None, 'BlendFileBlock']:
+        self,
+        path: dna.FieldPath,
+        default=...,
+    ) -> typing.Union[None, "BlendFileBlock"]:
         """Same as get() but dereferences a pointer.
 
         :raises exceptions.SegmentationFault: when there is no datablock with
@@ -681,8 +723,9 @@ class BlendFileBlock:
             ex.field_path = path
             raise
 
-    def iter_array_of_pointers(self, path: dna.FieldPath, array_size: int) \
-            -> typing.Iterator['BlendFileBlock']:
+    def iter_array_of_pointers(
+        self, path: dna.FieldPath, array_size: int
+    ) -> typing.Iterator["BlendFileBlock"]:
         """Dereference pointers from an array-of-pointers field.
 
         Use this function when you have a field like Mesh materials:
@@ -698,8 +741,9 @@ class BlendFileBlock:
 
         array = self.get_pointer(path)
         assert array is not None
-        assert array.code == b'DATA', \
-            'Array data block should have code DATA, is %r' % array.code.decode()
+        assert array.code == b"DATA", (
+            "Array data block should have code DATA, is %r" % array.code.decode()
+        )
         file_offset = array.file_offset
 
         endian = self.bfile.header.endian
@@ -713,8 +757,9 @@ class BlendFileBlock:
                 continue
             yield self.bfile.dereference_pointer(address)
 
-    def iter_fixed_array_of_pointers(self, path: dna.FieldPath) \
-            -> typing.Iterator['BlendFileBlock']:
+    def iter_fixed_array_of_pointers(
+        self, path: dna.FieldPath
+    ) -> typing.Iterator["BlendFileBlock"]:
         """Yield blocks from a fixed-size array field.
 
         Use this function when you have a field like lamp textures:
@@ -758,16 +803,18 @@ class BlendFileBlock:
             try:
                 yield self[k]
             except exceptions.NoReaderImplemented as ex:
-                yield '<%s>' % ex.dna_type.dna_type_id.decode('ascii')
+                yield "<%s>" % ex.dna_type.dna_type_id.decode("ascii")
 
     def items(self) -> typing.Iterable[typing.Tuple[bytes, typing.Any]]:
         for k in self.keys():
             try:
                 yield (k, self[k])
             except exceptions.NoReaderImplemented as ex:
-                yield (k, '<%s>' % ex.dna_type.dna_type_id.decode('ascii'))
+                yield (k, "<%s>" % ex.dna_type.dna_type_id.decode("ascii"))
 
-    def items_recursive(self) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
+    def items_recursive(
+        self,
+    ) -> typing.Iterator[typing.Tuple[dna.FieldPath, typing.Any]]:
         """Generator, yields (property path, property value) recursively for all properties."""
         for k in self.keys():
             yield from self.get_recursive_iter(k, as_str=False)

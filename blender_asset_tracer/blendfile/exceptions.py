@@ -32,7 +32,7 @@ class BlendFileError(Exception):
         self.filepath = filepath
 
     def __str__(self):
-        return '%s: %s' % (super().__str__(), self.filepath)
+        return "%s: %s" % (super().__str__(), self.filepath)
 
 
 class NoDNA1Block(BlendFileError):

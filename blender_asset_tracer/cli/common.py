@@ -29,11 +29,13 @@ def add_flag(argparser, flag_name: str, **kwargs):
     The flag defaults to False, and when present on the CLI stores True.
     """
 
-    argparser.add_argument('-%s' % flag_name[0],
-                           '--%s' % flag_name,
-                           default=False,
-                           action='store_true',
-                           **kwargs)
+    argparser.add_argument(
+        "-%s" % flag_name[0],
+        "--%s" % flag_name,
+        default=False,
+        action="store_true",
+        **kwargs
+    )
 
 
 def shorten(cwd: pathlib.Path, somepath: pathlib.Path) -> pathlib.Path:
@@ -44,7 +46,7 @@ def shorten(cwd: pathlib.Path, somepath: pathlib.Path) -> pathlib.Path:
         return somepath
 
 
-def humanize_bytes(size_in_bytes: int, precision: typing.Optional[int]=None):
+def humanize_bytes(size_in_bytes: int, precision: typing.Optional[int] = None):
     """Return a humanized string representation of a number of bytes.
 
     Source: http://code.activestate.com/recipes/577081-humanized-representation-of-a-number-of-bytes
@@ -78,22 +80,23 @@ def humanize_bytes(size_in_bytes: int, precision: typing.Optional[int]=None):
         precision = size_in_bytes >= 1024
 
     abbrevs = (
-        (1 << 50, 'PB'),
-        (1 << 40, 'TB'),
-        (1 << 30, 'GB'),
-        (1 << 20, 'MB'),
-        (1 << 10, 'kB'),
-        (1, 'B')
+        (1 << 50, "PB"),
+        (1 << 40, "TB"),
+        (1 << 30, "GB"),
+        (1 << 20, "MB"),
+        (1 << 10, "kB"),
+        (1, "B"),
     )
     for factor, suffix in abbrevs:
         if size_in_bytes >= factor:
             break
     else:
         factor = 1
-        suffix = 'B'
-    return '%.*f %s' % (precision, size_in_bytes / factor, suffix)
+        suffix = "B"
+    return "%.*f %s" % (precision, size_in_bytes / factor, suffix)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

@@ -27,14 +27,14 @@ import typing
 
 class EndianIO:
     # TODO(Sybren): note as UCHAR: struct.Struct = None and move actual structs to LittleEndianTypes
-    UCHAR = struct.Struct(b'<B')
-    USHORT = struct.Struct(b'<H')
-    USHORT2 = struct.Struct(b'<HH')  # two shorts in a row
-    SSHORT = struct.Struct(b'<h')
-    UINT = struct.Struct(b'<I')
-    SINT = struct.Struct(b'<i')
-    FLOAT = struct.Struct(b'<f')
-    ULONG = struct.Struct(b'<Q')
+    UCHAR = struct.Struct(b"<B")
+    USHORT = struct.Struct(b"<H")
+    USHORT2 = struct.Struct(b"<HH")  # two shorts in a row
+    SSHORT = struct.Struct(b"<h")
+    UINT = struct.Struct(b"<I")
+    SINT = struct.Struct(b"<i")
+    FLOAT = struct.Struct(b"<f")
+    ULONG = struct.Struct(b"<Q")
 
     @classmethod
     def _read(cls, fileobj: typing.IO[bytes], typestruct: struct.Struct):
@@ -42,7 +42,7 @@ class EndianIO:
         try:
             return typestruct.unpack(data)[0]
         except struct.error as ex:
-            raise struct.error('%s (read %d bytes)' % (ex, len(data))) from None
+            raise struct.error("%s (read %d bytes)" % (ex, len(data))) from None
 
     @classmethod
     def read_char(cls, fileobj: typing.IO[bytes]):
@@ -80,10 +80,12 @@ class EndianIO:
             return cls.read_uint(fileobj)
         if pointer_size == 8:
             return cls.read_ulong(fileobj)
-        raise ValueError('unsupported pointer size %d' % pointer_size)
+        raise ValueError("unsupported pointer size %d" % pointer_size)
 
     @classmethod
-    def write_string(cls, fileobj: typing.IO[bytes], astring: str, fieldlen: int) -> int:
+    def write_string(
+        cls, fileobj: typing.IO[bytes], astring: str, fieldlen: int
+    ) -> int:
         """Write a (truncated) string as UTF-8.
 
         The string will always be written 0-terminated.
@@ -94,7 +96,7 @@ class EndianIO:
         :returns: the number of bytes written.
         """
         assert isinstance(astring, str)
-        encoded = astring.encode('utf-8')
+        encoded = astring.encode("utf-8")
 
         # Take into account we also need space for a trailing 0-byte.
         maxlen = fieldlen - 1
@@ -106,13 +108,13 @@ class EndianIO:
             # is valid UTF-8 again.
             while True:
                 try:
-                    encoded.decode('utf8')
+                    encoded.decode("utf8")
                 except UnicodeDecodeError:
                     encoded = encoded[:-1]
                 else:
                     break
 
-        return fileobj.write(encoded + b'\0')
+        return fileobj.write(encoded + b"\0")
 
     @classmethod
     def write_bytes(cls, fileobj: typing.IO[bytes], data: bytes, fieldlen: int) -> int:
@@ -126,7 +128,7 @@ class EndianIO:
         if len(data) >= fieldlen:
             to_write = data[0:fieldlen]
         else:
-            to_write = data + b'\0'
+            to_write = data + b"\0"
 
         return fileobj.write(to_write)
 
@@ -137,12 +139,12 @@ class EndianIO:
 
     @classmethod
     def read_data0_offset(cls, data, offset):
-        add = data.find(b'\0', offset) - offset
-        return data[offset:offset + add]
+        add = data.find(b"\0", offset) - offset
+        return data[offset : offset + add]
 
     @classmethod
     def read_data0(cls, data):
-        add = data.find(b'\0')
+        add = data.find(b"\0")
         if add < 0:
             return data
         return data[:add]
@@ -153,11 +155,11 @@ class LittleEndianTypes(EndianIO):
 
 
 class BigEndianTypes(LittleEndianTypes):
-    UCHAR = struct.Struct(b'>B')
-    USHORT = struct.Struct(b'>H')
-    USHORT2 = struct.Struct(b'>HH')  # two shorts in a row
-    SSHORT = struct.Struct(b'>h')
-    UINT = struct.Struct(b'>I')
-    SINT = struct.Struct(b'>i')
-    FLOAT = struct.Struct(b'>f')
-    ULONG = struct.Struct(b'>Q')
+    UCHAR = struct.Struct(b">B")
+    USHORT = struct.Struct(b">H")
+    USHORT2 = struct.Struct(b">HH")  # two shorts in a row
+    SSHORT = struct.Struct(b">h")
+    UINT = struct.Struct(b">I")
+    SINT = struct.Struct(b">i")
+    FLOAT = struct.Struct(b">f")
+    ULONG = struct.Struct(b">Q")

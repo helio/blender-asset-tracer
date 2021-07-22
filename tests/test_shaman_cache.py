@@ -29,8 +29,10 @@ class AbstractChecksumTest(AbstractBlendFileTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.test_file = cls.blendfiles / 'linked_cube_compressed.blend'
-        cls.expected_checksum = '3c525e3a01ece11f26ded1e05e43284c4cce575c8074b97c6bdbc414fa2802ab'
+        cls.test_file = cls.blendfiles / "linked_cube_compressed.blend"
+        cls.expected_checksum = (
+            "3c525e3a01ece11f26ded1e05e43284c4cce575c8074b97c6bdbc414fa2802ab"
+        )
 
 
 class ChecksumTest(AbstractChecksumTest):
@@ -39,49 +41,49 @@ class ChecksumTest(AbstractChecksumTest):
 
 
 class CachedChecksumTest(AbstractChecksumTest):
-    @mock.patch('blender_asset_tracer.pack.shaman.cache._cache_path')
-    @mock.patch('blender_asset_tracer.pack.shaman.cache.compute_checksum')
+    @mock.patch("blender_asset_tracer.pack.shaman.cache._cache_path")
+    @mock.patch("blender_asset_tracer.pack.shaman.cache.compute_checksum")
     def test_cache_invalid_json(self, mock_compute_checksum, mock_cache_path):
         mock_path = mock.MagicMock(spec=pathlib.Path)
-        mock_path.open().__enter__().read.return_value = 'je moeder'
+        mock_path.open().__enter__().read.return_value = "je moeder"
         mock_cache_path.return_value = mock_path
 
-        mock_compute_checksum.return_value = 'computed-checksum'
+        mock_compute_checksum.return_value = "computed-checksum"
 
         checksum = cache.compute_cached_checksum(self.test_file)
-        self.assertEqual('computed-checksum', checksum)
+        self.assertEqual("computed-checksum", checksum)
 
-    @mock.patch('blender_asset_tracer.pack.shaman.cache._cache_path')
-    @mock.patch('blender_asset_tracer.pack.shaman.cache.compute_checksum')
+    @mock.patch("blender_asset_tracer.pack.shaman.cache._cache_path")
+    @mock.patch("blender_asset_tracer.pack.shaman.cache.compute_checksum")
     def test_cache_valid_json(self, mock_compute_checksum, mock_cache_path):
         stat = self.test_file.stat()
         cache_info = {
-            'checksum': 'cached-checksum',
-            'file_mtime': stat.st_mtime + 0.0001,  # mimick a slight clock skew
-            'file_size': stat.st_size,
+            "checksum": "cached-checksum",
+            "file_mtime": stat.st_mtime + 0.0001,  # mimick a slight clock skew
+            "file_size": stat.st_size,
         }
 
         mock_path = mock.MagicMock(spec=pathlib.Path)
         mock_path.open().__enter__().read.return_value = json.dumps(cache_info)
         mock_cache_path.return_value = mock_path
 
-        mock_compute_checksum.return_value = 'computed-checksum'
+        mock_compute_checksum.return_value = "computed-checksum"
 
         checksum = cache.compute_cached_checksum(self.test_file)
-        self.assertEqual('cached-checksum', checksum)
+        self.assertEqual("cached-checksum", checksum)
 
-    @mock.patch('blender_asset_tracer.pack.shaman.cache._cache_path')
-    @mock.patch('blender_asset_tracer.pack.shaman.cache.compute_checksum')
+    @mock.patch("blender_asset_tracer.pack.shaman.cache._cache_path")
+    @mock.patch("blender_asset_tracer.pack.shaman.cache.compute_checksum")
     def test_cache_not_exists(self, mock_compute_checksum, mock_cache_path):
         mock_path = mock.MagicMock(spec=pathlib.Path)
         mock_path.open.side_effect = [
-            FileNotFoundError('Testing absent cache file'),
-            FileExistsError('Testing I/O error when writing'),
+            FileNotFoundError("Testing absent cache file"),
+            FileExistsError("Testing I/O error when writing"),
         ]
         mock_cache_path.return_value = mock_path
 
-        mock_compute_checksum.return_value = 'computed-checksum'
+        mock_compute_checksum.return_value = "computed-checksum"
 
         # This should not raise the FileExistsError
         checksum = cache.compute_cached_checksum(self.test_file)
-        self.assertEqual('computed-checksum', checksum)
+        self.assertEqual("computed-checksum", checksum)

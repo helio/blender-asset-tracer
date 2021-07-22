@@ -38,13 +38,15 @@ log = logging.getLogger(__name__)
 class ShamanPacker(bat_pack.Packer):
     """Creates BAT Packs on a Shaman server."""
 
-    def __init__(self,
-                 bfile: pathlib.Path,
-                 project: pathlib.Path,
-                 target: str,
-                 endpoint: str,
-                 checkout_id: str,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        bfile: pathlib.Path,
+        project: pathlib.Path,
+        target: str,
+        endpoint: str,
+        checkout_id: str,
+        **kwargs
+    ) -> None:
         """Constructor
 
         :param target: mock target '/' to construct project-relative paths.
@@ -53,18 +55,20 @@ class ShamanPacker(bat_pack.Packer):
         super().__init__(bfile, project, target, **kwargs)
         self.checkout_id = checkout_id
         self.shaman_endpoint = endpoint
-        self._checkout_location = ''
+        self._checkout_location = ""
 
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
-        token_from_env = os.environ.get('SHAMAN_JWT_TOKEN')
+        token_from_env = os.environ.get("SHAMAN_JWT_TOKEN")
         if token_from_env:
             return token_from_env
 
-        log.warning('Using temporary hack to get auth token from Shaman, '
-                    'set SHAMAN_JTW_TOKEN to prevent')
-        unauth_shaman = ShamanClient('', self.shaman_endpoint)
-        resp = unauth_shaman.get('get-token', timeout=10)
+        log.warning(
+            "Using temporary hack to get auth token from Shaman, "
+            "set SHAMAN_JTW_TOKEN to prevent"
+        )
+        unauth_shaman = ShamanClient("", self.shaman_endpoint)
+        resp = unauth_shaman.get("get-token", timeout=10)
         resp.raise_for_status()
         return resp.text
 
@@ -72,13 +76,17 @@ class ShamanPacker(bat_pack.Packer):
         # TODO: pass self._get_auth_token itself, so that the Transferer will be able to
         # decide when to get this token (and how many times).
         auth_token = self._get_auth_token()
-        return ShamanTransferrer(auth_token, self.project, self.shaman_endpoint, self.checkout_id)
+        return ShamanTransferrer(
+            auth_token, self.project, self.shaman_endpoint, self.checkout_id
+        )
 
     def _make_target_path(self, target: str) -> pathlib.PurePath:
-        return pathlib.PurePosixPath('/')
+        return pathlib.PurePosixPath("/")
 
     def _on_file_transfer_finished(self, *, file_transfer_completed: bool):
-        super()._on_file_transfer_finished(file_transfer_completed=file_transfer_completed)
+        super()._on_file_transfer_finished(
+            file_transfer_completed=file_transfer_completed
+        )
 
         assert isinstance(self._file_transferer, ShamanTransferrer)
         self._checkout_location = self._file_transferer.checkout_location
@@ -104,7 +112,7 @@ class ShamanPacker(bat_pack.Packer):
         try:
             super().execute()
         except requests.exceptions.ConnectionError as ex:
-            log.exception('Error communicating with Shaman')
+            log.exception("Error communicating with Shaman")
             self.abort(str(ex))
             self._check_aborted()
 
@@ -114,17 +122,19 @@ def parse_endpoint(shaman_url: str) -> typing.Tuple[str, str]:
 
     urlparts = urllib.parse.urlparse(str(shaman_url))
 
-    if urlparts.scheme in {'shaman', 'shaman+https'}:
-        scheme = 'https'
-    elif urlparts.scheme == 'shaman+http':
-        scheme = 'http'
+    if urlparts.scheme in {"shaman", "shaman+https"}:
+        scheme = "https"
+    elif urlparts.scheme == "shaman+http":
+        scheme = "http"
     else:
-        raise ValueError('Invalid scheme %r, choose shaman:// or shaman+http://', urlparts.scheme)
+        raise ValueError(
+            "Invalid scheme %r, choose shaman:// or shaman+http://", urlparts.scheme
+        )
 
     checkout_id = urllib.parse.unquote(urlparts.fragment)
 
-    path = urlparts.path or '/'
-    new_urlparts = (scheme, urlparts.netloc, path, *urlparts[3:-1], '')
+    path = urlparts.path or "/"
+    new_urlparts = (scheme, urlparts.netloc, path, *urlparts[3:-1], "")
     endpoint = urllib.parse.urlunparse(new_urlparts)
 
     return endpoint, checkout_id

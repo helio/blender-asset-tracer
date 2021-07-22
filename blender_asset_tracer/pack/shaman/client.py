@@ -37,14 +37,14 @@ class ShamanClient:
         )
         http_adapter = requests.adapters.HTTPAdapter(max_retries=retries)
         self._session = requests.session()
-        self._session.mount('https://', http_adapter)
-        self._session.mount('http://', http_adapter)
+        self._session.mount("https://", http_adapter)
+        self._session.mount("http://", http_adapter)
 
         if auth_token:
-            self._session.headers['Authorization'] = 'Bearer ' + auth_token
+            self._session.headers["Authorization"] = "Bearer " + auth_token
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
-        kwargs.setdefault('timeout', 300)
+        kwargs.setdefault("timeout", 300)
         full_url = urllib.parse.urljoin(self._base_url, url)
         return self._session.request(method, full_url, **kwargs)
 
@@ -56,8 +56,8 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        kwargs.setdefault('allow_redirects', True)
-        return self.request('GET', url, **kwargs)
+        kwargs.setdefault("allow_redirects", True)
+        return self.request("GET", url, **kwargs)
 
     def options(self, url, **kwargs):
         r"""Sends a OPTIONS request. Returns :class:`Response` object.
@@ -67,8 +67,8 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        kwargs.setdefault('allow_redirects', True)
-        return self.request('OPTIONS', url, **kwargs)
+        kwargs.setdefault("allow_redirects", True)
+        return self.request("OPTIONS", url, **kwargs)
 
     def head(self, url, **kwargs):
         r"""Sends a HEAD request. Returns :class:`Response` object.
@@ -78,8 +78,8 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        kwargs.setdefault('allow_redirects', False)
-        return self.request('HEAD', url, **kwargs)
+        kwargs.setdefault("allow_redirects", False)
+        return self.request("HEAD", url, **kwargs)
 
     def post(self, url, data=None, json=None, **kwargs):
         r"""Sends a POST request. Returns :class:`Response` object.
@@ -92,7 +92,7 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        return self.request('POST', url, data=data, json=json, **kwargs)
+        return self.request("POST", url, data=data, json=json, **kwargs)
 
     def put(self, url, data=None, **kwargs):
         r"""Sends a PUT request. Returns :class:`Response` object.
@@ -104,7 +104,7 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        return self.request('PUT', url, data=data, **kwargs)
+        return self.request("PUT", url, data=data, **kwargs)
 
     def patch(self, url, data=None, **kwargs):
         r"""Sends a PATCH request. Returns :class:`Response` object.
@@ -116,7 +116,7 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        return self.request('PATCH', url, data=data, **kwargs)
+        return self.request("PATCH", url, data=data, **kwargs)
 
     def delete(self, url, **kwargs):
         r"""Sends a DELETE request. Returns :class:`Response` object.
@@ -126,4 +126,4 @@ class ShamanClient:
         :rtype: requests.Response
         """
 
-        return self.request('DELETE', url, **kwargs)
+        return self.request("DELETE", url, **kwargs)
