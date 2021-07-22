@@ -421,6 +421,11 @@ class BlendFile:
                 raise exceptions.SegmentationFault(
                     "address does not exist", address
                 ) from None
+            log.warning(
+                "Silenced SegmentationFault caused by dereferencing invalid pointer"
+                " (0x%x) because strict_pointer_mode is off.",
+                address,
+            )
             return None
 
     def struct(self, name: bytes) -> dna.Struct:
