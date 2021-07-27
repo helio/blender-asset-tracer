@@ -436,6 +436,34 @@ class DepsTest(AbstractTracerTest):
             },
         )
 
+    def test_geometry_nodes_modifier_input(self):
+        """Test linked collection as input to geom nodes modifier.
+
+        Here a Geometry Nodes modifier references a collection that is not
+        instanced into the scene, which caused it to be missed.
+        """
+        self.assert_deps(
+            "geometry-nodes-2/shot_file.blend",
+            {
+                b"LIset_file.blend": Expect(
+                    type="Library",
+                    full_field="name[1024]",
+                    dirname_field=None,
+                    basename_field=None,
+                    asset_path=b"//set_file.blend",
+                    is_sequence=False,
+                ),
+                b"LIlib_trash.blend": Expect(
+                    type="Library",
+                    full_field="name[1024]",
+                    dirname_field=None,
+                    basename_field=None,
+                    asset_path=b"//lib_trash.blend",
+                    is_sequence=False,
+                ),
+            },
+        )
+
     def test_usage_abspath(self):
         deps = [
             dep

@@ -3,6 +3,11 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+## Version 1.6 (in development)
+
+- Support linked collections used as input in a Geometry Nodes modifier.
+
+
 ## Version 1.5.1 (2021-07-22)
 
 - Add log warning if SegmentationFault caused by dereferencing invalid pointer is silenced when strict_pointer_mode is turned off.

@@ -110,11 +110,7 @@ class BlockIterator:
                 self.to_visit.put(lib)
                 continue
 
-            if limit_to:
-                # We're limiting the blocks, so we have to expand them to make
-                # sure we don't miss anything. Otherwise we're yielding the
-                # entire file anyway, and no expansion is necessary.
-                self._queue_dependencies(block)
+            self._queue_dependencies(block)
             self.blocks_yielded.add((bpath, block.addr_old))
             yield block
 
@@ -167,6 +163,7 @@ class BlockIterator:
 
     def _queue_dependencies(self, block: blendfile.BlendFileBlock):
         for block in expanders.expand_block(block):
+            assert isinstance(block, blendfile.BlendFileBlock), "unexpected %r" % block
             self.to_visit.put(block)
 
 

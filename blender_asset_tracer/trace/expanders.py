@@ -103,6 +103,28 @@ def _expand_generic_nodetree(block: blendfile.BlendFileBlock):
         yield node.get_pointer(b"id")
 
 
+def _expand_generic_idprops(block: blendfile.BlendFileBlock):
+    """Yield ID datablocks and their libraries referenced from ID properties."""
+
+    # TODO(@sybren): this code is very crude, and happens to work on ID
+    # properties of Geometry Nodes modifiers, which is what it was written for.
+    # It should probably be rewritten to properly iterate over & recurse into
+    # all groups.
+    settings_props = block.get_pointer((b"settings", b"properties"))
+    if not settings_props:
+        return
+
+    subprops = settings_props.get_pointer((b"data", b"group", b"first"))
+    for idprop in iterators.listbase(subprops):
+        if idprop[b"type"] != cdefs.IDP_ID:
+            continue
+        id_datablock = idprop.get_pointer((b"data", b"pointer"))
+        if not id_datablock:
+            continue
+        yield id_datablock
+        yield id_datablock.get_pointer(b"lib")
+
+
 def _expand_generic_nodetree_id(block: blendfile.BlendFileBlock):
     block_ntree = block.get_pointer(b"nodetree", None)
     if block_ntree is not None:
@@ -251,6 +273,7 @@ def _expand_object(block: blendfile.BlendFileBlock):
         # Currently only node groups are supported. If the support should expand
         # to more types, something more intelligent than this should be made.
         if mod_type == cdefs.eModifierType_Nodes:
+            yield from _expand_generic_idprops(block_mod)
             yield block_mod.get_pointer(b"node_group")
 
 
