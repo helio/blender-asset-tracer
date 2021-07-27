@@ -142,7 +142,6 @@ def _expand_generic_idprops(block: blendfile.BlendFileBlock):
         if not id_datablock:
             continue
         yield id_datablock
-        yield id_datablock.get_pointer(b"lib")
 
 
 def _expand_generic_nodetree_id(block: blendfile.BlendFileBlock):
