@@ -49,9 +49,17 @@ def expand_block(
         return
 
     log.debug("Expanding block %r", block)
-    # Filter out falsy blocks, i.e. None values.
-    # Allowing expanders to yield None makes them more consise.
-    yield from filter(None, expander(block))
+    for dependency in expander(block):
+        if not dependency:
+            # Filter out falsy blocks, i.e. None values.
+            # Allowing expanders to yield None makes them more consise.
+            continue
+        if dependency.code == b"DATA":
+            log.warn(
+                "expander yielded block %s which will be ignored in later iteration",
+                dependency,
+            )
+        yield dependency
 
 
 def dna_code(block_code: str):
