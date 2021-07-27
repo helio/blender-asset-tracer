@@ -93,14 +93,34 @@ def _expand_generic_nodetree(block: blendfile.BlendFileBlock):
     assert block.dna_type.dna_type_id == b"bNodeTree"
 
     nodes = block.get_pointer((b"nodes", b"first"))
+
+    # See DNA_node_types.h
+    socket_types_with_value_pointer = {
+        cdefs.SOCK_OBJECT,  #  bNodeSocketValueObject
+        cdefs.SOCK_IMAGE,  #  bNodeSocketValueImage
+        cdefs.SOCK_COLLECTION,  #  bNodeSocketValueCollection
+        cdefs.SOCK_TEXTURE,  #  bNodeSocketValueTexture
+        cdefs.SOCK_MATERIAL,  #  bNodeSocketValueMaterial
+    }
+
     for node in iterators.listbase(nodes):
         if node[b"type"] == cdefs.CMP_NODE_R_LAYERS:
             continue
-        yield node
 
         # The 'id' property points to whatever is used by the node
         # (like the image in an image texture node).
         yield node.get_pointer(b"id")
+
+        # Default values of inputs can also point to ID datablocks.
+        inputs = node.get_pointer((b"inputs", b"first"))
+        for input in iterators.listbase(inputs):
+            if input[b"type"] not in socket_types_with_value_pointer:
+                continue
+            value_container = input.get_pointer(b"default_value")
+            if not value_container:
+                continue
+            value = value_container.get_pointer(b"value")
+            yield value
 
 
 def _expand_generic_idprops(block: blendfile.BlendFileBlock):

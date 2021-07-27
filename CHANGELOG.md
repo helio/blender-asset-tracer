@@ -6,6 +6,7 @@ changed functionality, fixed bugs).
 ## Version 1.6 (in development)
 
 - Support linked collections used as input in a Geometry Nodes modifier.
+- Support collections, objects, images, and textures used as default values in nodes.
 
 
 ## Version 1.5.1 (2021-07-22)
