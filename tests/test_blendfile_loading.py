@@ -332,6 +332,14 @@ class LoadGZipCompressedTest(AbstractBlendFileTest):
 
 
 class LoadZStdCompressedTest(AbstractBlendFileTest):
+    def setUp(self):
+        super().setUp()
+
+        try:
+            import zstandard
+        except ImportError:
+            self.skipTest("zstandard module not installed")
+
     def test_loading(self):
         zstd_bfile_path = self.blendfiles / "basic_file_compressed_zstd.blend"
         self.bf = blendfile.BlendFile(zstd_bfile_path)
