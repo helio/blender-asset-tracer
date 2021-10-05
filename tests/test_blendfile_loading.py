@@ -3,7 +3,7 @@ import pathlib
 import tempfile
 
 from blender_asset_tracer import blendfile
-from blender_asset_tracer.blendfile import iterators, exceptions
+from blender_asset_tracer.blendfile import iterators, exceptions, magic_compression
 from tests.abstract_test import AbstractBlendFileTest
 
 
@@ -279,7 +279,40 @@ class ArrayTest(AbstractBlendFileTest):
             self.assertEqual(name, tex.id_name)
 
 
-class LoadCompressedTest(AbstractBlendFileTest):
+class CompressionRecognitionTest(AbstractBlendFileTest):
+    def _find_compression_type(self, filename: str) -> magic_compression.Compression:
+        path = self.blendfiles / filename
+        with path.open("rb") as fileobj:
+            return magic_compression._find_compression_type(fileobj)
+
+    def test_gzip_recognition(self):
+        comp = self._find_compression_type("basic_file_compressed.blend")
+        self.assertEqual(magic_compression.Compression.GZIP, comp)
+
+    def test_zstd_recognition(self):
+        comp = self._find_compression_type("basic_file_compressed_zstd.blend")
+        self.assertEqual(magic_compression.Compression.ZSTD, comp)
+
+    def test_uncompressed_recognition(self):
+        comp = self._find_compression_type("basic_file.blend")
+        self.assertEqual(magic_compression.Compression.NONE, comp)
+
+    def test_unrecognition(self):
+        comp = self._find_compression_type("clothsim.abc")
+        self.assertEqual(magic_compression.Compression.UNRECOGNISED, comp)
+
+    def test_matches_magic_masked(self):
+        mmm = magic_compression._matches_magic_masked
+        self.assertTrue(mmm(b"ABCD", b"ABCD", b"\xFF\xFF\xFF\xFF"))
+        self.assertTrue(mmm(b"AB!D", b"ABCD", b"\xFF\xFF\x00\xFF"))
+        self.assertTrue(mmm(b"ABcD", b"ABCD", b"\xFF\xFF\xDF\xFF"))
+
+        self.assertFalse(mmm(b"ABCd", b"ABCD", b"\xFF\xFF\xFF\xFF"))
+        self.assertFalse(mmm(b"AB!D", b"ABCD", b"\xFF\xFF\xF0\xFF"))
+        self.assertFalse(mmm(b"ABdD", b"ABCD", b"\xFF\xFF\xDF\xFF"))
+
+
+class LoadGZipCompressedTest(AbstractBlendFileTest):
     def test_loading(self):
         self.bf = blendfile.BlendFile(self.blendfiles / "basic_file_compressed.blend")
         self.assertTrue(self.bf.is_compressed)
@@ -290,6 +323,27 @@ class LoadCompressedTest(AbstractBlendFileTest):
 
     def test_as_context(self):
         with blendfile.BlendFile(self.blendfiles / "basic_file_compressed.blend") as bf:
+            filepath = bf.filepath
+            raw_filepath = bf.raw_filepath
+
+        self.assertTrue(bf.fileobj.closed)
+        self.assertTrue(filepath.exists())
+        self.assertFalse(raw_filepath.exists())
+
+
+class LoadZStdCompressedTest(AbstractBlendFileTest):
+    def test_loading(self):
+        zstd_bfile_path = self.blendfiles / "basic_file_compressed_zstd.blend"
+        self.bf = blendfile.BlendFile(zstd_bfile_path)
+        self.assertTrue(self.bf.is_compressed)
+
+        ob = self.bf.code_index[b"OB"][0]
+        name = ob.get((b"id", b"name"), as_str=True)
+        self.assertEqual("OBümlaut", name)
+
+    def test_as_context(self):
+        zstd_bfile_path = self.blendfiles / "basic_file_compressed_zstd.blend"
+        with blendfile.BlendFile(zstd_bfile_path) as bf:
             filepath = bf.filepath
             raw_filepath = bf.raw_filepath
 

@@ -3,6 +3,12 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.7 (in development)
+
+- Add optional support for ZStandard compression, which is used to compress blend files by Blender 3.0+.
+  The `zstandard` module is binary, and without it installed BAT will still be able to work in a pure-Python environment. It just won't be able to open compressed files from Blender 3.0 or newer.
+
+
 ## Version 1.6 (2021-07-27)
 
 - Support linked collections used as input in a Geometry Nodes modifier.

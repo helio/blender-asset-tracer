@@ -19,6 +19,7 @@ classifiers = [
 
 [tool.poetry.extras]
 s3 = ["boto3"]
+zstandard = ["zstandard"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -26,6 +27,9 @@ requests = "^2.11"
 
 # For S3 storage support:
 boto3 = { version = "^1.9", optional = true }
+
+# For Blender 3.0+ compressed file support.
+zstandard = { version = "^0.15", optional = true }
 
 [tool.poetry.dev-dependencies]
 mypy = ">=0.701"

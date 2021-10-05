@@ -32,14 +32,12 @@ import shutil
 import tempfile
 import typing
 
-from . import exceptions, dna_io, dna, header
+from . import exceptions, dna, header, magic_compression
 from blender_asset_tracer import bpathlib
 
 log = logging.getLogger(__name__)
 
 FILE_BUFFER_SIZE = 1024 * 1024
-BLENDFILE_MAGIC = b"BLENDER"
-GZIP_MAGIC = b"\x1f\x8b"
 BFBList = typing.List["BlendFileBlock"]
 
 _cached_bfiles = {}  # type: typing.Dict[pathlib.Path, BlendFile]
@@ -151,46 +149,13 @@ class BlendFile:
             correct magic bytes.
         """
 
-        if "b" not in mode:
-            raise ValueError("Only binary modes are supported, not %r" % mode)
+        decompressed = magic_compression.open(path, mode, FILE_BUFFER_SIZE)
 
         self.filepath = path
+        self.is_compressed = decompressed.is_compressed
+        self.raw_filepath = decompressed.path
 
-        fileobj = path.open(mode, buffering=FILE_BUFFER_SIZE)  # typing.IO[bytes]
-        fileobj.seek(0, os.SEEK_SET)
-
-        magic = fileobj.read(len(BLENDFILE_MAGIC))
-        if magic == BLENDFILE_MAGIC:
-            self.is_compressed = False
-            self.raw_filepath = path
-            return fileobj
-
-        if magic[:2] == GZIP_MAGIC:
-            self.is_compressed = True
-
-            log.debug("compressed blendfile detected: %s", path)
-            # Decompress to a temporary file.
-            tmpfile = tempfile.NamedTemporaryFile()
-            fileobj.seek(0, os.SEEK_SET)
-            with gzip.GzipFile(fileobj=fileobj, mode=mode) as gzfile:
-                magic = gzfile.read(len(BLENDFILE_MAGIC))
-                if magic != BLENDFILE_MAGIC:
-                    raise exceptions.BlendFileError(
-                        "Compressed file is not a blend file", path
-                    )
-
-                data = magic
-                while data:
-                    tmpfile.write(data)
-                    data = gzfile.read(FILE_BUFFER_SIZE)
-
-            # Further interaction should be done with the uncompressed file.
-            self.raw_filepath = pathlib.Path(tmpfile.name)
-            fileobj.close()
-            return tmpfile
-
-        fileobj.close()
-        raise exceptions.BlendFileError("File is not a blend file", path)
+        return decompressed.fileobj
 
     def _load_blocks(self) -> None:
         """Read the blend file to load its DNA structure to memory."""
@@ -271,7 +236,7 @@ class BlendFile:
             log.debug("closing blend file %s after it was modified", self.raw_filepath)
 
         if self._is_modified and self.is_compressed:
-            log.debug("recompressing modified blend file %s", self.raw_filepath)
+            log.debug("GZip-recompressing modified blend file %s", self.raw_filepath)
             self.fileobj.seek(os.SEEK_SET, 0)
 
             with gzip.open(str(self.filepath), "wb") as gzfile:
@@ -280,7 +245,7 @@ class BlendFile:
                     if not data:
                         break
                     gzfile.write(data)
-            log.debug("compressing to %s finished", self.filepath)
+            log.debug("GZip-compression to %s finished", self.filepath)
 
         # Close the file object after recompressing, as it may be a temporary
         # file that'll disappear as soon as we close it.
