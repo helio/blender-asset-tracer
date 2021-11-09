@@ -206,7 +206,8 @@ class BlendFile:
 
         self.log.debug("Copying %s to %s", self.filepath, path)
         # TODO(Sybren): remove str() calls when targeting Python 3.6+
-        shutil.copy(str(self.filepath), str(path))
+        # dst needs to be a file and not a directory
+        shutil.copyfile(str(self.filepath), str(path))
 
         self.fileobj = self._open_file(path, mode=mode)
         _cache(path, self)

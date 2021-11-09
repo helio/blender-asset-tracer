@@ -1,5 +1,5 @@
 import logging
-import os
+import stat
 import platform
 import shutil
 import tempfile
@@ -217,6 +217,39 @@ class PackTest(AbstractPackTest):
         # After closing the packer, the tempdir should also be gone.
         packer.close()
         self.assertFalse(packer._rewrite_in.exists())
+
+    def test_execute_rewrite_readonly_files(self):
+        ppath = self.blendfiles / "subdir"
+        infile = ppath / "doubly_linked_up.blend"
+
+        # Make the input file read-only for everybody (owner, group, world).
+        orig_mode = infile.stat().st_mode
+        infile.chmod(stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+        try:
+            packer = pack.Packer(infile, ppath, self.tpath)
+            packer.strategise()
+            packer.execute()
+        finally:
+            # Restore the original file permissions.
+            infile.chmod(orig_mode)
+
+        if platform.system() == "Windows":
+            extpath = PurePosixPath(
+                "//_outside_project",
+                self.blendfiles.drive[0],
+                *self.blendfiles.parts[1:],
+            )
+        else:
+            extpath = PurePosixPath("//_outside_project", *self.blendfiles.parts[1:])
+        extbpath = bpathlib.BlendPath(extpath)
+
+        # Those libraries should be properly rewritten.
+        bfile = blendfile.open_cached(self.tpath / infile.name, assert_cached=False)
+        libs = sorted(bfile.code_index[b"LI"])
+        self.assertEqual(b"LILib", libs[0].id_name)
+        self.assertEqual(extbpath / b"linked_cube.blend", libs[0][b"name"])
+        self.assertEqual(b"LILib.002", libs[1].id_name)
+        self.assertEqual(extbpath / b"material_textures.blend", libs[1][b"name"])
 
     @unittest.skipIf(
         platform.system() == "Windows",

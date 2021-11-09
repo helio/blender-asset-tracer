@@ -152,12 +152,12 @@ class FileCopier(transfer.FileTransferer):
         return True
 
     def _move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
-        """Low-level file move"""
+        """Low-level file move."""
         shutil.move(str(srcpath), str(dstpath))
 
     def _copy(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
-        """Low-level file copy"""
-        shutil.copy2(str(srcpath), str(dstpath))
+        """Low-level file copy. dstpath needs to be a file and not a directory."""
+        shutil.copyfile(str(srcpath), str(dstpath))
 
     def move(self, srcpath: pathlib.Path, dstpath: pathlib.Path):
         s_stat = srcpath.stat()
