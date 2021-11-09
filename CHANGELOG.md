@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.8 (2021-11-09)
+
+- Compatibility with read-only source files. When packing, file permissions are no longer copied. This means that BAT can modify paths in packed files, even when the source files were read-only.
+
 # Version 1.7 (2021-11-05)
 
 - Add optional support for ZStandard compression, which is used to compress blend files by Blender 3.0+.
