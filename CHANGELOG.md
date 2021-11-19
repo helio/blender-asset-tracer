@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-# Version 1.9 (in development)
+# Version 1.9 (2021-11-19)
 
 - Add `bat version` command to print just the version number and exit.
 
