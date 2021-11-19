@@ -24,7 +24,7 @@ import datetime
 import logging
 import time
 
-from . import blocks, common, pack, list_deps
+from . import blocks, common, pack, list_deps, version
 
 
 def cli_main():
@@ -80,6 +80,7 @@ def cli_main():
     blocks.add_parser(subparsers)
     pack.add_parser(subparsers)
     list_deps.add_parser(subparsers)
+    version.add_parser(subparsers)
 
     args = parser.parse_args()
     config_logging(args)
