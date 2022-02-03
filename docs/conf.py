@@ -24,9 +24,9 @@ copyright = '2018, Sybren A. Stüvel'
 author = 'Sybren A. Stüvel'
 
 # The short X.Y version
-version = '1.9'
+version = '1.10'
 # The full version, including alpha/beta/rc tags
-release = '1.9'
+release = '1.10'
 
 
 # -- General configuration ---------------------------------------------------
