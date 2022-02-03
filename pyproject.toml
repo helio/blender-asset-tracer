@@ -33,8 +33,8 @@ zstandard = { version = "^0.15", optional = true }
 
 [tool.poetry.dev-dependencies]
 mypy = ">=0.701"
-pytest = "^4.6"
-pytest-cov = "^2.7"
+pytest = "^6.2"
+pytest-cov = "^3.0.0"
 # for the 'radon cc' command
 radon = "^3.0"
 # for converting profiler output to KCacheGrind input
