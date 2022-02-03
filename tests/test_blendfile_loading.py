@@ -283,7 +283,7 @@ class CompressionRecognitionTest(AbstractBlendFileTest):
     def _find_compression_type(self, filename: str) -> magic_compression.Compression:
         path = self.blendfiles / filename
         with path.open("rb") as fileobj:
-            return magic_compression._find_compression_type(fileobj)
+            return magic_compression.find_compression_type(fileobj)
 
     def test_gzip_recognition(self):
         comp = self._find_compression_type("basic_file_compressed.blend")

@@ -73,7 +73,7 @@ class Compression(enum.Enum):
 def open(path: pathlib.Path, mode: str, buffer_size: int) -> DecompressedFileInfo:
     """Open the file, decompressing it into a temporary file if necesssary."""
     fileobj = path.open(mode, buffering=buffer_size)  # typing.IO[bytes]
-    compression = _find_compression_type(fileobj)
+    compression = find_compression_type(fileobj)
 
     if compression == Compression.UNRECOGNISED:
         fileobj.close()
@@ -113,7 +113,7 @@ def open(path: pathlib.Path, mode: str, buffer_size: int) -> DecompressedFileInf
     )
 
 
-def _find_compression_type(fileobj: typing.IO[bytes]) -> Compression:
+def find_compression_type(fileobj: typing.IO[bytes]) -> Compression:
     fileobj.seek(0, os.SEEK_SET)
 
     # This assumes that all magics are not longer than "BLENDER".

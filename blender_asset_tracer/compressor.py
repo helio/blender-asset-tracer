@@ -5,6 +5,8 @@ import logging
 import pathlib
 import shutil
 
+from blender_asset_tracer.blendfile import magic_compression
+
 log = logging.getLogger(__name__)
 
 # Arbitrarily chosen block size, in bytes.
@@ -55,11 +57,12 @@ def _move_or_copy(
     """
     srcfile = src.open("rb")
     try:
-        first_bytes = srcfile.read(2)
-        if first_bytes == b"\x1f\x8b":
-            # Already a gzipped file.
+        comp_type = magic_compression.find_compression_type(srcfile)
+        if comp_type != magic_compression.Compression.NONE:
+            # Either already compressed or not a blend file.
+            # Either way we shouldn't attempt compressing this file.
             srcfile.close()
-            my_log.debug("Source file %s is GZipped already", src)
+            my_log.debug("Source file %s is compressed already", src)
             if source_must_remain:
                 shutil.copy2(str(src), str(dest))
             else:
@@ -67,8 +70,8 @@ def _move_or_copy(
             return
 
         my_log.debug("Compressing %s on the fly while copying to %s", src, dest)
+        srcfile.seek(0)
         with gzip.open(str(dest), mode="wb") as destfile:
-            destfile.write(first_bytes)
             shutil.copyfileobj(srcfile, destfile, BLOCK_SIZE)
 
         srcfile.close()

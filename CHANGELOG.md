@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.10 (2022-02-03)
+
+- Avoid doubly-compressing ZStandard (Blender 3) compressed files.
+
 # Version 1.9 (2021-11-19)
 
 - Add `bat version` command to print just the version number and exit.

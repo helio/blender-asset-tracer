@@ -68,6 +68,9 @@ class CompressorTest(AbstractBlendFileTest):
     def test_copy_already_compressed(self):
         self._test("basic_file_ñønæščii.blend", True)
 
+    def test_copy_zstandard_compressed(self):
+        self._test("basic_file_zstandard.blend", True)
+
     def test_copy_compress_on_the_fly(self):
         self._test("basic_file.blend", True)
 
