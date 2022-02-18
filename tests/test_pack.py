@@ -366,6 +366,21 @@ class PackTest(AbstractPackTest):
         self.assertEqual(b"SQ000210.png", seq[b"name"])
         self.assertEqual(relpath, seq_strip[b"dir"])
 
+    def test_sequence_udim(self):
+        # UDIM tiles are special, because the filename itself has a <UDIM>
+        # marker in there and thus doesn't exist itself.
+        ppath = self.blendfiles / "udim"
+        infile = ppath / "v01_UDIM_BAT_debugging.blend"
+
+        with pack.Packer(infile, ppath, self.tpath) as packer:
+            packer.strategise()
+            packer.execute()
+
+        # The UDIM files should have been copied.
+        self.assertTrue((self.tpath / "cube_UDIM.color.1001.png").exists())
+        self.assertTrue((self.tpath / "cube_UDIM.color.1002.png").exists())
+        self.assertTrue((self.tpath / "cube_UDIM.color.1003.png").exists())
+
     def test_noop(self):
         ppath = self.blendfiles / "subdir"
         infile = ppath / "doubly_linked_up.blend"

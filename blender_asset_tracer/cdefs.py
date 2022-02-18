@@ -32,6 +32,7 @@ SEQ_TYPE_EFFECT = 8
 IMA_SRC_FILE = 1
 IMA_SRC_SEQUENCE = 2
 IMA_SRC_MOVIE = 3
+IMA_SRC_TILED = 6  # UDIM
 
 # DNA_modifier_types.h
 eModifierType_Wave = 7

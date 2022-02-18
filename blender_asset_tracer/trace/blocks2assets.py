@@ -96,11 +96,13 @@ def image(block: blendfile.BlendFileBlock) -> typing.Iterator[result.BlockUsage]
         cdefs.IMA_SRC_FILE,
         cdefs.IMA_SRC_SEQUENCE,
         cdefs.IMA_SRC_MOVIE,
+        cdefs.IMA_SRC_TILED,
     }:
+        log.debug("skiping image source type %s", image_source)
         return
 
     pathname, field = block.get(b"name", return_field=True)
-    is_sequence = image_source == cdefs.IMA_SRC_SEQUENCE
+    is_sequence = image_source in {cdefs.IMA_SRC_SEQUENCE, cdefs.IMA_SRC_TILED}
 
     yield result.BlockUsage(block, pathname, is_sequence, path_full_field=field)
 

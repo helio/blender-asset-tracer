@@ -20,6 +20,14 @@ class ExpandFileSequenceTest(AbstractBlendFileTest):
         actual = list(file_sequence.expand_sequence(path))
         self.assertEqual(self.imgseq, actual)
 
+    def test_udim_sequence(self):
+        path = self.blendfiles / "udim/cube_UDIM.color.<UDIM>.png"
+        actual = list(file_sequence.expand_sequence(path))
+        imgseq = [
+            self.blendfiles / ("udim/cube_UDIM.color.%04d.png" % num) for num in range(1001, 1004)
+        ]
+        self.assertEqual(imgseq, actual)
+
     def test_nonexistent(self):
         path = self.blendfiles / "nonexistant"
         with self.assertRaises(file_sequence.DoesNotExist) as raises:

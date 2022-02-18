@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.11 (in development)
+
+- Support UDIM images.
+
 # Version 1.10 (2022-02-03)
 
 - Avoid doubly-compressing ZStandard (Blender 3) compressed files.
