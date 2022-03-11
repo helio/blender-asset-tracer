@@ -3,7 +3,12 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-# Version 1.11 (in development)
+# Version 1.12 (in development)
+
+- Removed "late imports", to help isolate Blender add-ons bundling BAT from each other.
+
+
+# Version 1.11 (2022-02-18)
 
 - Support UDIM images.
 

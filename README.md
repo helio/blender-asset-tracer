@@ -115,3 +115,19 @@ To understand the naming of the properties, look at Blender's `DNA_xxxx.h` files
 definitions. It is those names that are accessed via `blender_asset_tracer.blendfile`. The
 mapping to the names accessible in Blender's Python interface can be found in the `rna_yyyy.c`
 files.
+
+
+## Code Guidelines
+
+This section documents some guidelines for the code in BAT.
+
+### Avoiding Late Imports
+
+All imports should be done at the top level of the file, and not inside
+functions. The goal is to ensure that, once imported, a (sub)module of BAT can
+be used without having to import more parts of BAT.
+
+This requirement helps to keep Blender add-ons separated, as an add-on can
+import the modules of BAT it needs, then remove them from `sys.modules` and
+`sys.path` so that other add-ons don't see them. This should reduce problems
+with various add-ons shipping different versions of BAT.

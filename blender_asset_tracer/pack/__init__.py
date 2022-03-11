@@ -28,6 +28,7 @@ import typing
 
 from blender_asset_tracer import trace, bpathlib, blendfile
 from blender_asset_tracer.trace import file_sequence, result
+
 from . import filesystem, transfer, progress
 
 log = logging.getLogger(__name__)
@@ -121,9 +122,7 @@ class Packer:
 
         self._exclude_globs = set()  # type: typing.Set[str]
 
-        from blender_asset_tracer.cli import common
-
-        self._shorten = functools.partial(common.shorten, self.project)
+        self._shorten = functools.partial(shorten_path, self.project)
 
         if noop:
             log.warning("Running in no-op mode, only showing what will be done.")
@@ -618,3 +617,11 @@ class Packer:
             )
 
         self._file_transferer.queue_move(infopath, self._target_path / infoname)
+
+
+def shorten_path(cwd: pathlib.Path, somepath: pathlib.Path) -> pathlib.Path:
+    """Return 'somepath' relative to CWD if possible."""
+    try:
+        return somepath.relative_to(cwd)
+    except ValueError:
+        return somepath
