@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "blender-asset-tracer"
-version = "1.11"
+version = "1.12-dev0"
 homepage = 'https://developer.blender.org/project/profile/79/'
 
 description = "BAT parses Blend files and produces dependency information. After installation run `bat --help`"
