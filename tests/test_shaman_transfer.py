@@ -17,6 +17,8 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
+from importlib.resources import path
+import json
 import pathlib
 import platform
 
@@ -47,15 +49,32 @@ class ShamanTransferTest(AbstractBlendFileTest):
             cls.test_file2: pathlib.PurePosixPath("path/in/pack/test2.blend"),
         }
 
-    def assertValidCheckoutDef(self, definition_file: bytes):
+    def assertValidCheckoutDef(self, request_body: bytes):
+        payload = json.loads(request_body)
+
         # We don't care much about the order, so compare as set.
-        expect_lines = set()
+        actual_specs = {transfer.ShamanFileSpecWithPath(sha=f['sha'], size=f['size'], path=f['path'])
+            for f in payload['files']}
+        expect_specs = set()
         for filepath in [self.test_file1, self.test_file2]:
-            checksum = self.expected_checksums[filepath]
-            fsize = self.file_sizes[filepath]
-            relpath = str(self.packed_names[filepath])
-            expect_lines.add(b"%s %d %s" % (checksum.encode(), fsize, relpath.encode()))
-        self.assertEqual(expect_lines, set(definition_file.split(b"\n")))
+            expect_specs.add(transfer.ShamanFileSpecWithPath(
+                sha=self.expected_checksums[filepath],
+                size=self.file_sizes[filepath],
+                path=self.packed_names[filepath].as_posix()))
+        self.assertEqual(expect_specs, actual_specs)
+
+    def assertValidCheckoutRequirement(self, request_body: bytes):
+        payload = json.loads(request_body)
+
+        # We don't care much about the order, so compare as set.
+        actual_specs = {transfer.ShamanFileSpec(sha=f['sha'], size=f['size'])
+            for f in payload['files']}
+        expect_specs = set()
+        for filepath in [self.test_file1, self.test_file2]:
+            expect_specs.add(transfer.ShamanFileSpec(
+                sha=self.expected_checksums[filepath],
+                size=self.file_sizes[filepath]))
+        self.assertEqual(expect_specs, actual_specs)
 
     @httpmock.activate
     def test_checkout_happy(self):
@@ -63,34 +82,42 @@ class ShamanTransferTest(AbstractBlendFileTest):
         fsize1 = self.file_sizes[self.test_file1]
 
         def mock_requirements(request):
-            self.assertEqual("text/plain", request.headers["Content-Type"])
-            self.assertValidCheckoutDef(request.body)
+            self.assertEqual("application/json", request.headers["Content-Type"])
+            self.assertValidCheckoutRequirement(request.body)
 
-            body = "file-unknown path/in/pack/test1.blend\n"
-            return 200, {"Content-Type": "text/plain"}, body
+            response =  json.dumps({
+                'files': [
+                    {'sha': self.expected_checksums[filepath],
+                     'size': self.file_sizes[filepath],
+                     'status': 'unknown',
+                     }
+                    for filepath in [self.test_file1, self.test_file2]
+                ]
+            })
+            return 200, {"Content-Type": "application/json"}, response
 
         def mock_checkout_create(request):
-            self.assertEqual("text/plain", request.headers["Content-Type"])
+            self.assertEqual("application/json", request.headers["Content-Type"])
             self.assertValidCheckoutDef(request.body)
-            return 200, {"Content-Type": "text/plain"}, "DA/-JOB-ID"
+            return 204, {"Content-Type": "application/json"}, ""
 
         httpmock.add_callback(
             "POST",
-            "http://unittest.local:1234/checkout/requirements",
+            "http://unittest.local:1234/shaman/checkout/requirements",
             callback=mock_requirements,
         )
 
         httpmock.add(
-            "POST", "http://unittest.local:1234/files/%s/%d" % (checksum1, fsize1)
+            "POST", "http://unittest.local:1234/shaman/files/%s/%d" % (checksum1, fsize1)
         )
         httpmock.add_callback(
             "POST",
-            "http://unittest.local:1234/checkout/create/DA-JOB-ID",
+            "http://unittest.local:1234/shaman/checkout/create",
             callback=mock_checkout_create,
         )
 
         trans = transfer.ShamanTransferrer(
-            "auth-token", self.blendfiles, "http://unittest.local:1234/", "DA-JOB-ID"
+            "", self.blendfiles, "http://unittest.local:1234/shaman/", "projectname/DA-JOB-ID"
         )
 
         trans.start()
@@ -99,4 +126,3 @@ class ShamanTransferTest(AbstractBlendFileTest):
         trans.done_and_join()
 
         self.assertFalse(trans.has_error, trans.error_message())
-        self.assertEqual("DA/-JOB-ID", trans.checkout_location)

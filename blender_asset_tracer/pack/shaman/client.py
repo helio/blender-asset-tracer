@@ -23,6 +23,7 @@ import urllib.parse
 import requests.packages.urllib3.util.retry
 import requests.adapters
 
+from blender_asset_tracer import __version__
 
 class ShamanClient:
     """Thin wrapper around a Requests session to perform Shaman requests."""
@@ -42,6 +43,7 @@ class ShamanClient:
 
         if auth_token:
             self._session.headers["Authorization"] = "Bearer " + auth_token
+        self._session.headers["User-Agent"] = "blender-asset-tracer/%s" % __version__
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
         kwargs.setdefault("timeout", 300)

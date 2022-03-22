@@ -184,22 +184,22 @@ def create_shamanpacker(
     """Creates a package for sending files to a Shaman server.
 
     URLs should have the form:
-        shaman://hostname/base/url#jobID
-    This uses HTTPS to connect to the server. To connect using HTTP, use:
-        shaman+http://hostname/base-url#jobID
+        shaman://hostname/base/url#checkout/path
+    The above uses HTTPS to connect to the server. To connect using HTTP, use:
+        shaman+http://hostname/base-url#checkout/path
     """
     from blender_asset_tracer.pack import shaman
 
-    endpoint, checkout_id = shaman.parse_endpoint(tpath)
-    if not checkout_id:
+    endpoint, checkout_path = shaman.parse_endpoint(tpath)
+    if not checkout_path:
         log.warning(
-            "No checkout ID given on the URL. Going to send BAT pack to Shaman, "
+            "No checkout path given on the URL. Going to send BAT pack to Shaman, "
             "but NOT creating a checkout"
         )
 
-    log.info("Uploading to Shaman server %s with job %s", endpoint, checkout_id)
+    log.info("Uploading to Shaman server %s with job %s", endpoint, checkout_path)
     return shaman.ShamanPacker(
-        bpath, ppath, "/", endpoint=endpoint, checkout_id=checkout_id
+        bpath, ppath, "/", endpoint=endpoint, checkout_path=checkout_path
     )
 
 

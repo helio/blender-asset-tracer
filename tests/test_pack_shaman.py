@@ -17,6 +17,7 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
+import json
 import pathlib
 
 import responses
@@ -37,18 +38,19 @@ class ShamanPackTest(AbstractPackTest):
             infile.parent,
             "/",
             endpoint="http://shaman.local",
-            checkout_id="DA-JOBBY-ID",
+            checkout_path="project/DA-JOBBY-ID",
         )
 
         # Temporary hack
-        httpmock.add("GET", "http://shaman.local/get-token", body="AUTH-TOKEN")
+        # httpmock.add("GET", "http://shaman.local/get-token", body="AUTH-TOKEN")
 
         # Just fake that everything is already available on the server.
-        httpmock.add("POST", "http://shaman.local/checkout/requirements", body="")
+        response = {'files': []}
+        httpmock.add("POST", "http://shaman.local/checkout/requirements", body=json.dumps(response))
         httpmock.add(
             "POST",
-            "http://shaman.local/checkout/create/DA-JOBBY-ID",
-            body="DA/-JOBBY-ID",
+            "http://shaman.local/checkout/create",
+            body="",
         )
 
         with packer:
@@ -56,6 +58,6 @@ class ShamanPackTest(AbstractPackTest):
             packer.execute()
 
         self.assertEqual(
-            pathlib.PurePosixPath("DA/-JOBBY-ID/basic_file_ñønæščii.blend"),
+            pathlib.PurePosixPath("project/DA-JOBBY-ID/basic_file_ñønæščii.blend"),
             packer.output_path,
         )

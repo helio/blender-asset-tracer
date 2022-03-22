@@ -14,8 +14,8 @@ class ParseEndpointTest(unittest.TestCase):
             shaman.parse_endpoint("shaman://endpoint/#123"),
         )
         self.assertEqual(
-            ("https://endpoint/root", "123"),
-            shaman.parse_endpoint("shaman://endpoint/root#123"),
+            ("https://endpoint/root", "just/some/path"),
+            shaman.parse_endpoint("shaman://endpoint/root#just/some/path"),
         )
         self.assertEqual(
             ("https://endpoint/root/is/longer/", "123"),

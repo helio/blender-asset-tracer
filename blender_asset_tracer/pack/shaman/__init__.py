@@ -44,7 +44,7 @@ class ShamanPacker(bat_pack.Packer):
         project: pathlib.Path,
         target: str,
         endpoint: str,
-        checkout_id: str,
+        checkout_path: str,
         **kwargs
     ) -> None:
         """Constructor
@@ -53,9 +53,8 @@ class ShamanPacker(bat_pack.Packer):
         :param endpoint: URL of the Shaman endpoint.
         """
         super().__init__(bfile, project, target, **kwargs)
-        self.checkout_id = checkout_id
+        self.checkout_path = checkout_path
         self.shaman_endpoint = endpoint
-        self._checkout_location = ""
 
     def _get_auth_token(self) -> str:
         # TODO: get a token from the Flamenco Server.
@@ -63,21 +62,26 @@ class ShamanPacker(bat_pack.Packer):
         if token_from_env:
             return token_from_env
 
-        log.warning(
-            "Using temporary hack to get auth token from Shaman, "
-            "set SHAMAN_JTW_TOKEN to prevent"
-        )
-        unauth_shaman = ShamanClient("", self.shaman_endpoint)
-        resp = unauth_shaman.get("get-token", timeout=10)
-        resp.raise_for_status()
-        return resp.text
+        # This code was used in Flamenco v2 to aid in development of the JWT
+        # authentication flow. Flamenco v3's authentication system still needs
+        # to be designed, so for now just use unauthenticated calls.
+        #
+        # log.warning(
+        #     "Using temporary hack to get auth token from Shaman, "
+        #     "set SHAMAN_JTW_TOKEN to prevent"
+        # )
+        # unauth_shaman = ShamanClient("", self.shaman_endpoint)
+        # resp = unauth_shaman.get("get-token", timeout=10)
+        # resp.raise_for_status()
+        # return resp.text
+        return ""
 
     def _create_file_transferer(self) -> bat_transfer.FileTransferer:
         # TODO: pass self._get_auth_token itself, so that the Transferer will be able to
         # decide when to get this token (and how many times).
         auth_token = self._get_auth_token()
         return ShamanTransferrer(
-            auth_token, self.project, self.shaman_endpoint, self.checkout_id
+            auth_token, self.project, self.shaman_endpoint, self.checkout_path
         )
 
     def _make_target_path(self, target: str) -> pathlib.PurePath:
@@ -87,24 +91,14 @@ class ShamanPacker(bat_pack.Packer):
         super()._on_file_transfer_finished(
             file_transfer_completed=file_transfer_completed
         )
-
         assert isinstance(self._file_transferer, ShamanTransferrer)
-        self._checkout_location = self._file_transferer.checkout_location
-
-    @property
-    def checkout_location(self) -> str:
-        """Return the checkout location of the packed blend file.
-
-        :return: the checkout location, or '' if no checkout was made.
-        """
-        return self._checkout_location
 
     @property
     def output_path(self) -> pathlib.PurePath:
         """The path of the packed blend file in the target directory."""
         assert self._output_path is not None
 
-        checkout_location = pathlib.PurePosixPath(self._checkout_location)
+        checkout_location = pathlib.PurePosixPath(self.checkout_path)
         rel_output = self._output_path.relative_to(self._target_path)
         return checkout_location / rel_output
 
@@ -131,10 +125,10 @@ def parse_endpoint(shaman_url: str) -> typing.Tuple[str, str]:
             "Invalid scheme %r, choose shaman:// or shaman+http://", urlparts.scheme
         )
 
-    checkout_id = urllib.parse.unquote(urlparts.fragment)
+    checkout_path = urllib.parse.unquote(urlparts.fragment)
 
     path = urlparts.path or "/"
     new_urlparts = (scheme, urlparts.netloc, path, *urlparts[3:-1], "")
     endpoint = urllib.parse.urlunparse(new_urlparts)
 
-    return endpoint, checkout_id
+    return endpoint, checkout_path
