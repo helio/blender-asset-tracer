@@ -9,6 +9,7 @@ changed functionality, fixed bugs).
 - Support writing `int` and `float` types.
 - Decided to *not* support the Shaman API of Flamenco 3.x in BAT. The support for that protocol will be implemented in the Flamenco 3.x add-on for Blender, and not in BAT itself. A new future version of BAT will remove support for the Shaman API altogether.
 - Bumped the required version of Python to 3.7. This was already done back in version 1.5, but now also the MyPy configuration takes it into account.
+- Support Python 3.10 (for Blender 3.1)
 
 # Version 1.11 (2022-02-18)
 
