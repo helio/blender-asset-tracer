@@ -324,7 +324,7 @@ class Struct:
         dna_name = field.name
         endian = file_header.endian
 
-        if dna_type.dna_type_id != b"char":
+        if dna_type.dna_type_id not in endian.accepted_types():
             msg = "Setting type %r is not supported for %s.%s" % (
                 dna_type,
                 self.dna_type_id.decode(),
@@ -336,12 +336,17 @@ class Struct:
 
         if self.log.isEnabledFor(logging.DEBUG):
             filepos = fileobj.tell()
-            thing = "string" if isinstance(value, str) else "bytes"
+            if isinstance(value, (int, float)):
+                thing = dna_type.dna_type_id.decode()
+            else:
+                thing = "string" if isinstance(value, str) else "bytes"
             self.log.debug(
                 "writing %s %r at file offset %d / %x", thing, value, filepos, filepos
             )
 
-        if isinstance(value, str):
+        if isinstance(value, (int, float)):
+            return endian.accepted_types()[dna_type.dna_type_id](fileobj, value)
+        elif isinstance(value, str):
             return endian.write_string(fileobj, value, dna_name.array_size)
         else:
             return endian.write_bytes(fileobj, value, dna_name.array_size)

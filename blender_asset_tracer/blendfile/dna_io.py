@@ -45,32 +45,68 @@ class EndianIO:
             raise struct.error("%s (read %d bytes)" % (ex, len(data))) from None
 
     @classmethod
+    def _write(cls, fileobj: typing.IO[bytes], typestruct: struct.Struct, value: typing.Any):
+        try:
+            data = typestruct.pack(value)
+        except struct.error as ex:
+            raise struct.error(f"{ex} (write '{value}')")
+        return fileobj.write(data)
+
+    @classmethod
     def read_char(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.UCHAR)
+
+    @classmethod
+    def write_char(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.UCHAR, value)
 
     @classmethod
     def read_ushort(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.USHORT)
 
     @classmethod
+    def write_ushort(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.USHORT, value)
+
+    @classmethod
     def read_short(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.SSHORT)
+
+    @classmethod
+    def write_short(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.SSHORT, value)
 
     @classmethod
     def read_uint(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.UINT)
 
     @classmethod
+    def write_uint(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.UINT, value)
+
+    @classmethod
     def read_int(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.SINT)
+
+    @classmethod
+    def write_int(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.SINT, value)
 
     @classmethod
     def read_float(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.FLOAT)
 
     @classmethod
+    def write_float(cls, fileobj: typing.IO[bytes], value: float):
+        return cls._write(fileobj, cls.FLOAT, value)
+
+    @classmethod
     def read_ulong(cls, fileobj: typing.IO[bytes]):
         return cls._read(fileobj, cls.ULONG)
+
+    @classmethod
+    def write_ulong(cls, fileobj: typing.IO[bytes], value: int):
+        return cls._write(fileobj, cls.ULONG, value)
 
     @classmethod
     def read_pointer(cls, fileobj: typing.IO[bytes], pointer_size: int):
@@ -80,6 +116,16 @@ class EndianIO:
             return cls.read_uint(fileobj)
         if pointer_size == 8:
             return cls.read_ulong(fileobj)
+        raise ValueError("unsupported pointer size %d" % pointer_size)
+
+    @classmethod
+    def write_pointer(cls, fileobj: typing.IO[bytes], pointer_size: int, value: int):
+        """Write a pointer to a file."""
+
+        if pointer_size == 4:
+            return cls.write_uint(fileobj, value)
+        if pointer_size == 8:
+            return cls.write_ulong(fileobj, value)
         raise ValueError("unsupported pointer size %d" % pointer_size)
 
     @classmethod
@@ -148,6 +194,18 @@ class EndianIO:
         if add < 0:
             return data
         return data[:add]
+
+    @classmethod
+    def accepted_types(cls):
+        return {
+            b"char": cls.write_char,
+            b"ushort": cls.write_ushort,
+            b"short": cls.write_short,
+            b"uint": cls.write_uint,
+            b"int": cls.write_int,
+            b"ulong": cls.write_ulong,
+            b"float": cls.write_float
+        }
 
 
 class LittleEndianTypes(EndianIO):

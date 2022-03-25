@@ -1,5 +1,6 @@
 import io
 import os
+import struct
 import unittest
 from unittest import mock
 
@@ -84,7 +85,12 @@ class StructTest(unittest.TestCase):
     def setUp(self):
         self.s = dna.Struct(b"AlembicObjectPath")
         self.s_char = dna.Struct(b"char", 1)
+        self.s_ushort = dna.Struct(b"ushort", 2)
+        self.s_short = dna.Struct(b"short", 2)
+        self.s_uint = dna.Struct(b"uint", 4)
+        self.s_int = dna.Struct(b"int", 4)
         self.s_float = dna.Struct(b"float", 4)
+        self.s_ulong = dna.Struct(b"ulong", 8)
         self.s_uint64 = dna.Struct(b"uint64_t", 8)
         self.s_uint128 = dna.Struct(b"uint128_t", 16)  # non-supported type
 
@@ -96,6 +102,13 @@ class StructTest(unittest.TestCase):
         self.f_floaty = dna.Field(self.s_float, dna.Name(b"floaty[2]"), 2 * 4, 4144)
         self.f_flag = dna.Field(self.s_char, dna.Name(b"bitflag"), 1, 4152)
         self.f_bignum = dna.Field(self.s_uint128, dna.Name(b"bignum"), 16, 4153)
+        self.f_testchar = dna.Field(self.s_char, dna.Name(b"testchar"), 1, 4169)
+        self.f_testushort = dna.Field(self.s_ushort, dna.Name(b"testushort"), 2, 4170)
+        self.f_testshort = dna.Field(self.s_short, dna.Name(b"testshort"), 2, 4172)
+        self.f_testuint = dna.Field(self.s_uint, dna.Name(b"testuint"), 4, 4174)
+        self.f_testint = dna.Field(self.s_int, dna.Name(b"testint"), 4, 4178)
+        self.f_testfloat = dna.Field(self.s_float, dna.Name(b"testfloat"), 4, 4182)
+        self.f_testulong = dna.Field(self.s_ulong, dna.Name(b"testulong"), 8, 4186)
 
         self.s.append_field(self.f_next)
         self.s.append_field(self.f_prev)
@@ -105,6 +118,13 @@ class StructTest(unittest.TestCase):
         self.s.append_field(self.f_floaty)
         self.s.append_field(self.f_flag)
         self.s.append_field(self.f_bignum)
+        self.s.append_field(self.f_testchar)
+        self.s.append_field(self.f_testushort)
+        self.s.append_field(self.f_testshort)
+        self.s.append_field(self.f_testuint)
+        self.s.append_field(self.f_testint)
+        self.s.append_field(self.f_testfloat)
+        self.s.append_field(self.f_testulong)
 
     def test_autosize(self):
         with self.assertRaises(ValueError):
@@ -242,3 +262,85 @@ class StructTest(unittest.TestCase):
         self.assertAlmostEqual(2.8, val[0])
         self.assertAlmostEqual(2.79, val[1])
         fileobj.seek.assert_called_with(4144, os.SEEK_CUR)
+
+    def test_char_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 255
+        expected = struct.pack(b">B", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testchar", value)
+        fileobj.write.assert_called_with(expected)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testchar", -1)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testchar", 256)
+
+    def test_ushort_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 65535
+        expected = struct.pack(b">H", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testushort", value)
+        fileobj.write.assert_called_with(expected)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testushort", -1)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testushort", 65536)
+
+    def test_short_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 32767
+        expected = struct.pack(b">h", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testshort", value)
+        fileobj.write.assert_called_with(expected)
+
+        value = -32768
+        expected = struct.pack(b">h", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testshort", value)
+        fileobj.write.assert_called_with(expected)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testshort", -32769)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testshort", 32768)
+
+    def test_uint_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 4294967295
+        expected = struct.pack(b">I", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testuint", value)
+        fileobj.write.assert_called_with(expected)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testuint", -1)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testuint", 4294967296)
+
+    def test_int_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 2147483647
+        expected = struct.pack(b">i", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testint", value)
+        fileobj.write.assert_called_with(expected)
+
+        value = -2147483648
+        expected = struct.pack(b">i", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testint", value)
+        fileobj.write.assert_called_with(expected)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testint", -2147483649)
+
+        with self.assertRaises(struct.error):
+            self.s.field_set(self.FakeHeader(), fileobj, b"testint", 2147483649)
+
+    def test_float_field_set(self):
+        fileobj = mock.MagicMock(io.BufferedReader)
+        value = 3.402823466e38
+        expected = struct.pack(b">f", value)
+        self.s.field_set(self.FakeHeader(), fileobj, b"testfloat", value)
+        fileobj.write.assert_called_with(expected)
