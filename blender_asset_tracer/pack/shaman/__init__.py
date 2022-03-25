@@ -17,7 +17,12 @@
 # ***** END GPL LICENCE BLOCK *****
 #
 # (c) 2019, Blender Foundation - Sybren A. Stüvel
-"""Shaman Client interface."""
+"""Shaman Client interface.
+
+Note that this supports the Shaman API of Flamenco Manager 2.x. Support for
+Flamenco 3.x will be implemented in a new Flamenco Blender add-on, and not in
+BAT itself.
+"""
 import logging
 import os
 import pathlib
