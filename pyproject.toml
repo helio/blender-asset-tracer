@@ -32,7 +32,7 @@ boto3 = { version = "^1.9", optional = true }
 zstandard = { version = "^0.15", optional = true }
 
 [tool.poetry.dev-dependencies]
-mypy = ">=0.701"
+mypy = ">=0.942"
 pytest = "^6.2"
 pytest-cov = "^3.0.0"
 # for the 'radon cc' command
