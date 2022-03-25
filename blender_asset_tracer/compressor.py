@@ -10,7 +10,7 @@ from blender_asset_tracer.blendfile import magic_compression
 log = logging.getLogger(__name__)
 
 # Arbitrarily chosen block size, in bytes.
-BLOCK_SIZE = 256 * 2 ** 10
+BLOCK_SIZE = 256 * 2**10
 
 
 def move(src: pathlib.Path, dest: pathlib.Path):

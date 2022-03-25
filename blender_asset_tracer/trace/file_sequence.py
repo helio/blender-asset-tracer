@@ -39,11 +39,11 @@ def expand_sequence(path: pathlib.Path) -> typing.Iterator[pathlib.Path]:
         or the path of the first file in the sequence.
     """
 
-    if "<UDIM>" in path.name: # UDIM tiles
+    if "<UDIM>" in path.name:  # UDIM tiles
         # Change <UDIM> marker to a glob pattern, then let the glob case handle it.
         # This assumes that all files that match the glob are actually UDIM
         # tiles; this could cause some false-positives.
-        path = path.with_name(path.name.replace('<UDIM>', '*'))
+        path = path.with_name(path.name.replace("<UDIM>", "*"))
 
     if "*" in str(path):  # assume it is a glob
         import glob

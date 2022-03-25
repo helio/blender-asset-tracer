@@ -45,7 +45,9 @@ class EndianIO:
             raise struct.error("%s (read %d bytes)" % (ex, len(data))) from None
 
     @classmethod
-    def _write(cls, fileobj: typing.IO[bytes], typestruct: struct.Struct, value: typing.Any):
+    def _write(
+        cls, fileobj: typing.IO[bytes], typestruct: struct.Struct, value: typing.Any
+    ):
         try:
             data = typestruct.pack(value)
         except struct.error as ex:
@@ -210,7 +212,7 @@ class EndianIO:
             b"uint": cls.write_uint,
             b"int": cls.write_int,
             b"ulong": cls.write_ulong,
-            b"float": cls.write_float
+            b"float": cls.write_float,
         }
 
 

@@ -554,7 +554,7 @@ class Packer:
     def _copy_asset_and_deps(self, asset_path: pathlib.Path, action: AssetAction):
         # Copy the asset itself, but only if it's not a sequence (sequences are
         # handled below in the for-loop).
-        if "*" not in str(asset_path) and '<UDIM>' not in asset_path.name:
+        if "*" not in str(asset_path) and "<UDIM>" not in asset_path.name:
             packed_path = action.new_path
             assert packed_path is not None
             read_path = action.read_from or asset_path
