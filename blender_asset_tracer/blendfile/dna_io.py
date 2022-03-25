@@ -197,6 +197,12 @@ class EndianIO:
 
     @classmethod
     def accepted_types(cls):
+        """Return a mapping from type name to writer function.
+
+        This is mostly to make it easier to get the correct number write
+        function, given that Python's `int` and `float` can map to a whole range
+        of C types.
+        """
         return {
             b"char": cls.write_char,
             b"ushort": cls.write_ushort,
