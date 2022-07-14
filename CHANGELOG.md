@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.13 (2022-07-14)
+
+- Improve an error message when packing fails. It now not only mentions that something went wrong, but also which file and which operation on that file (copy or move) was involved.
+
 # Version 1.12 (2022-03-25)
 
 - Removed "late imports", to help isolate Blender add-ons bundling BAT from each other.
