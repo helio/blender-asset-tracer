@@ -131,3 +131,38 @@ This requirement helps to keep Blender add-ons separated, as an add-on can
 import the modules of BAT it needs, then remove them from `sys.modules` and
 `sys.path` so that other add-ons don't see them. This should reduce problems
 with various add-ons shipping different versions of BAT.
+
+## Publishing a New Release
+
+For uploading packages to PyPi, an API key is required; username+password will
+not work.
+
+First, generate an API token at https://pypi.org/manage/account/token/. Then,
+use this token when publishing instead of your username and password.
+
+As username, use `__token__`.
+As password, use the token itself, including the `pypi-` prefix.
+
+See https://pypi.org/help/#apitoken for help using API tokens to publish. This
+is what I have in `~/.pypirc`:
+
+```
+[distutils]
+index-servers =
+    bat
+
+# Use `twine upload -r bat` to upload with this token.
+[bat]
+  repository = https://upload.pypi.org/legacy/
+  username = __token__
+  password = pypi-abc-123-blablabla
+```
+
+```
+. ./.venv/bin/activate
+pip install twine
+
+poetry build
+twine check dist/blender-asset-tracer-1.13.tar.gz dist/blender_asset_tracer-1.13-*.whl
+twine upload -r rsa dist/blender-asset-tracer-1.13.tar.gz dist/blender_asset_tracer-1.13-*.whl
+```
