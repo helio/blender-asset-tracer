@@ -17,4 +17,6 @@ echo git commit -m \'Bumped version to $1\' pyproject.toml blender_asset_tracer/
 echo git tag -a v$1 -m \'Tagged version $1\'
 echo
 echo "Build the package & upload to PyPi using:"
-echo "poetry build && poetry publish"
+echo "poetry build"
+echo "twine check dist/blender-asset-tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"
+echo "twine upload -r bat dist/blender-asset-tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"

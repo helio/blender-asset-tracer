@@ -52,6 +52,9 @@ types-requests = "^2.25.0"
 bat = 'blender_asset_tracer.cli:cli_main'
 
 
+[tool.poetry.group.dev.dependencies]
+twine = "^4.0.1"
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
