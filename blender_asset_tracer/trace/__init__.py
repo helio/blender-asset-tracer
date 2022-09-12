@@ -49,12 +49,10 @@ def deps(
     :param progress_cb: Progress callback object.
     """
 
-    log.info("opening: %s", bfilepath)
-    bfile = blendfile.open_cached(bfilepath)
-
     bi = file2blocks.BlockIterator()
     if progress_cb:
         bi.progress_cb = progress_cb
+    bfile = bi.open_blendfile(bfilepath)
 
     # Remember which block usages we've reported already, without keeping the
     # blocks themselves in memory.

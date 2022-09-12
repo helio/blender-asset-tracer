@@ -65,6 +65,13 @@ class BlockIterator:
 
         self.progress_cb = progress.Callback()
 
+    def open_blendfile(self, bfilepath: pathlib.Path) -> blendfile.BlendFile:
+        """Open a blend file, sending notification about this to the progress callback."""
+
+        log.info("opening: %s", bfilepath)
+        self.progress_cb.trace_blendfile(bfilepath)
+        return blendfile.open_cached(bfilepath)
+
     def iter_blocks(
         self,
         bfile: blendfile.BlendFile,
@@ -72,7 +79,6 @@ class BlockIterator:
     ) -> typing.Iterator[blendfile.BlendFileBlock]:
         """Expand blocks with dependencies from other libraries."""
 
-        self.progress_cb.trace_blendfile(bfile.filepath)
         log.info("inspecting: %s", bfile.filepath)
         if limit_to:
             self._queue_named_blocks(bfile, limit_to)
@@ -127,7 +133,7 @@ class BlockIterator:
                 continue
 
             log.debug("Expanding %d blocks in %s", len(idblocks), lib_path)
-            libfile = blendfile.open_cached(lib_path)
+            libfile = self.open_blendfile(lib_path)
             yield from self.iter_blocks(libfile, idblocks)
 
     def _queue_all_blocks(self, bfile: blendfile.BlendFile):
