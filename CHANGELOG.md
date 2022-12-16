@@ -3,7 +3,7 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
-# Version 1.15 (in development)
+# Version 1.15 (2022-12-16)
 
 - Add support for fluid simulation caches.
 
