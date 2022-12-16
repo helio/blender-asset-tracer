@@ -5,7 +5,7 @@ homepage = 'https://developer.blender.org/project/profile/79/'
 
 description = "BAT parses Blend files and produces dependency information. After installation run `bat --help`"
 authors = [
-    "Sybren A. Stüvel <sybren@stuvel.eu>",
+    "Sybren A. Stüvel <sybren@blender.org>",
     "Campbell Barton",
     "At Mind B.V. - Jeroen Bakker",
     ]
