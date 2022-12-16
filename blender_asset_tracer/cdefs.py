@@ -48,6 +48,7 @@ eModifierType_WeightVGProximity = 38
 eModifierType_Ocean = 39
 eModifierType_MeshCache = 46
 eModifierType_MeshSequenceCache = 52
+eModifierType_Fluid = 56
 eModifierType_Nodes = 57
 
 # DNA_particle_types.h

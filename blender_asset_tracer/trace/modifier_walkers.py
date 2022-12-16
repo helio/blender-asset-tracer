@@ -278,6 +278,34 @@ def modifier_smoke_sim(
     )
 
 
+@mod_handler(cdefs.eModifierType_Fluid)
+def modifier_fluid(
+    ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes
+) -> typing.Iterator[result.BlockUsage]:
+    my_log = log.getChild("modifier_fluid")
+
+    domain = modifier.get_pointer(b"domain")
+    if domain is None:
+        my_log.debug(
+            "Modifier %r (%r) has no domain", modifier[b"modifier", b"name"], block_name
+        )
+        return
+
+    # See fluid_bake_startjob() in physics_fluid.c
+    path = domain[b"cache_directory"]
+    path, field = domain.get(b"cache_directory", return_field=True)
+
+    log.info("   fluid cache at %s", path)
+    bpath = bpathlib.BlendPath(path)
+    yield result.BlockUsage(
+        domain,
+        bpath,
+        path_full_field=field,
+        is_sequence=True,
+        block_name=block_name,
+    )
+
+
 @mod_handler(cdefs.eModifierType_Cloth)
 def modifier_cloth(
     ctx: ModifierContext, modifier: blendfile.BlendFileBlock, block_name: bytes

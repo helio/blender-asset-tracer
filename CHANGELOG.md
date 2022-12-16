@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.15 (in development)
+
+- Add support for fluid simulation caches.
+
 # Version 1.14 (2022-09-12)
 
 - While tracing dependencies, call the progress callback function before opening a blend file, instead of before iterating over its contents. The opening (and loading of SDNA) takes a significant amount of time, so this will make any UI (like the Flamenco add-on) report the right filename when waiting for big files.
