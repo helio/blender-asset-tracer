@@ -19,5 +19,5 @@ echo git tag -a v$1 -m \'Tagged version $1\'
 echo
 echo "Build the package & upload to PyPi using:"
 echo "poetry build"
-echo "twine check dist/blender-asset-tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"
-echo "twine upload -r bat dist/blender-asset-tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"
+echo "twine check dist/blender_asset_tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"
+echo "twine upload -r bat dist/blender_asset_tracer-$1.tar.gz dist/blender_asset_tracer-$1-*.whl"
