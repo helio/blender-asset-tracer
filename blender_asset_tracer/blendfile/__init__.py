@@ -610,6 +610,23 @@ class BlendFileBlock:
             return value, field
         return value
 
+    def raw_data(self) -> bytes:
+        """Read low-level raw data of this datablock."""
+        self.bfile.fileobj.seek(self.file_offset, os.SEEK_SET)
+        return self.bfile.fileobj.read(self.size)
+
+    def as_string(self) -> str:
+        """Interpret the bytes of this datablock as null-terminated utf8 string."""
+        the_bytes = self.raw_data()
+        try:
+            first_null = the_bytes.index(0)
+        except ValueError:
+            pass
+        else:
+            the_bytes = the_bytes[:first_null]
+        return the_bytes.decode()
+
+
     def get_recursive_iter(
         self,
         path: dna.FieldPath,

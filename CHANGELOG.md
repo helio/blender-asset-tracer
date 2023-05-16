@@ -3,6 +3,10 @@
 This file logs the changes that are actually interesting to users (new features,
 changed functionality, fixed bugs).
 
+# Version 1.16 (in development)
+
+- Add `BlendFileBlock.raw_data()` and `.as_string()` functions. These functions interpret the data in a `BlendFileBlock` as either `bytes` or `string`. This can be used to obtain the contents of a `char*` (instead of the more common embedded `char[N]` array).
+
 # Version 1.15 (2022-12-16)
 
 - Add support for fluid simulation caches.
